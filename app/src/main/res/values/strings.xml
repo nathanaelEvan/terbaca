@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Terbaca</string>
+    <string name="placeholder_tagline">Fast, sharp, fluid PDF reader</string>
+    <string name="placeholder_status">Scaffold Initialized • Milestone 0</string>
+    <string name="placeholder_ready">Ready for PDF rendering pipeline</string>
+</resources>

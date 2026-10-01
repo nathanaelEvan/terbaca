@@ -1,0 +1,21 @@
+build:
+  maxIssues: 0
+
+style:
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: true
+
+complexity:
+  TooManyFunctions:
+    active: false
+  LongMethod:
+    threshold: 60
+  ComplexCondition:
+    threshold: 4
+
+naming:
+  FunctionNaming:
+    functionPattern: '^[a-zA-Z][a-zA-Z0-9]*$'
+    ignoreAnnotated: ['Composable']
