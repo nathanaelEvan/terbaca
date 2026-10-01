@@ -39,6 +39,15 @@ Chosen option: **Option 1 (`bblanchon/pdfium-binaries` tag `chromium/8076`)**, b
 - **Artifact SHA-256:** `b7a6919dc130dfdf7e409bd1762ed2a306408c4faee1173668837fc446217bf7`
 - **Library (`libpdfium.so`) SHA-256:** `323b0da6b7d5cbc096528d3025c8a649c606a1ca6954e83a7bf1b4ca172c658b`
 
+#### Test-only ABI: `x86_64`
+
+So instrumented tests can run on a CI emulator, the x86_64 build from the same release is also checked in at `core/pdfium/src/main/jniLibs/x86_64/`. It's only built and packaged when Gradle runs with `-Pterbaca.abis=x86_64`. By default `abiFilters` is `arm64-v8a`, so app and release APKs stay arm64-only.
+
+- **Artifact:** `pdfium-android-x64.tgz` (`https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F8076/pdfium-android-x64.tgz`)
+- **Artifact SHA-256:** `9d043689096c7cdd4ca98fff95599be115b2a38feba0c68d2a79ba5eedbda415`
+- **Library (`libpdfium.so`) SHA-256:** `4cd3161eede5ea57375be2687a75bc9c177af8a3936bbcff69ad9adac9e3902c` (6,717,384 bytes)
+- **Version / flags:** `156.0.8076.0`, identical `args.gn` except `target_cpu = "x64"`. The public headers are byte-identical to the arm64 package (ignoring line endings), and the third-party license set is the same, so the existing `THIRD_PARTY_NOTICES` covers it.
+
 ### GN Build Flags (`args.gn`)
 
 ```gn
@@ -67,6 +76,7 @@ Key configuration rationale:
 In M1-01, `libpdfium.so` (6.4 MB) is checked into `core/pdfium/src/main/jniLibs/arm64-v8a/` directly. This enables zero-configuration offline builds and eliminates network download steps during local development and CI runs.
 However, committing binary files directly into Git permanently increases repository history size with each subsequent binary upgrade. As the project progresses:
 - If PDFium version bumps are infrequent and limited to single-ABI (`arm64-v8a`), checking the binary in remains acceptable.
+- The test-only `x86_64` binary (6.7 MB) doubles the binary footprint in history. One more ABI or a version bump should trigger the move to the approach below.
 - If multiple ABIs are added or updates become frequent, we will transition to an automated Gradle task downloading verified artifacts by SHA-256 checksum or configure Git LFS.
 
 ### License Audit
