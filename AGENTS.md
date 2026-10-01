@@ -1,84 +1,65 @@
 # Agent Rules — Terbaca
 
 These rules apply to every task you (the executing agent) run from `docs/PRD.md` §8.
-`docs/PRD.md` is the source of truth. These rules add to PRD §0; if they ever conflict, PRD §0 wins.
+`docs/PRD.md` is the source of truth. If these rules ever conflict with PRD §0, PRD §0 wins.
 
-You are an autonomous execution agent. Complete each task end-to-end with no unnecessary interruptions — but within the PR/review process defined in PRD §0.2.
+You work through a whole milestone on your own: task after task, merging each one when CI is green. The owner reviews **once per milestone**, plus right away for the risky tasks listed in §3.
 
 ---
 
-## 1. Mandatory task checklist
+## 1. Per-task loop
 
-- Before taking any action on a task, write an explicit, numbered checklist covering everything the task needs. Derive it from the task line in PRD §8 **and** every PRD section it touches (cite them, e.g. "§4.1, F-OPEN-3").
-- Every checklist always ends with these closing items:
-  1. Tests that actually exercise the new code (see §6)
-  2. `./gradlew test`, `./gradlew detekt`, `./gradlew lintDebug`, `./gradlew assembleDebug` — all green locally
-  3. ADR written, if the task says "ADR required"
-  4. Self-review of the full diff (`git diff main...HEAD`)
-  5. Branch pushed, PR opened with the complete template (PRD §0.3)
-  6. CI green on the latest commit
-- Status markers: `[ ]` pending, `[>]` in progress, `[x]` done, `[!]` blocked, `[~]` done but **not verified** (say why).
-- Show the updated checklist every time you report progress.
-- An item is `[x]` only with evidence: the command you ran and its result, or the file/output that proves it. "It compiles" or "it should work" is not evidence that the feature works.
+For each task in the milestone, in order:
 
-## 2. No standalone progress stops
+1. Branch from an up-to-date `main`: `<type>/<task-id>-<slug>`.
+2. Before writing code, write a short checklist of what the task needs, from the PRD §8 line and the sections it touches. Keep it for yourself; you don't need to post it.
+3. Implement it, with tests that actually run the new code (§4).
+4. Run the local gates: `./gradlew test detekt lintDebug assembleDebug`.
+5. Open the PR with the template (PRD §0.3). Keep it short, but always fill in **"Not verified"**.
+6. Watch CI: `gh pr checks <pr> --watch`. If it fails, read the logs (`gh run view <id> --log-failed`), fix it with a new commit, and watch again.
+7. Once CI is green, and unless the task is risky (§3), merge it: `gh pr merge <pr> --squash`. `main` is protected, so GitHub refuses the merge while required checks are failing.
+8. Pull `main` and start the next task.
 
-- Never end your turn just to summarize progress, announce your next step, or ask for passive approval ("shall I continue?").
-- If you want to post a status note, put it in the same response as your next tool call.
-- While any checklist item is open and not blocked, every turn must make progress with a tool call.
+Don't stop to report between normal tasks. Keep going until the milestone is finished, a risky task needs review, or you are blocked (§2).
 
-## 3. Background jobs and monitoring
+## 2. When to stop and ask the owner
 
-- Gradle builds, CI runs, emulator/device runs and other long jobs must be tracked until they finish. Never assume they succeeded.
-- CI: watch with `gh pr checks <pr> --watch` (or `gh run watch <run-id>`). On failure, read the logs (`gh run view <run-id> --log-failed`), fix the cause, push a **new commit**, and watch again.
-- If a job hangs or runs far longer than expected, find the bottleneck (logs, daemon status, network) and retry or work around it. Do not silently end the turn.
+Stop only when:
+- a. The task needs credentials, secrets, a paid service, a new Android permission, or a dependency whose license is not permissive or not clear.
+- b. The next step is destructive or hard to undo: force-push, rewriting history, deleting branches or files you did not create, pushing directly to `main`, changing repo settings.
+- c. You believe a PRD requirement is wrong. Open a PR that edits `docs/PRD.md` with your reasoning, and skip to the next task that doesn't depend on it.
 
-## 4. Loop until the task is done — and what "done" means here
+Fix everything else yourself (build errors, failing tests, lint, CI failures, missing tools you can install).
 
-A task is **done** when all of these are true:
-- every checklist item is `[x]`, or `[~]` with the reason written in both the PR and your report;
-- the branch is pushed, following `<type>/<task-id>-<slug>`;
-- the PR is open, the template is fully filled in, and the diff is under ~1000 changed lines excluding generated/vendored files (otherwise split it into `a/b/c` PRs);
-- CI is green on the latest commit.
+## 3. Risky tasks: open the PR, don't merge, ask for review
 
-Then **merge or stop and report** (PRD §0.2):
-- You may squash-merge your own PR (`gh pr merge <pr> --squash`) once the PRD §0.2 merge conditions hold: CI green on the latest commit, local gates green, template complete with anything unverified stated, and no unresolved review comments or "changes requested" reviews.
-- If the owner asked to review first, or the PR has open review threads, stop and report "PR open, awaiting review" instead.
-- Mark a task done in the milestone list only after its PR is merged.
-- Do not start the next task on top of an unmerged branch. Start it from an up-to-date `main` after the merge, or from `main` (not the open PR) if the owner explicitly allows parallel work.
+Don't merge a PR yourself, and ask the owner for a review, when it:
+- adds or changes native/C++/JNI code, or its memory or thread handling;
+- touches security: file access, permissions, passwords or encryption, IPC/Binder interfaces;
+- adds a new third-party dependency or binary;
+- includes an ADR (an architecture decision).
 
-The only valid reasons to stop **before** a task is done:
-- a. The task needs credentials, secrets, a paid service, a new Android permission, or a dependency whose license is not permissive or not clear (PRD §0.2).
-- b. The next step is destructive or hard to undo: force-push, rewriting history, deleting branches/files you did not create, pushing to `main`, changing repo settings.
-- c. You believe a PRD requirement is wrong. Open a PR that edits `docs/PRD.md` with your reasoning, then stop work on the affected task (PRD §0.2).
+While that PR waits, carry on with the next task that doesn't depend on it, branching from `main`.
 
-For anything else (build errors, failing tests, lint, CI failures, missing tools you can install), fix it yourself and keep going.
+## 4. Verification standards
 
-## 5. Review rounds
+- **Native code must be run by a test.** Instrumented tests (`src/androidTest`) with small PDF fixtures. CI runs them on an x86_64 emulator.
+- Be clear about the difference between **verified** (you ran it and saw the result) and **implemented** (written, not run). Never describe the second as the first. Anything not verified goes under "Not verified" in the PR.
+- **Third-party binaries/code:** record the source URL, version and SHA-256, and ship the required license notices.
+- **ADRs:** use repo-relative links. Status stays `proposed` until the owner or reviewer approves it, at the latest at the milestone review. List only people who were actually involved.
 
-When the owner relays review comments:
-1. Turn every comment into a checklist item.
-2. Address each one with **new commits**. Never force-push after review has started.
-3. Reply to each comment with what changed and the commit SHA (`gh pr comment` or a reply on the review thread).
-4. Re-run the local gates, wait for CI to go green, then report with the updated checklist.
+## 5. Milestone review
 
-If you disagree with a comment, reply with your reasoning instead of silently ignoring it.
+When every task in the milestone is merged (or waiting on review under §3):
+1. Post one milestone report to the owner (§6).
+2. The owner has Claude review the whole milestone (`git diff <milestone-start>..main`).
+3. Fix the findings in follow-up PRs (`fix/<milestone>-review-<slug>`), using the same loop as §1.
+4. If you disagree with a finding, say why instead of silently ignoring it.
 
-## 6. Verification standards
+## 6. Report format
 
-- **Native/JNI code must be executed by a test.** Exception-mapping unit tests or checking APK packaging do not prove that open/render/close works. Add instrumented tests (`src/androidTest`) using small PDF fixtures (valid, password-protected, corrupt, empty). If you cannot run them (no device/emulator), mark the item `[~]` and say so plainly in the PR and your report.
-- Be clear about the difference between "verified" (ran it and saw the result) and "implemented" (written, not run). Never describe the second as the first.
-- **Third-party binaries/code:** record the source URL, version, and SHA-256 of the downloaded artifact, and ship the required license notices (e.g. `LICENSE`/`NOTICE` for PDFium and its bundled third-party libraries).
-- **ADRs:**
-  - Use repo-relative links (`../PRD.md#41-engine`), never local `file:///` paths.
-  - Status stays `proposed` until the reviewer approves.
-  - List only people who were actually involved as deciders or consulted.
-
-## 7. Final report format
-
-At the end of every task or review round, report:
-1. The final checklist with statuses
-2. The PR link and the CI run link with its result
-3. What was **not** verified, and why
-4. Open risks and follow-ups
-5. Current status: e.g. "M1-02 — PR #2 open, awaiting review"
+Keep it short. Use this format only at the end of a milestone, or when you stop under §2 or §3:
+1. **Done:** tasks merged, with PR links.
+2. **Waiting:** PRs open for review, and why.
+3. **Not verified:** anything that wasn't run, and why.
+4. **Risks / follow-ups:** a short list.
