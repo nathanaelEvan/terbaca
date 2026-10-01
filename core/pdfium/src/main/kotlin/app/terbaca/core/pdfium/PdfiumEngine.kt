@@ -27,9 +27,13 @@ class PdfiumEngine {
     fun openDocument(fd: Int, password: String? = null): PdfiumDocument {
         initialize()
         require(fd >= 0) { "File descriptor must be non-negative: $fd" }
-        val docPtr = PdfiumNative.nativeOpenDocument(fd, password)
+        val passwordBytes = password?.let {
+            it.toByteArray(Charsets.UTF_8) + 0.toByte()
+        }
+        val outError = IntArray(1)
+        val docPtr = PdfiumNative.nativeOpenDocument(fd, passwordBytes, outError)
         if (docPtr == 0L) {
-            val errCode = PdfiumNative.nativeGetLastError()
+            val errCode = outError[0]
             throw PdfiumException.fromErrorCode(errCode, "Failed to open PDF from file descriptor $fd")
         }
         return PdfiumDocument(docPtr)

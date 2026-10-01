@@ -129,15 +129,24 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeOpenDocument(
         JNIEnv* env,
         jclass /* clazz */,
         jint fd,
-        jstring password) {
+        jbyteArray passwordBytes,
+        jintArray outError) {
+    auto set_error = [&](jint err_code) {
+        if (outError != nullptr) {
+            env->SetIntArrayRegion(outError, 0, 1, &err_code);
+        }
+    };
+
     if (fd < 0) {
         LOGE("Invalid file descriptor: %d", fd);
+        set_error(2); // FPDF_ERR_FILE
         return 0;
     }
 
     int dup_fd = dup(fd);
     if (dup_fd < 0) {
         LOGE("Failed to dup file descriptor %d: %s", fd, strerror(errno));
+        set_error(2); // FPDF_ERR_FILE
         return 0;
     }
     fcntl(dup_fd, F_SETFD, FD_CLOEXEC);
@@ -146,12 +155,14 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeOpenDocument(
     if (fstat(dup_fd, &st) != 0) {
         LOGE("fstat failed on dup fd %d: %s", dup_fd, strerror(errno));
         close(dup_fd);
+        set_error(2); // FPDF_ERR_FILE
         return 0;
     }
 
     if (st.st_size <= 0) {
         LOGE("File descriptor %d is empty (size=%ld)", dup_fd, static_cast<long>(st.st_size));
         close(dup_fd);
+        set_error(3); // FPDF_ERR_FORMAT
         return 0;
     }
 
@@ -165,27 +176,34 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeOpenDocument(
     doc_handle->file_access.m_Param = &doc_handle->ctx;
 
     const char* c_password = nullptr;
-    if (password != nullptr) {
-        c_password = env->GetStringUTFChars(password, nullptr);
+    jbyte* password_elements = nullptr;
+    if (passwordBytes != nullptr) {
+        password_elements = env->GetByteArrayElements(passwordBytes, nullptr);
+        c_password = reinterpret_cast<const char*>(password_elements);
     }
 
+    unsigned long last_err = 0;
     {
         PthreadGuard lock(s_pdfium_mutex);
         doc_handle->doc = FPDF_LoadCustomDocument(&doc_handle->file_access, c_password);
+        if (!doc_handle->doc) {
+            last_err = FPDF_GetLastError();
+        }
     }
 
-    if (c_password != nullptr) {
-        env->ReleaseStringUTFChars(password, c_password);
+    if (password_elements != nullptr) {
+        env->ReleaseByteArrayElements(passwordBytes, password_elements, JNI_ABORT);
     }
 
     if (!doc_handle->doc) {
-        unsigned long last_err = FPDF_GetLastError();
         LOGE("FPDF_LoadCustomDocument failed with error code: %lu", last_err);
         close(doc_handle->dup_fd);
         delete doc_handle;
+        set_error(static_cast<jint>(last_err));
         return 0;
     }
 
+    set_error(0); // FPDF_ERR_SUCCESS
     LOGI("PDFium document opened: fd=%d, size=%zu bytes, handle=%p",
          dup_fd, doc_handle->ctx.file_len, doc_handle);
     return reinterpret_cast<jlong>(doc_handle);
