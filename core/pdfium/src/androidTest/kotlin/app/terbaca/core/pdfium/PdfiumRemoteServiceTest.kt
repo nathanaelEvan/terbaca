@@ -78,19 +78,19 @@ class PdfiumRemoteServiceTest {
 
     @Test
     fun testRemoteRenderService_passwordProtectedDocument() {
-        runBlocking {
-            val file = copyAssetToTempFile("fixtures/password_protected.pdf")
+        val file = copyAssetToTempFile("fixtures/password_protected.pdf")
 
-            // Without password
-            val pfdNoPass = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-            assertThrows(PdfPasswordException::class.java) {
-                runBlocking {
-                    renderer.openDocument(pfdNoPass)
-                }
+        // Without password
+        val pfdNoPass = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        assertThrows(PdfPasswordException::class.java) {
+            runBlocking {
+                renderer.openDocument(pfdNoPass)
             }
+        }
 
-            // With correct password
-            val pfdPass = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        // With correct password
+        val pfdPass = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        runBlocking {
             val handle = renderer.openDocument(pfdPass, password = "secret123")
             assertTrue(handle > 0L)
             assertEquals(1, renderer.getPageCount(handle))
@@ -100,14 +100,12 @@ class PdfiumRemoteServiceTest {
 
     @Test
     fun testRemoteRenderService_corruptDocument() {
-        runBlocking {
-            val file = copyAssetToTempFile("fixtures/corrupt.pdf")
-            val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        val file = copyAssetToTempFile("fixtures/corrupt.pdf")
+        val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
 
-            assertThrows(PdfCorruptException::class.java) {
-                runBlocking {
-                    renderer.openDocument(pfd)
-                }
+        assertThrows(PdfCorruptException::class.java) {
+            runBlocking {
+                renderer.openDocument(pfd)
             }
         }
     }

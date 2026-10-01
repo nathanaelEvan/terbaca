@@ -23,27 +23,31 @@ class PdfiumRenderService : Service() {
             priority = Thread.NORM_PRIORITY + 1
         }
     }
+    
+    private fun <T> java.util.concurrent.Future<T>.getUnwrapped(): T {
+        try {
+            return get()
+        } catch (e: java.util.concurrent.ExecutionException) {
+            when (val cause = e.cause) {
+                is PdfPasswordException -> throw SecurityException("PASSWORD_REQUIRED: ${cause.message}", cause)
+                is PdfCorruptException -> throw IllegalArgumentException("CORRUPT_FORMAT: ${cause.message}", cause)
+                is PdfFileException -> throw IllegalArgumentException("FILE_ERROR: ${cause.message}", cause)
+                is RuntimeException -> throw cause
+                else -> throw IllegalStateException("Operation failed: ${cause?.message}", cause)
+            }
+        }
+    }
 
     private val binder = object : IPdfiumRenderService.Stub() {
         override fun openDocument(pfd: ParcelFileDescriptor?, password: String?): Long {
             requireNotNull(pfd) { "ParcelFileDescriptor must not be null" }
             return renderExecutor.submit<Long> {
                 val fd = pfd.detachFd()
-                try {
-                    val doc = PdfiumEngine.openDocument(fd, password)
-                    val handle = nextHandle.getAndIncrement()
-                    activeDocuments[handle] = doc
-                    handle
-                } catch (e: PdfPasswordException) {
-                    throw SecurityException("PASSWORD_REQUIRED: ${e.message}", e)
-                } catch (e: PdfCorruptException) {
-                    throw IllegalArgumentException("CORRUPT_FORMAT: ${e.message}", e)
-                } catch (e: PdfFileException) {
-                    throw IllegalArgumentException("FILE_ERROR: ${e.message}", e)
-                } catch (e: Throwable) {
-                    throw IllegalStateException("Failed to open document: ${e.message}", e)
-                }
-            }.get()
+                val doc = PdfiumEngine.openDocument(fd, password)
+                val handle = nextHandle.getAndIncrement()
+                activeDocuments[handle] = doc
+                handle
+            }.getUnwrapped()
         }
 
         override fun getPageCount(docHandle: Long): Int {
@@ -51,7 +55,7 @@ class PdfiumRenderService : Service() {
                 val doc = activeDocuments[docHandle]
                     ?: throw IllegalArgumentException("Unknown document handle: $docHandle")
                 doc.pageCount
-            }.get()
+            }.getUnwrapped()
         }
 
         override fun getPageSize(docHandle: Long, pageIndex: Int): FloatArray {
@@ -60,14 +64,14 @@ class PdfiumRenderService : Service() {
                     ?: throw IllegalArgumentException("Unknown document handle: $docHandle")
                 val size = doc.getPageSize(pageIndex)
                 floatArrayOf(size.widthPoints, size.heightPoints)
-            }.get()
+            }.getUnwrapped()
         }
 
         override fun closeDocument(docHandle: Long) {
             renderExecutor.submit {
                 val doc = activeDocuments.remove(docHandle)
                 doc?.close()
-            }.get()
+            }.getUnwrapped()
         }
 
         override fun getOpenDocumentCount(): Int {
