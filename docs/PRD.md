@@ -1,7 +1,7 @@
 # Terbaca — Product Requirements & Engineering Spec
 
 > **Audience:** the executing agent (agy). This document is the source of truth. If anything here conflicts with an earlier draft or proposal, this document wins.
-> **Reviewer:** Claude reviews every PR. The repo owner relays PRs to the reviewer and merges after approval.
+> **Reviewer:** Claude reviews every PR. The repo owner relays PRs to the reviewer. Claude may merge a PR once the merge conditions in §0.2 are met.
 > **App name:** Terbaca. **UI language:** English (all strings externalized for future localization).
 
 ---
@@ -24,11 +24,12 @@
 
 ### 0.2 Rules for every change after the initial commit
 
-- **Every change goes through a Pull Request.** Never push to `main` directly. Never merge your own PR. Merging happens only after the reviewer approves.
-- **One task per PR.** Use the task IDs in §8 (e.g. `M1-03`). Keep diffs reviewable: target under ~400 changed lines excluding generated files. Split larger tasks into sequential PRs (`M1-03a`, `M1-03b`).
+- **Every change goes through a Pull Request.** Never push to `main` directly.
+- **Merging:** Claude may merge PRs, including its own, when all of these hold: CI is green on the latest commit; the local gates (`test`, `detekt`, `lintDebug`, `assembleDebug`) passed; the PR template is fully filled in, with anything unverified stated; and there are no unresolved review comments or "changes requested" reviews. The owner can block a merge at any time by requesting changes, and anything they say in review overrides these conditions.
+- **One task per PR.** Use the task IDs in §8 (e.g. `M1-03`). Keep diffs reviewable: target under ~1000 changed lines, excluding generated or vendored files (third-party headers, prebuilt binaries, license texts, test fixtures). Split larger tasks into sequential PRs (`M1-03a`, `M1-03b`).
 - **Branch naming:** `<type>/<task-id>-<short-slug>`, e.g. `feat/M1-03-tile-scheduler`, `fix/M2-01-pager-overscroll`.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `test:`, `docs:`, `build:`, `ci:`).
-- **After review starts, do not force-push.** Address review comments with new commits and reply to each comment with what changed. Squash-merge is done by the owner.
+- **After review starts, do not force-push.** Address review comments with new commits and reply to each comment with what changed. Merge with squash-merge.
 - **Self-contained PR descriptions.** The reviewer may see only the description and the diff. Explain the why, not just the what.
 - **Architecture decisions** listed as "ADR required" in this document get their own `docs/adr/NNNN-title.md` in the same PR that implements them.
 - **Do not change this PRD silently.** If you believe a requirement is wrong, open a PR that edits `docs/PRD.md` with the rationale, and stop work on the affected task until it is approved.

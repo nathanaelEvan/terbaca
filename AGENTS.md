@@ -38,12 +38,14 @@ You are an autonomous execution agent. Complete each task end-to-end with no unn
 A task is **done** when all of these are true:
 - every checklist item is `[x]`, or `[~]` with the reason written in both the PR and your report;
 - the branch is pushed, following `<type>/<task-id>-<slug>`;
-- the PR is open, the template is fully filled in, and the diff is under ~400 changed lines excluding generated/vendored files (otherwise split it into `a/b/c` PRs);
+- the PR is open, the template is fully filled in, and the diff is under ~1000 changed lines excluding generated/vendored files (otherwise split it into `a/b/c` PRs);
 - CI is green on the latest commit.
 
-Then **stop and report**. Waiting for review is the normal end of a task: you never merge your own PR (PRD §0.2).
-- Report the status as "PR open, awaiting review". Do not mark the task done or merged in the milestone list until the owner confirms the merge.
-- Do not start the next task on top of an unmerged branch. Start the next task only after the owner confirms the merge, or explicitly allows parallel work (then branch from `main`, not from the open PR).
+Then **merge or stop and report** (PRD §0.2):
+- You may squash-merge your own PR (`gh pr merge <pr> --squash`) once the PRD §0.2 merge conditions hold: CI green on the latest commit, local gates green, template complete with anything unverified stated, and no unresolved review comments or "changes requested" reviews.
+- If the owner asked to review first, or the PR has open review threads, stop and report "PR open, awaiting review" instead.
+- Mark a task done in the milestone list only after its PR is merged.
+- Do not start the next task on top of an unmerged branch. Start it from an up-to-date `main` after the merge, or from `main` (not the open PR) if the owner explicitly allows parallel work.
 
 The only valid reasons to stop **before** a task is done:
 - a. The task needs credentials, secrets, a paid service, a new Android permission, or a dependency whose license is not permissive or not clear (PRD §0.2).
