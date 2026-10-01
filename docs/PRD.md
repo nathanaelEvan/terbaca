@@ -1,7 +1,7 @@
 # Terbaca — Product Requirements & Engineering Spec
 
 > **Audience:** the executing agent (agy). This document is the source of truth. If anything here conflicts with an earlier draft or proposal, this document wins.
-> **Reviewer:** Claude reviews every PR. The repo owner relays PRs to the reviewer and merges after approval.
+> **Reviewer:** Claude reviews each milestone as a whole, and reviews risky PRs (see §0.2) as they come. The executing agent merges routine PRs itself once CI is green.
 > **App name:** Terbaca. **UI language:** English (all strings externalized for future localization).
 
 ---
@@ -24,14 +24,17 @@
 
 ### 0.2 Rules for every change after the initial commit
 
-- **Every change goes through a Pull Request.** Never push to `main` directly. Never merge your own PR. Merging happens only after the reviewer approves.
-- **One task per PR.** Use the task IDs in §8 (e.g. `M1-03`). Keep diffs reviewable: target under ~400 changed lines excluding generated files. Split larger tasks into sequential PRs (`M1-03a`, `M1-03b`).
+- **Every change goes through a Pull Request.** Never push to `main` directly.
+- **Merging:** The executing agent (or Claude) merges its own routine PRs (`gh pr merge --squash`) once CI is green on the latest commit. Before that, the local gates (`test`, `detekt`, `lintDebug`, `assembleDebug`) must pass and the PR must state anything not verified. The owner can block a merge at any time by requesting changes.
+- **Risky PRs wait for review:** PRs that add or change native/C++/JNI code, touch security (file access, permissions, passwords or encryption, IPC), add a third-party dependency or binary, or include an ADR are not self-merged. They wait for review while the agent carries on with independent tasks.
+- **Milestone review:** At the end of each milestone, Claude reviews the whole milestone's diff at once. Findings are fixed in follow-up PRs.
+- **One task per PR.** Use the task IDs in §8 (e.g. `M1-03`). Keep diffs reviewable: target under ~1000 changed lines, excluding generated or vendored files (third-party headers, prebuilt binaries, license texts, test fixtures). Split larger tasks into sequential PRs (`M1-03a`, `M1-03b`).
 - **Branch naming:** `<type>/<task-id>-<short-slug>`, e.g. `feat/M1-03-tile-scheduler`, `fix/M2-01-pager-overscroll`.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `perf:`, `refactor:`, `test:`, `docs:`, `build:`, `ci:`).
-- **After review starts, do not force-push.** Address review comments with new commits and reply to each comment with what changed. Squash-merge is done by the owner.
+- **Never force-push a PR branch.** Address review findings with new commits. Merge with squash-merge.
 - **Self-contained PR descriptions.** The reviewer may see only the description and the diff. Explain the why, not just the what.
 - **Architecture decisions** listed as "ADR required" in this document get their own `docs/adr/NNNN-title.md` in the same PR that implements them.
-- **Do not change this PRD silently.** If you believe a requirement is wrong, open a PR that edits `docs/PRD.md` with the rationale, and stop work on the affected task until it is approved.
+- **Do not change this PRD silently.** If you believe a requirement is wrong, open a PR that edits `docs/PRD.md` with the rationale (never self-merged), and move on to tasks that don't depend on it.
 - **Stop and ask the owner** instead of guessing whenever a task needs credentials, a paid service, a new permission, or a dependency with a non-permissive license (GPL/AGPL/LGPL, or anything unclear).
 
 ### 0.3 PR template (`.github/pull_request_template.md`)
