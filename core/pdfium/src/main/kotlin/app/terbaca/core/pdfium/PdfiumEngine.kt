@@ -1,16 +1,25 @@
 package app.terbaca.core.pdfium
 
 import android.os.ParcelFileDescriptor
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Native engine interface for PDFium initialization and document lifecycle.
- * Ensures thread-safe access and positional pread I/O over file descriptors.
+ * Singleton native engine interface for PDFium initialization and document lifecycle.
+ *
+ * Concurrency & Architecture (PRD §4.2):
+ * PDFium maintains process-global state and is strictly non-thread-safe.
+ * [PdfiumEngine] is a singleton object that manages the library lifecycle,
+ * tracks open documents, and prevents library destruction while documents are active.
  */
-class PdfiumEngine {
+object PdfiumEngine {
 
     private val isInitialized = AtomicBoolean(false)
+    private val openDocuments: MutableSet<PdfiumDocument> =
+        Collections.newSetFromMap(ConcurrentHashMap<PdfiumDocument, Boolean>())
 
+    @Synchronized
     fun initialize() {
         if (isInitialized.compareAndSet(false, true)) {
             PdfiumNative.ensureLoaded()
@@ -18,7 +27,11 @@ class PdfiumEngine {
         }
     }
 
+    @Synchronized
     fun destroy() {
+        check(openDocuments.isEmpty()) {
+            "Cannot destroy PdfiumEngine while ${openDocuments.size} document(s) are still open"
+        }
         if (isInitialized.compareAndSet(true, false)) {
             PdfiumNative.nativeDestroyLibrary()
         }
@@ -36,10 +49,17 @@ class PdfiumEngine {
             val errCode = outError[0]
             throw PdfiumException.fromErrorCode(errCode, "Failed to open PDF from file descriptor $fd")
         }
-        return PdfiumDocument(docPtr)
+        val doc = PdfiumDocument(docPtr) { closedDoc ->
+            openDocuments.remove(closedDoc)
+        }
+        openDocuments.add(doc)
+        return doc
     }
 
     fun openDocument(pfd: ParcelFileDescriptor, password: String? = null): PdfiumDocument {
         return openDocument(pfd.fd, password)
     }
+
+    val openDocumentCount: Int
+        get() = openDocuments.size
 }
