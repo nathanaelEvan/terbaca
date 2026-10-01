@@ -12,6 +12,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class PdfiumNativeExecutionTest {
@@ -142,5 +144,42 @@ class PdfiumNativeExecutionTest {
             doc1.close()
             assertEquals(0, PdfiumEngine.openDocumentCount)
         }
+    }
+
+    @Test
+    fun testConcurrentDestroyNeverInvalidatesOpenedDocument() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        val failure = AtomicReference<Throwable>()
+        val start = CountDownLatch(1)
+        val destroyer = Thread {
+            start.await()
+            repeat(STRESS_ITERATIONS) {
+                try {
+                    PdfiumEngine.destroy()
+                } catch (_: IllegalStateException) {
+                    // Expected while a document is open.
+                }
+            }
+        }
+        destroyer.start()
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            start.countDown()
+            try {
+                repeat(STRESS_ITERATIONS) {
+                    PdfiumEngine.openDocument(pfd).use { doc ->
+                        assertEquals(2, doc.pageCount)
+                    }
+                }
+            } catch (t: Throwable) {
+                failure.set(t)
+            }
+        }
+        destroyer.join()
+        failure.get()?.let { throw it }
+        assertEquals(0, PdfiumEngine.openDocumentCount)
+    }
+
+    private companion object {
+        const val STRESS_ITERATIONS = 200
     }
 }

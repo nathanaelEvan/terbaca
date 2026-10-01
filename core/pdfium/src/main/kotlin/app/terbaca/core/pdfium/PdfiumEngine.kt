@@ -37,6 +37,11 @@ object PdfiumEngine {
         }
     }
 
+    /**
+     * Synchronized with [initialize] and [destroy] so the library cannot be torn down
+     * between the native open and registration in [openDocuments].
+     */
+    @Synchronized
     fun openDocument(fd: Int, password: String? = null): PdfiumDocument {
         initialize()
         require(fd >= 0) { "File descriptor must be non-negative: $fd" }

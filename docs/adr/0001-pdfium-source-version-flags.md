@@ -1,8 +1,9 @@
 # ADR 0001: PDFium Binary Source, Version, and Build Flags
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-02, by the repo owner)
 - **Date:** 2026-10-02
 - **Deciders:** Antigravity (executing agent), repo owner
+- **Consulted:** Claude (PR reviewer)
 - **Informed:** Terbaca project contributors
 
 ## Context and Problem Statement
