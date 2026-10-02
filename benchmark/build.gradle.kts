@@ -17,6 +17,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    buildTypes {
+        // Pairs with the non-debuggable :app "benchmark" build type (PRD §7: release build).
+        create("benchmark") {
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
+    }
+
     targetProjectPath = ":app"
     experimentalProperties["android.experimental.self-instrumenting"] = true
 }

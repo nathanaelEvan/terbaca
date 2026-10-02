@@ -2,16 +2,13 @@ package app.terbaca.benchmark
 
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Direction
-import androidx.test.uiautomator.Until
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Generates baseline profile rules targeting cold startup and initial document surface rendering
- * for Terbaca per PRD §4.6 and M1-10.
+ * Generates baseline profile rules for cold startup and document surface gestures
+ * (PRD §4.6, M1-10). Copy the generated file to app/src/main/baseline-prof.txt.
  */
 @RunWith(AndroidJUnit4::class)
 class BaselineProfileGenerator {
@@ -21,25 +18,12 @@ class BaselineProfileGenerator {
 
     @Test
     fun generateBaselineProfile() = baselineProfileRule.collect(
-        packageName = "app.terbaca",
+        packageName = TARGET_PACKAGE,
         includeInStartupProfile = true
     ) {
         pressHome()
         startActivityAndWait()
-
-        device.wait(Until.hasObject(By.pkg("app.terbaca")), 5_000)
-        Thread.sleep(1000)
-
-        val content = device.findObject(By.pkg("app.terbaca"))
-        content?.fling(Direction.DOWN)
-        device.waitForIdle()
-        content?.fling(Direction.UP)
-        device.waitForIdle()
-        content?.scroll(Direction.DOWN, 0.5f)
-        device.waitForIdle()
-        content?.pinchOpen(0.8f, 30)
-        device.waitForIdle()
-        content?.pinchClose(0.8f, 30)
-        device.waitForIdle()
+        Thread.sleep(1_500)
+        exerciseReader()
     }
 }

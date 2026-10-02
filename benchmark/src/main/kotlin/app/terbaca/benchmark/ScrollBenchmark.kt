@@ -4,55 +4,44 @@ import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Direction
-import androidx.test.uiautomator.Until
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
- * Macrobenchmark measuring frame timing during continuous gestures against §7 budget
- * (>= 99% of frames within 6.94 ms at 144 Hz; zero frames over 16.6 ms).
+ * Frame timing during continuous pinch/pan/fling on corpus docs 1, 3 and 5 (PRD §7, M1 exit
+ * criteria): >= 99% of frames within 6.94 ms at 144 Hz; zero frames over 16.6 ms.
  */
-@RunWith(AndroidJUnit4::class)
-class ScrollBenchmark {
+@RunWith(Parameterized::class)
+class ScrollBenchmark(private val corpusFile: String) {
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun corpus() = listOf(
+            "paper_two_column.pdf", // 1. two-column paper
+            "heavy_plot.pdf", // 3. heavy vector plot
+            "deck_16_9.pdf" // 5. 16:9 deck
+        )
+    }
 
     @get:Rule
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
-    fun scrollCompilationBaselineProfiles() = benchmarkRule.measureRepeated(
-        packageName = "app.terbaca",
+    fun gesturesBaselineProfile() = benchmarkRule.measureRepeated(
+        packageName = TARGET_PACKAGE,
         metrics = listOf(FrameTimingMetric()),
         compilationMode = CompilationMode.Partial(),
         iterations = 5,
-        startupMode = StartupMode.WARM
+        startupMode = StartupMode.WARM,
+        setupBlock = {
+            pressHome()
+            startActivityAndWait { it.putExtra(EXTRA_CORPUS_FILE, "corpus/$corpusFile") }
+            Thread.sleep(1_500) // let the first page render sharp before measuring
+        }
     ) {
-        pressHome()
-        startActivityAndWait()
-
-        device.wait(Until.hasObject(By.pkg("app.terbaca")), 5_000)
-        Thread.sleep(1000)
-
-        val content = device.findObject(By.pkg("app.terbaca"))
-        // Continuous fling up and down
-        content?.fling(Direction.DOWN)
-        device.waitForIdle()
-        content?.fling(Direction.UP)
-        device.waitForIdle()
-
-        // Pan / scroll
-        content?.scroll(Direction.DOWN, 0.5f)
-        device.waitForIdle()
-        content?.scroll(Direction.UP, 0.5f)
-        device.waitForIdle()
-
-        // Pinch zoom in and out
-        content?.pinchOpen(0.8f, 30)
-        device.waitForIdle()
-        content?.pinchClose(0.8f, 30)
-        device.waitForIdle()
+        exerciseReader()
     }
 }

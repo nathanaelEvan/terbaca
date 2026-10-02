@@ -22,10 +22,10 @@ class StartupBenchmark {
     fun startupCompilationNone() = startup(CompilationMode.None())
 
     @Test
-    fun startupCompilationBaselineProfiles() = startup(CompilationMode.Partial())
+    fun startupCompilationBaselineProfile() = startup(CompilationMode.Partial())
 
     private fun startup(compilationMode: CompilationMode) = benchmarkRule.measureRepeated(
-        packageName = "app.terbaca",
+        packageName = TARGET_PACKAGE,
         metrics = listOf(StartupTimingMetric()),
         compilationMode = compilationMode,
         iterations = 5,

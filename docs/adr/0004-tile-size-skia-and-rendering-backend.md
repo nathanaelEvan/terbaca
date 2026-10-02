@@ -77,12 +77,11 @@ PRD §4.6 defined a fallback plan:
   - Bitmaps are backed by `HardwareBuffer` wrapped directly into `Bitmap.Config.HARDWARE` (PRD §4.3, ADR 0003). Drawing these bitmaps in `Canvas.drawImage` maps directly to GPU draw quad commands in the Android RenderThread without CPU texture uploads.
   - Tile crossfade interpolation runs purely via draw phase animation timestamps (`frameClock`) with zero recomposition of the document composable tree.
 - **Benchmark Status:**
-  - Drawing hardware bitmaps with crossfade alpha blending in Compose `Canvas`: not measured yet (pending Pad 7 run).
-  - Continuous pan, pinch, and fling frame time: not measured yet (pending Pad 7 run).
+  - Continuous pinch, pan and fling on corpus docs 1, 3 and 5 was measured on the Pad 7 on 2026-10-02 (see "Measurement run" below). Frame CPU time is at the edge of the budget: 98.4–99.3% of frames within 6.94 ms, and 3.1–6.9% of frames missed the 120 Hz display deadline.
   - Compose `Canvas` provides direct integration with Compose gestures, sidebar overlay z-ordering, and Material 3 window insets without the tearing, flickering, or letterboxing synchronization bugs associated with `SurfaceView` window transitions.
 
 ### Decision Outcome
-**Adopt Compose `Canvas` as the primary rendering backend.** Defer building the complex `AndroidExternalSurface` / OpenGL ES fallback unless Pad 7 physical benchmarks fail to meet the 144 Hz frame budget.
+**Adopt Compose `Canvas` as the primary rendering backend, provisionally.** The first Pad 7 run is borderline (see below), so the decision to defer the `AndroidExternalSurface` / OpenGL ES fallback stays open until the run is repeated with R8 enabled and the display at 144 Hz.
 
 ---
 
@@ -90,17 +89,26 @@ PRD §4.6 defined a fallback plan:
 
 | Metric | Budget (§7) | Measured / Verified | Status |
 |---|---|---|---|
-| **Frame time during pinch/pan** | ≥ 99% within 6.94 ms (144 Hz); 0 frames > 16.6 ms | not measured yet (pending Pad 7 run) | Proposed |
-| **Fling scroll** | Same as above | not measured yet (pending Pad 7 run) | Proposed |
-| **Slide flip** | No frame > 6.94 ms; sharp on arrival | not measured yet (pending Pad 7 run) | Proposed |
-| **Tile sharpening latency (fit width)** | p95 ≤ 150 ms | not measured yet (pending Pad 7 run) | Proposed |
-| **Tile sharpening latency (800%)** | p95 ≤ 300 ms | not measured yet (pending Pad 7 run) | Proposed |
-| **Heavy vector page (`heavy_plot`)** | No UI jank; sharp within 1 s | not measured yet (pending Pad 7 run) | Proposed |
-| **Cold start → app launch** | ≤ 500 ms | not measured yet (pending Pad 7 run) | Proposed |
-| **Open 30-page paper → first page** | ≤ 400 ms | not measured yet (pending Pad 7 run) | Proposed |
-| **Total PSS (UI + render process)** | ≤ 250 MB (100-page doc, active zoom) | not measured yet (pending Pad 7 run) | Proposed |
-| **APK (arm64) size** | ≤ 15 MB | not measured yet (pending release build measurement) | Proposed |
-| **Crash on malformed corpus PDFs** | UI process never crashes | Verified in tests (isolated in `:render`; UI recovers automatically); device run pending | Proposed |
+| **Frame time during pinch/pan/fling** | ≥ 99% within 6.94 ms (144 Hz); 0 frames > 16.6 ms | Doc 1: 99.10% / 0 frames (2nd run); 98.45% / 2 frames (1st run). Doc 3: 99.27% / 0. Doc 5: 98.44% / 0. Missed 120 Hz deadline: 3.1% / 3.9% / 6.9% of frames | **Missed** (doc 5, and doc 1 in one of two runs) |
+| **Fling scroll through 30-page paper** | Same as above | Not measured: reader shows a single page, no multi-page scroll yet | Not measured |
+| **Slide flip** | No frame > 6.94 ms; sharp on arrival | Not measured: slide mode is M2 | Not measured |
+| **Tile sharpening latency (fit width)** | p95 ≤ 150 ms | Not measured: no metric instrumented yet | Not measured |
+| **Tile sharpening latency (800%)** | p95 ≤ 300 ms | Not measured: no metric instrumented yet | Not measured |
+| **Heavy vector page (`heavy_plot`)** | No UI jank; sharp within 1 s | Jank: see frame-time row (doc 3). Sharpness time not measured | Partly measured |
+| **Cold start → first frame** | ≤ 500 ms | timeToInitialDisplay median 572 ms (min 451, max 637) with baseline profile; 547 ms with no compilation. App opens straight into a document; there is no library screen yet | **Missed** |
+| **Open 30-page paper → first page** | ≤ 400 ms | Not measured | Not measured |
+| **Total PSS (UI + render process)** | ≤ 250 MB (100-page doc, active zoom) | Not measured | Not measured |
+| **APK (arm64) size** | ≤ 15 MB | 28.5 MB (`app-benchmark.apk`, R8 off): dex 21.3 MB, `libpdfium.so` 6.5 MB | **Missed**: enable R8 (needs keep rules for JNI and AIDL) |
+| **Crash on malformed corpus PDFs** | UI process never crashes | Verified in instrumented tests on the CI emulator (render process isolated; UI recovers). Not run on the Pad 7 | Verified on emulator only |
+
+### Measurement run (2026-10-02)
+
+- Device: Xiaomi Pad 7 (2410CRP4CG), Android 16, HyperOS OS3.0.303.0, USB powered, battery 100%.
+- Build: `:app` `benchmark` build type (release config, non-debuggable, debug-signed, **R8 off**). Command: `./gradlew :benchmark:connectedBenchmarkAndroidTest`.
+- Display ran at **120 Hz**: the app does not request 144 Hz, so "missed deadline" is measured against 8.33 ms, not 6.94 ms.
+- The baseline profile (`app/src/main/baseline-prof.txt`) is a 32-line hand-written file, not generated by `BaselineProfileGenerator`. This may explain why "baseline profile" startup was no faster than no compilation.
+- Scroll benchmark: `ScrollBenchmark`, `CompilationMode.Partial()`, warm start, 5 iterations of pinch-in, 4 pans, 2 flings, pinch-out; about 3,550 frames per document. The percentages use `frameDurationCpuMs` (UI thread + RenderThread CPU time); "missed deadline" uses `frameOverrunMs > 0`.
+- Raw output: `benchmark/build/outputs/connected_android_test_additional_output/benchmark/connected/<device>/app.terbaca.benchmark-benchmarkData.json` (not committed).
 
 ## Links
 
