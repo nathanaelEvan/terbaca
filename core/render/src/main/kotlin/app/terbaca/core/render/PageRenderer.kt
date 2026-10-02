@@ -85,7 +85,6 @@ interface PageRenderer {
         tileWidth: Int,
         tileHeight: Int
     ): Bitmap = renderTile(
-        renderId = renderId,
         docHandle = docHandle,
         pageIndex = pageIndex,
         fullWidth = fullWidth,
@@ -93,8 +92,7 @@ interface PageRenderer {
         startX = startX,
         startY = startY,
         tileWidth = tileWidth,
-        tileHeight = tileHeight,
-        cancellationToken = null
+        tileHeight = tileHeight
     )
 
     /**
@@ -113,6 +111,7 @@ interface PageRenderer {
         tileHeight: Int,
         cancellationToken: app.terbaca.core.render.scheduler.CancellationToken? = null
     ): Bitmap = renderTile(
+        renderId = renderId,
         docHandle = docHandle,
         pageIndex = pageIndex,
         fullWidth = fullWidth,

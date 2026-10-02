@@ -12,6 +12,7 @@ import android.os.SharedMemory
 import android.util.Log
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
+import app.terbaca.core.render.scheduler.CancellationToken
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -336,7 +337,8 @@ class PdfiumRemotePageRenderer(
         startY = startY,
         tileWidth = tileWidth,
         tileHeight = tileHeight,
-        forceFallback = false
+        forceFallback = false,
+        cancellationToken = null
     )
 
     override suspend fun renderTile(
@@ -359,7 +361,33 @@ class PdfiumRemotePageRenderer(
         startY = startY,
         tileWidth = tileWidth,
         tileHeight = tileHeight,
-        forceFallback = false
+        forceFallback = false,
+        cancellationToken = null
+    )
+
+    override suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int,
+        cancellationToken: CancellationToken?
+    ): Bitmap = renderTile(
+        renderId = renderId,
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        forceFallback = false,
+        cancellationToken = cancellationToken
     )
 
     suspend fun renderTile(
@@ -372,8 +400,13 @@ class PdfiumRemotePageRenderer(
         startY: Int,
         tileWidth: Int,
         tileHeight: Int,
-        forceFallback: Boolean
+        forceFallback: Boolean,
+        cancellationToken: CancellationToken? = null
     ): Bitmap = withContext(Dispatchers.IO) {
+        if (cancellationToken?.isCancelled() == true) {
+            cancelTile(renderId)
+            throw CancellationException("Render cancelled before dispatch: renderId=$renderId")
+        }
         var attempts = 0
         while (true) {
             attempts++
@@ -384,7 +417,16 @@ class PdfiumRemotePageRenderer(
                     val renderFinished = AtomicBoolean(false)
                     val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
                         try {
-                            awaitCancellation()
+                            if (cancellationToken != null) {
+                                while (!renderFinished.get() && !cancellationToken.isCancelled()) {
+                                    kotlinx.coroutines.delay(10)
+                                }
+                                if (!renderFinished.get() && cancellationToken.isCancelled()) {
+                                    cancelTile(renderId)
+                                }
+                            } else {
+                                awaitCancellation()
+                            }
                         } finally {
                             if (!renderFinished.get()) {
                                 cancelTile(renderId)
@@ -405,7 +447,7 @@ class PdfiumRemotePageRenderer(
                             forceFallback
                         ).unwrap()
                     } catch (e: PdfRenderCancelledException) {
-                        if (!currentCoroutineContext().isActive) {
+                        if (!currentCoroutineContext().isActive || cancellationToken?.isCancelled() == true) {
                             throw CancellationException("Render cancelled: renderId=$renderId", e)
                         }
                         throw e

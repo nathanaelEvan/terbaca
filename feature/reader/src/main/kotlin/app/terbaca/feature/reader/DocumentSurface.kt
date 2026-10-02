@@ -46,11 +46,13 @@ import app.terbaca.core.render.pyramid.TilePyramid
 import app.terbaca.core.render.scheduler.RenderScheduler
 import app.terbaca.core.render.scheduler.TileLayerType
 import app.terbaca.core.render.scheduler.TilePriority
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 
 const val MAX_TILES_SWAPPED_PER_FRAME = 4
@@ -110,9 +112,22 @@ fun DocumentSurface(
 
     val lastSize = remember { IntSizeRef() }
     val underlayLevel = remember { LevelRef() }
+    val viewportGeneration = remember { AtomicLong(0L) }
 
     val sizeModifier = Modifier.onSizeChanged { size ->
-        handleSizeChanged(size, lastSize, tileCache, tileFadeStartTimes, pendingTileArrivals, scheduler, underlayLevel, state)
+        handleSizeChanged(
+            size = size,
+            lastSize = lastSize,
+            tileCache = tileCache,
+            tileFadeStartTimes = tileFadeStartTimes,
+            pendingTileArrivals = pendingTileArrivals,
+            scheduler = scheduler,
+            underlayLevel = underlayLevel,
+            state = state,
+            inFlightTiles = inFlightTiles,
+            isBaseLayerInFlight = isBaseLayerInFlight,
+            viewportGeneration = viewportGeneration
+        )
     }
     val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay)
 
@@ -129,7 +144,8 @@ fun DocumentSurface(
         underlayLevel = underlayLevel,
         tileArrivals = tileArrivals,
         reloadTrigger = reloadTrigger,
-        coroutineScope = coroutineScope
+        coroutineScope = coroutineScope,
+        viewportGeneration = viewportGeneration
     )
 
     Box(
@@ -207,16 +223,23 @@ private fun handleSizeChanged(
     pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
     scheduler: RenderScheduler<Bitmap>?,
     underlayLevel: LevelRef,
-    state: DocumentTransformState
+    state: DocumentTransformState,
+    inFlightTiles: HashSet<TileKey>,
+    isBaseLayerInFlight: AtomicBoolean,
+    viewportGeneration: AtomicLong
 ) {
     if (size.width > 0 && size.height > 0) {
         if (lastSize.width != 0 && lastSize.height != 0 &&
             (lastSize.width != size.width || lastSize.height != size.height)
         ) {
+            viewportGeneration.incrementAndGet()
             tileCache.clear()
             tileFadeStartTimes.clear()
+            pendingTileArrivals.forEach { (_, bmp) -> if (!bmp.isRecycled) bmp.recycle() }
             pendingTileArrivals.clear()
             scheduler?.cancelAll()
+            inFlightTiles.clear()
+            isBaseLayerInFlight.set(false)
             underlayLevel.level = null
         }
         lastSize.width = size.width
@@ -365,7 +388,8 @@ private fun DocumentTileCollector(
     underlayLevel: LevelRef,
     tileArrivals: androidx.compose.runtime.MutableIntState,
     reloadTrigger: androidx.compose.runtime.MutableIntState,
-    coroutineScope: CoroutineScope
+    coroutineScope: CoroutineScope,
+    viewportGeneration: AtomicLong
 ) {
     LaunchedEffect(state, renderer, docHandle) {
         if (renderer == null || docHandle == 0L || scheduler == null) return@LaunchedEffect
@@ -387,7 +411,8 @@ private fun DocumentTileCollector(
                 scheduler = scheduler,
                 coroutineScope = coroutineScope,
                 pendingTileArrivals = pendingTileArrivals,
-                tileArrivals = tileArrivals
+                tileArrivals = tileArrivals,
+                viewportGeneration = viewportGeneration
             )
 
             val levels = TilePyramid.buildLevels(pageInfo, state.viewportWidth, state.viewportHeight)
@@ -415,7 +440,8 @@ private fun DocumentTileCollector(
                 pendingTileArrivals = pendingTileArrivals,
                 tileArrivals = tileArrivals,
                 state = state,
-                scale = scale
+                scale = scale,
+                viewportGeneration = viewportGeneration
             )
         }
     }
@@ -431,20 +457,30 @@ private fun enqueueBaseLayerIfNeeded(
     scheduler: RenderScheduler<Bitmap>,
     coroutineScope: CoroutineScope,
     pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
-    tileArrivals: androidx.compose.runtime.MutableIntState
+    tileArrivals: androidx.compose.runtime.MutableIntState,
+    viewportGeneration: AtomicLong
 ) {
     val baseBounds = TilePyramid.computeBaseLevelBounds(pageInfo, fitWidthScale)
     if (baseBounds.pixelWidth > 0 && baseBounds.pixelHeight > 0 &&
         tileCache.get(baseKey) == null &&
         isBaseLayerInFlight.compareAndSet(false, true)
     ) {
+        val currentGen = viewportGeneration.get()
         val deferred = scheduler.enqueue(baseBounds, TilePriority(TileLayerType.VISIBLE_BASE))
         coroutineScope.launch {
+            var bmp: Bitmap? = null
             try {
-                val bmp = deferred.await()
+                bmp = deferred.await()
+                if (viewportGeneration.get() != currentGen) {
+                    if (!bmp.isRecycled) bmp.recycle()
+                    return@launch
+                }
                 pendingTileArrivals.add(baseKey to bmp)
                 tileArrivals.intValue++
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                if (e is CancellationException) {
+                    bmp?.let { if (!it.isRecycled) it.recycle() }
+                }
                 // Retried on next viewport update
             } finally {
                 isBaseLayerInFlight.set(false)
@@ -463,7 +499,8 @@ private fun enqueueVisibleTiles(
     pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
     tileArrivals: androidx.compose.runtime.MutableIntState,
     state: DocumentTransformState,
-    scale: Float
+    scale: Float,
+    viewportGeneration: AtomicLong
 ) {
     val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
     for (tile in visibleTiles) {
@@ -474,13 +511,22 @@ private fun enqueueVisibleTiles(
             )
             val dist = (tileCenter - viewportCenter).getDistance()
             val priority = TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist)
+            val currentGen = viewportGeneration.get()
             val deferred = scheduler.enqueue(tile, priority)
             coroutineScope.launch {
+                var bmp: Bitmap? = null
                 try {
-                    val bmp = deferred.await()
+                    bmp = deferred.await()
+                    if (viewportGeneration.get() != currentGen) {
+                        if (!bmp.isRecycled) bmp.recycle()
+                        return@launch
+                    }
                     pendingTileArrivals.add(tile.key to bmp)
                     tileArrivals.intValue++
-                } catch (_: Throwable) {
+                } catch (e: Throwable) {
+                    if (e is CancellationException) {
+                        bmp?.let { if (!it.isRecycled) it.recycle() }
+                    }
                     // Retried on next viewport update
                 } finally {
                     inFlightTiles.remove(tile.key)

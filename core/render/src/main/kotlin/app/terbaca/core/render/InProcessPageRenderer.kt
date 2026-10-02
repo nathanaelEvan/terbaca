@@ -3,7 +3,15 @@ package app.terbaca.core.render
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.render.scheduler.CancellationToken
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -13,17 +21,23 @@ class InProcessPageRenderer(
     private val defaultPageCount: Int = 1,
     private val defaultWidthPoints: Float = 612f,
     private val defaultHeightPoints: Float = 792f,
+    val renderDelayMs: Long = 0L,
+    val onRenderStarted: ((renderId: Long) -> Unit)? = null,
     private val bitmapSupplier: (width: Int, height: Int) -> Bitmap = { w, h ->
         Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     }
 ) : PageRenderer {
 
-
     private val documents = ConcurrentHashMap<Long, List<PageInfo>>()
     private val nextHandle = AtomicLong(1L)
     private val recoveryListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+    val cancelledRenderIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
 
     override var isServiceConnected: Boolean = true
+
+    override fun cancelTile(renderId: Long) {
+        cancelledRenderIds.add(renderId)
+    }
 
     override fun registerRecoveryListener(listener: () -> Unit): () -> Unit {
         recoveryListeners.add(listener)
@@ -80,10 +94,94 @@ class InProcessPageRenderer(
         startY: Int,
         tileWidth: Int,
         tileHeight: Int
-    ): Bitmap {
+    ): Bitmap = renderTile(
+        renderId = nextHandle.getAndIncrement(),
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        cancellationToken = null
+    )
+
+    override suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap = renderTile(
+        renderId = renderId,
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        cancellationToken = null
+    )
+
+    override suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int,
+        cancellationToken: CancellationToken?
+    ): Bitmap = coroutineScope {
         check(isServiceConnected) { "Service is disconnected" }
         getPageInfo(docHandle, pageIndex)
-        return bitmapSupplier(tileWidth, tileHeight)
+        if (cancelledRenderIds.contains(renderId) || cancellationToken?.isCancelled() == true) {
+            cancelTile(renderId)
+            throw CancellationException("Render cancelled: renderId=$renderId")
+        }
+        val renderFinished = AtomicBoolean(false)
+        val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                if (cancellationToken != null) {
+                    while (!renderFinished.get() && !cancellationToken.isCancelled()) {
+                        delay(5)
+                    }
+                    if (!renderFinished.get() && cancellationToken.isCancelled()) {
+                        cancelTile(renderId)
+                    }
+                } else {
+                    awaitCancellation()
+                }
+            } finally {
+                if (!renderFinished.get()) {
+                    cancelTile(renderId)
+                }
+            }
+        }
+        try {
+            onRenderStarted?.invoke(renderId)
+            if (renderDelayMs > 0) {
+                delay(renderDelayMs)
+            }
+            val bmp = bitmapSupplier(tileWidth, tileHeight)
+            if (cancelledRenderIds.contains(renderId) || cancellationToken?.isCancelled() == true) {
+                cancelTile(renderId)
+                throw CancellationException("Render cancelled: renderId=$renderId")
+            }
+            bmp
+        } finally {
+            renderFinished.set(true)
+            watcher.cancel()
+        }
     }
 
     override suspend fun closeDocument(docHandle: Long) {
