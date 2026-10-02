@@ -64,7 +64,8 @@ class PdfiumRemotePageRenderer(
         val password: String?,
         @Volatile var remoteHandle: Long,
         @Volatile var failed: Boolean = false,
-        @Volatile var consecutiveCrashes: Int = 0
+        @Volatile var consecutiveCrashes: Int = 0,
+        @Volatile var lastCrashTimeMs: Long = 0L
     )
 
     private val appContext = context.applicationContext
@@ -87,8 +88,17 @@ class PdfiumRemotePageRenderer(
     )
 
     private var serviceConnection: ServiceConnection? = null
+    @Volatile private var activeBinder: IBinder? = null
     @Volatile private var serviceBinder: IPdfiumRenderService? = null
     @Volatile private var connectionDeferred = CompletableDeferred<IPdfiumRenderService>()
+
+    @get:androidx.annotation.VisibleForTesting
+    @set:androidx.annotation.VisibleForTesting
+    var onRenderStarted: ((renderId: Long) -> Unit)? = null
+
+    @androidx.annotation.VisibleForTesting
+    internal fun getSessionCrashCount(docHandle: Long): Int =
+        openSessions[docHandle]?.consecutiveCrashes ?: -1
 
     private val deathRecipient = IBinder.DeathRecipient {
         handleProcessDeath()
@@ -116,16 +126,28 @@ class PdfiumRemotePageRenderer(
         }
     }
 
-    private fun handleProcessDeath() {
-        synchronized(lock) {
+    private fun handleProcessDeath(deadBinder: IBinder? = null) {
+        val didHandle = synchronized(lock) {
+            val current = activeBinder
+            if (current == null) {
+                return
+            }
+            if (deadBinder != null && deadBinder !== current) {
+                return
+            }
+            current.unlinkToDeath(deathRecipient, 0)
+            activeBinder = null
             serviceBinder = null
             if (connectionDeferred.isCompleted) {
                 connectionDeferred = CompletableDeferred()
             }
+            true
         }
+        if (!didHandle) return
+
         val now = System.currentTimeMillis()
         val last = lastCrashTimeMs.getAndSet(now)
-        val crashes = if (now - last < CRASH_WINDOW_MS) {
+        val crashes = if (last != 0L && now - last < CRASH_WINDOW_MS) {
             consecutiveCrashes.incrementAndGet()
         } else {
             consecutiveCrashes.set(1)
@@ -133,7 +155,13 @@ class PdfiumRemotePageRenderer(
         }
 
         openSessions.values.forEach { session ->
-            session.consecutiveCrashes++
+            val sessionLast = session.lastCrashTimeMs
+            session.lastCrashTimeMs = now
+            if (sessionLast != 0L && now - sessionLast < CRASH_WINDOW_MS) {
+                session.consecutiveCrashes++
+            } else {
+                session.consecutiveCrashes = 1
+            }
             if (session.consecutiveCrashes >= MAX_SESSION_CRASHES) {
                 session.failed = true
                 Log.e(TAG, "Document ${session.clientHandle} marked as failed after ${session.consecutiveCrashes} crashes")
@@ -168,7 +196,8 @@ class PdfiumRemotePageRenderer(
     private fun triggerRecovery() {
         synchronized(lock) {
             if (isClosed.get()) return
-            serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
+            activeBinder?.unlinkToDeath(deathRecipient, 0)
+            activeBinder = null
             serviceBinder = null
             serviceConnection?.let {
                 runCatching { appContext.unbindService(it) }
@@ -212,6 +241,10 @@ class PdfiumRemotePageRenderer(
             return
         }
 
+        synchronized(lock) {
+            activeBinder = binder
+        }
+
         if (autoRecover && openSessions.isNotEmpty()) {
             openSessions.values.forEach { session ->
                 if (!session.failed) {
@@ -222,11 +255,13 @@ class PdfiumRemotePageRenderer(
 
         if (!binder.isBinderAlive) {
             Log.w(TAG, "Binder died during session restoration; aborting recovery notification")
-            handleProcessDeath()
+            handleProcessDeath(binder)
             return
         }
 
         synchronized(lock) {
+            if (!binder.isBinderAlive) return
+            activeBinder = binder
             serviceBinder = proxy
             if (!connectionDeferred.isCompleted) {
                 connectionDeferred.complete(proxy)
@@ -246,7 +281,6 @@ class PdfiumRemotePageRenderer(
             val result = proxy.openDocument(dupPfd, session.password)
             if (result.errorCode == PdfiumException.ERROR_SUCCESS) {
                 session.remoteHandle = result.handle
-                session.consecutiveCrashes = 0
             } else {
                 Log.w(TAG, "Failed to restore session ${session.clientHandle}: ${result.errorMessage}")
                 session.failed = true
@@ -260,7 +294,8 @@ class PdfiumRemotePageRenderer(
     fun rebind() {
         synchronized(lock) {
             check(!isClosed.get()) { "PageRenderer is closed" }
-            serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
+            activeBinder?.unlinkToDeath(deathRecipient, 0)
+            activeBinder = null
             serviceBinder = null
             serviceConnection?.let {
                 runCatching { appContext.unbindService(it) }
@@ -335,7 +370,7 @@ class PdfiumRemotePageRenderer(
                             remoteHandle
                         }
                     } catch (e: RemoteException) {
-                        handleProcessDeath()
+                        handleProcessDeath(service.asBinder())
                         if (autoRecover && !isClosed.get() && savedPfd != null && attempts <= MAX_RENDER_RETRIES) {
                             continue
                         }
@@ -364,7 +399,7 @@ class PdfiumRemotePageRenderer(
             try {
                 return block(service)
             } catch (e: RemoteException) {
-                handleProcessDeath()
+                handleProcessDeath(service.asBinder())
                 if (autoRecover && !isClosed.get() && attempts <= MAX_RENDER_RETRIES) {
                     continue
                 }
@@ -537,6 +572,7 @@ class PdfiumRemotePageRenderer(
                         }
                     }
                     try {
+                        onRenderStarted?.invoke(renderId)
                         service.renderTile(
                             renderId,
                             remoteHandle,
@@ -560,6 +596,7 @@ class PdfiumRemotePageRenderer(
                     }
                 }
                 bitmap = unpackRenderResult(result)
+                openSessions[docHandle]?.let { session -> session.consecutiveCrashes = 0 }
                 rawResult = null
                 return@withContext bitmap
             } catch (t: Throwable) {
@@ -569,7 +606,7 @@ class PdfiumRemotePageRenderer(
                     bitmap?.let { runCatching { it.recycle() } }
                 }
                 if (t is RemoteException) {
-                    handleProcessDeath()
+                    handleProcessDeath(service.asBinder())
                     if (autoRecover && !isClosed.get() && attempts <= MAX_RENDER_RETRIES) {
                         continue
                     }
@@ -649,7 +686,8 @@ class PdfiumRemotePageRenderer(
                 }
                 openSessions.clear()
                 recoveryListeners.clear()
-                serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
+                activeBinder?.unlinkToDeath(deathRecipient, 0)
+                activeBinder = null
                 serviceBinder = null
                 serviceConnection?.let {
                     runCatching { appContext.unbindService(it) }
