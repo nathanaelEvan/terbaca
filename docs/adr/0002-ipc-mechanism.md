@@ -33,8 +33,8 @@ Chosen option: **Option 1: AIDL over Binder**, because it provides compile-time 
 ### Architectural Details
 
 1. **Interface Contract:**
-   - Defined in `core/pdfium/src/main/aidl/app/terbaca/core/pdfium/IPdfiumRenderService.aidl`.
-   - Exposes `openDocument(in ParcelFileDescriptor pfd, String password): long`, `getPageCount(long docHandle): int`, `getPageSize(long docHandle, int pageIndex): float[]`, and `closeDocument(long docHandle): void`.
+   - Defined in `core/pdfium/src/main/aidl/app/terbaca/core/pdfium/IPdfiumRenderService.aidl` and `RenderResult.aidl`.
+   - Exposes `openDocument(in ParcelFileDescriptor pfd, String password): RenderResult`, `getPageCount(long docHandle): RenderResult`, `getPageSize(long docHandle, int pageIndex): RenderResult`, and `closeDocument(long docHandle): void`. Typed error propagation is carried via `RenderResult.errorCode` mapped to `PdfiumException` subclasses on the client.
    - Subsequent milestones (M1-04 and M1-05) will add tile rendering (`renderTile`) returning `HardwareBuffer` directly across the Binder proxy.
 
 2. **Threading & Concurrency:**

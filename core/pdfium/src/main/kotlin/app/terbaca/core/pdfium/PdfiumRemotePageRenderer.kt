@@ -6,13 +6,12 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
-import android.os.ServiceSpecificException
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -110,26 +109,24 @@ class PdfiumRemotePageRenderer(
     private suspend fun getService(): IPdfiumRenderService {
         check(!isClosed.get()) { "PageRenderer is closed" }
         serviceBinder?.let { return it }
-        return withTimeout(DEFAULT_CONNECT_TIMEOUT_MS) {
+        return withTimeoutOrNull(DEFAULT_CONNECT_TIMEOUT_MS) {
             connectionDeferred.await()
-        }
+        } ?: throw PdfiumException("Render service connect timeout", PdfiumException.ERROR_UNKNOWN)
     }
 
-    private inline fun <T> wrapServiceExceptions(block: () -> T): T {
-        try {
-            return block()
-        } catch (e: ServiceSpecificException) {
-            throw PdfiumException.fromErrorCode(e.errorCode, e.message)
+    private fun RenderResult.unwrap(): RenderResult {
+        if (errorCode != PdfiumException.ERROR_SUCCESS) {
+            throw PdfiumException.fromErrorCode(errorCode, errorMessage)
         }
+        return this
     }
 
     override suspend fun openDocument(pfd: ParcelFileDescriptor, password: String?): Long =
         withContext(Dispatchers.IO) {
             try {
                 val service = getService()
-                wrapServiceExceptions {
-                    service.openDocument(pfd, password)
-                }
+                val result = service.openDocument(pfd, password).unwrap()
+                result.handle
             } finally {
                 runCatching { pfd.close() }
             }
@@ -137,17 +134,15 @@ class PdfiumRemotePageRenderer(
 
     override suspend fun getPageCount(docHandle: Long): Int = withContext(Dispatchers.IO) {
         val service = getService()
-        wrapServiceExceptions {
-            service.getPageCount(docHandle)
-        }
+        val result = service.getPageCount(docHandle).unwrap()
+        result.pageCount
     }
 
     override suspend fun getPageInfo(docHandle: Long, pageIndex: Int): PageInfo =
         withContext(Dispatchers.IO) {
             val service = getService()
-            val sizes = wrapServiceExceptions {
-                service.getPageSize(docHandle, pageIndex)
-            }
+            val result = service.getPageSize(docHandle, pageIndex).unwrap()
+            val sizes = result.pageSize
             PageInfo(
                 index = pageIndex,
                 widthPoints = sizes[0],
@@ -164,9 +159,7 @@ class PdfiumRemotePageRenderer(
     override suspend fun closeDocument(docHandle: Long): Unit = withContext(Dispatchers.IO) {
         if (isServiceConnected) {
             runCatching {
-                wrapServiceExceptions {
-                    getService().closeDocument(docHandle)
-                }
+                getService().closeDocument(docHandle)
             }
         }
         Unit

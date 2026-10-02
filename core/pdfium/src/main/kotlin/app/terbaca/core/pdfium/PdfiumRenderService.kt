@@ -4,7 +4,6 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
-import android.os.ServiceSpecificException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
@@ -45,80 +44,80 @@ class PdfiumRenderService : Service() {
             ?: throw PdfInvalidHandleException("Unknown document handle: $docHandle")
     }
 
-    private fun <T> java.util.concurrent.Future<T>.getUnwrapped(): T {
+    private inline fun runOnRenderThread(crossinline block: (RenderResult) -> Unit): RenderResult {
+        val result = RenderResult()
         try {
-            return get()
+            renderExecutor.submit {
+                try {
+                    block(result)
+                    result.errorCode = PdfiumException.ERROR_SUCCESS
+                } catch (e: PdfiumException) {
+                    result.errorCode = e.errorCode
+                    result.errorMessage = e.message
+                } catch (t: Throwable) {
+                    result.errorCode = PdfiumException.ERROR_UNKNOWN
+                    result.errorMessage = t.message ?: "Unknown render error"
+                }
+            }.get()
         } catch (e: java.util.concurrent.ExecutionException) {
-            when (val cause = e.cause) {
-                is PdfiumException -> throw ServiceSpecificException(cause.errorCode, cause.message)
-                is ServiceSpecificException -> throw cause
-                else -> throw ServiceSpecificException(
-                    PdfiumException.ERROR_UNKNOWN,
-                    cause?.message ?: "Unknown render service error"
-                )
+            val cause = e.cause
+            if (cause is PdfiumException) {
+                result.errorCode = cause.errorCode
+                result.errorMessage = cause.message
+            } else {
+                result.errorCode = PdfiumException.ERROR_UNKNOWN
+                result.errorMessage = cause?.message ?: "Execution error"
             }
-        }
-    }
-
-    private inline fun <T> runOnRenderThread(crossinline block: () -> T): T {
-        return try {
-            renderExecutor.submit<T> { block() }.getUnwrapped()
-        } catch (e: ServiceSpecificException) {
-            throw e
         } catch (t: Throwable) {
-            throw ServiceSpecificException(
-                PdfiumException.ERROR_UNKNOWN,
-                t.message ?: "Unknown render service error"
-            )
+            result.errorCode = PdfiumException.ERROR_UNKNOWN
+            result.errorMessage = t.message ?: "Unexpected service error"
         }
+        return result
     }
 
     private val binder = object : IPdfiumRenderService.Stub() {
-        override fun openDocument(pfd: ParcelFileDescriptor?, password: String?): Long {
+        override fun openDocument(pfd: ParcelFileDescriptor?, password: String?): RenderResult {
             if (pfd == null) {
-                throw ServiceSpecificException(
-                    PdfiumException.ERROR_FILE,
-                    "ParcelFileDescriptor must not be null"
-                )
+                return RenderResult().apply {
+                    errorCode = PdfiumException.ERROR_FILE
+                    errorMessage = "ParcelFileDescriptor must not be null"
+                }
             }
             return try {
-                renderExecutor.submit<Long> {
+                runOnRenderThread { result ->
                     pfd.use {
                         val doc = PdfiumEngine.openDocument(it.fd, password)
                         val handle = allocateHandle()
                         activeDocuments[handle] = doc
-                        handle
+                        result.handle = handle
                     }
-                }.getUnwrapped()
-            } catch (e: ServiceSpecificException) {
-                runCatching { pfd.close() }
-                throw e
+                }
             } catch (t: Throwable) {
                 runCatching { pfd.close() }
-                throw ServiceSpecificException(
-                    PdfiumException.ERROR_UNKNOWN,
-                    t.message ?: "Unknown openDocument error"
-                )
+                RenderResult().apply {
+                    errorCode = PdfiumException.ERROR_UNKNOWN
+                    errorMessage = t.message ?: "Failed to open document"
+                }
             }
         }
 
-        override fun getPageCount(docHandle: Long): Int {
-            return runOnRenderThread {
+        override fun getPageCount(docHandle: Long): RenderResult {
+            return runOnRenderThread { result ->
                 val doc = getDocumentOrThrow(docHandle)
-                doc.pageCount
+                result.pageCount = doc.pageCount
             }
         }
 
-        override fun getPageSize(docHandle: Long, pageIndex: Int): FloatArray {
-            return runOnRenderThread {
+        override fun getPageSize(docHandle: Long, pageIndex: Int): RenderResult {
+            return runOnRenderThread { result ->
                 val doc = getDocumentOrThrow(docHandle)
                 val size = doc.getPageSize(pageIndex)
-                floatArrayOf(size.widthPoints, size.heightPoints)
+                result.pageSize = floatArrayOf(size.widthPoints, size.heightPoints)
             }
         }
 
         override fun closeDocument(docHandle: Long) {
-            runOnRenderThread {
+            renderExecutor.submit {
                 val doc = activeDocuments.remove(docHandle)
                 doc?.close()
             }
