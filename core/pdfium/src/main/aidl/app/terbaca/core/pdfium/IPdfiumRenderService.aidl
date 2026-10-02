@@ -47,12 +47,12 @@ interface IPdfiumRenderService {
     /**
      * Cancels an in-flight or pending tile render identified by renderId.
      */
-    void cancelTile(long renderId);
+    oneway void cancelTile(long renderId);
 
     /**
      * Cancels all in-flight or pending tile renders for docHandle.
      */
-    void cancelAllTiles(long docHandle);
+    oneway void cancelAllTiles(long docHandle);
 
     /**
      * Closes the document and releases native resources.

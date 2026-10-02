@@ -900,7 +900,12 @@ class PdfiumRemoteServiceTest {
             assertTrue(handle > 0L)
 
             val renderLatch = CountDownLatch(1)
+            val startedLatch = CountDownLatch(1)
             val testScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO)
+
+            testRenderer.onRenderStarted = {
+                startedLatch.countDown()
+            }
 
             testScope.launch {
                 try {
@@ -921,8 +926,10 @@ class PdfiumRemoteServiceTest {
                 }
             }
 
-            // Give it a brief moment to start, then kill :render process
-            Thread.sleep(15)
+            val started = startedLatch.await(5, TimeUnit.SECONDS)
+            assertTrue("Render must be in-flight before kill", started)
+            testRenderer.onRenderStarted = null
+
             val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
             if (renderProcess != null) {
@@ -992,6 +999,249 @@ class PdfiumRemoteServiceTest {
         }
         assertNotNull(tile)
         runBlocking { renderer.closeDocument(handle) }
+    }
+
+    @Test
+    fun testRemoteRenderService_oneKill_recordsSingleCrashAndDocumentStillRenders() {
+        val testRenderer = PdfiumRemotePageRenderer(context = context, autoRecover = true)
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+
+            val recoveredLatch = CountDownLatch(1)
+            testRenderer.registerRecoveryListener {
+                recoveredLatch.countDown()
+            }
+
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+            assertNotNull("Render process must be running", renderProcess)
+
+            Process.killProcess(renderProcess!!.pid)
+
+            val recovered = recoveredLatch.await(10, TimeUnit.SECONDS)
+            assertTrue("Recovery must complete within timeout", recovered)
+
+            val sessionCrashCount = testRenderer.getSessionCrashCount(handle)
+            assertEquals("One kill must record exactly crash count 1", 1, sessionCrashCount)
+
+            val tile = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull("Document must still render after single kill", tile)
+            assertEquals(256, tile.width)
+            assertEquals(256, tile.height)
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            testRenderer.close()
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_cancelAllTiles_recordsPendingAndCancelsInFlight() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/many_objects.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val latch = CountDownLatch(2)
+            val startedLatch = CountDownLatch(1)
+            val cancelledCount = AtomicInteger(0)
+
+            renderer.onRenderStarted = {
+                startedLatch.countDown()
+            }
+
+            repeat(2) { index ->
+                launch(Dispatchers.IO) {
+                    try {
+                        renderer.renderTile(
+                            docHandle = handle,
+                            pageIndex = 0,
+                            fullWidth = 4096,
+                            fullHeight = 5300,
+                            startX = 0,
+                            startY = index * 2048,
+                            tileWidth = 2048,
+                            tileHeight = 2048
+                        )
+                    } catch (_: Throwable) {
+                        cancelledCount.incrementAndGet()
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+            }
+
+            val started = startedLatch.await(5, TimeUnit.SECONDS)
+            assertTrue("Render must be in-flight before cancelling", started)
+            renderer.onRenderStarted = null
+
+            renderer.cancelAllTiles(handle)
+            val finished = latch.await(15, TimeUnit.SECONDS)
+            assertTrue("All renders must terminate after cancelAllTiles", finished)
+            assertTrue("At least one render should be cancelled", cancelledCount.get() > 0)
+
+            assertTrue(renderer.isServiceConnected)
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_coroutineCancellation_cleansUpBuffersWithoutLeak() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val job = launch(Dispatchers.IO) {
+                renderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 2448,
+                    fullHeight = 3168,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1024,
+                    tileHeight = 1024
+                )
+            }
+            delay(10)
+            job.cancelAndJoin()
+            assertTrue("Job should be cancelled", job.isCancelled)
+
+            val nextTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull(nextTile)
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_pageCrashLoop_haltsRecoveryAndMarksPageFailed() {
+        val testRenderer = PdfiumRemotePageRenderer(context = context, autoRecover = true)
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+
+            // Kill the :render process whenever a render starts on page 0 until MAX_PAGE_CRASHES is reached
+            testRenderer.onRenderStarted = {
+                val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+                if (renderProcess != null) {
+                    Process.killProcess(renderProcess.pid)
+                }
+            }
+
+            // Call 1: attempts 1 and 2 are killed, throwing exception and recording 2 page crashes
+            assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertEquals(2, testRenderer.getPageCrashCount(handle, 0))
+
+            // Call 2: attempt 1 is killed, hitting MAX_PAGE_CRASHES (3) and failing without retry
+            assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertEquals(3, testRenderer.getPageCrashCount(handle, 0))
+
+            // Remove kill hook so subsequent renders can run normally
+            testRenderer.onRenderStarted = null
+
+            // Subsequent attempts to render page 0 fail immediately due to repeated crashes
+            val ex = assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertTrue(
+                "Exception message must indicate failed state: ${ex.message}",
+                ex.message?.contains("failed state due to repeated crashes") == true
+            )
+
+            // Other pages (page 1) are not affected and render successfully
+            val page1Tile = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 1,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull("Page 1 must render successfully", page1Tile)
+            assertEquals(256, page1Tile.width)
+
+            // Session crash count was reset by the successful render of page 1
+            assertEquals(0, testRenderer.getSessionCrashCount(handle))
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            testRenderer.close()
+        }
     }
 }
 

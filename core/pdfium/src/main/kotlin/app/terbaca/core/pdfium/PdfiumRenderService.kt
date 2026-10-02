@@ -28,10 +28,12 @@ class PdfiumRenderService : Service() {
         private const val MAX_PENDING_CANCELLATIONS = 256
     }
 
-    private class ActiveRender(val docHandle: Long, val signal: AtomicBoolean)
+    private class ActiveRender(val docHandle: Long, val signal: AtomicBoolean, val sequence: Long)
 
     private val activeDocuments = ConcurrentHashMap<Long, PdfiumDocument>()
     private val activeRenders = ConcurrentHashMap<Long, ActiveRender>()
+    private val cancelSequence = AtomicLong(1L)
+    private val docCancellationGenerations = ConcurrentHashMap<Long, Long>()
 
     // Cancels that arrived before their render started. Guarded by itself so that registering a
     // render and recording an early cancel can't interleave and lose the cancel. Bounded: IDs
@@ -176,10 +178,13 @@ class PdfiumRenderService : Service() {
             tileHeight: Int,
             forceFallback: Boolean
         ): RenderResult {
+            val reqSeq = cancelSequence.incrementAndGet()
             val signal = AtomicBoolean(false)
             synchronized(pendingCancellations) {
                 if (pendingCancellations.remove(renderId) == true) signal.set(true)
-                activeRenders[renderId] = ActiveRender(docHandle, signal)
+                val docGen = docCancellationGenerations[docHandle] ?: 0L
+                if (reqSeq <= docGen) signal.set(true)
+                activeRenders[renderId] = ActiveRender(docHandle, signal, reqSeq)
             }
 
             val renderResult = try {
@@ -229,6 +234,10 @@ class PdfiumRenderService : Service() {
                             )
                             when (status) {
                                 PdfiumDocument.STATUS_SUCCESS -> {
+                                    if (signal.get()) {
+                                        buffer.close()
+                                        throw PdfRenderCancelledException("Render cancelled: renderId=$renderId")
+                                    }
                                     result.hardwareBuffer = buffer
                                     result.bufferWidth = tileWidth
                                     result.bufferHeight = tileHeight
@@ -277,7 +286,11 @@ class PdfiumRenderService : Service() {
                                 "HardwareBuffer transport threw exception: ${t.message}. Falling back to SharedMemory.",
                                 t
                             )
-                            isHardwareTransportBroken = true
+                            val isOom = t is OutOfMemoryError ||
+                                t.message?.contains("out of memory", ignoreCase = true) == true
+                            if (!isOom) {
+                                isHardwareTransportBroken = true
+                            }
                             buffer?.let { runCatching { it.close() } }
                             usedFallback = true
                         }
@@ -310,7 +323,9 @@ class PdfiumRenderService : Service() {
                                 )
                                 when (status) {
                                     PdfiumDocument.STATUS_SUCCESS -> {
-                                        // Successfully rendered into direct buffer
+                                        if (signal.get()) {
+                                            throw PdfRenderCancelledException("Render cancelled: renderId=$renderId")
+                                        }
                                     }
                                     PdfiumDocument.STATUS_ERR_CANCELLED -> {
                                         throw PdfRenderCancelledException("Render cancelled: renderId=$renderId")
@@ -367,15 +382,20 @@ class PdfiumRenderService : Service() {
         }
 
         override fun cancelAllTiles(docHandle: Long) {
-            activeRenders.values.forEach { active ->
-                if (active.docHandle == docHandle) {
-                    active.signal.set(true)
+            synchronized(pendingCancellations) {
+                val currentSeq = cancelSequence.get()
+                docCancellationGenerations[docHandle] = currentSeq
+                activeRenders.values.forEach { active ->
+                    if (active.docHandle == docHandle && active.sequence <= currentSeq) {
+                        active.signal.set(true)
+                    }
                 }
             }
         }
 
         override fun closeDocument(docHandle: Long) {
             cancelAllTiles(docHandle)
+            docCancellationGenerations.remove(docHandle)
             renderExecutor.submit {
                 val doc = activeDocuments.remove(docHandle)
                 doc?.close()
@@ -393,6 +413,7 @@ class PdfiumRenderService : Service() {
     override fun onDestroy() {
         activeRenders.values.forEach { it.signal.set(true) }
         activeRenders.clear()
+        docCancellationGenerations.clear()
         synchronized(pendingCancellations) { pendingCancellations.clear() }
         renderExecutor.submit {
             activeDocuments.values.forEach { doc ->
