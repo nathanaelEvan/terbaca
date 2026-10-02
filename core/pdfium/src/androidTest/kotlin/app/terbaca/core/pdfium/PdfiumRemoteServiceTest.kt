@@ -10,6 +10,7 @@ import android.os.Process
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -643,16 +644,20 @@ class PdfiumRemoteServiceTest {
             assertNotNull(fullTile)
 
             val renderJob = launch(Dispatchers.IO) {
-                renderer.renderTile(
-                    docHandle = handle,
-                    pageIndex = 0,
-                    fullWidth = 2448,
-                    fullHeight = 3168,
-                    startX = 0,
-                    startY = 0,
-                    tileWidth = 1024,
-                    tileHeight = 1024
-                )
+                try {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024
+                    )
+                } catch (e: CancellationException) {
+                    // Normal coroutine cancellation
+                }
             }
 
             // Let coroutine start rendering, then cancel and measure time to return

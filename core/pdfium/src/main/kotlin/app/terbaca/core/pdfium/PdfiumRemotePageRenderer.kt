@@ -11,10 +11,13 @@ import android.os.SharedMemory
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -261,6 +264,11 @@ class PdfiumRemotePageRenderer(
                     tileHeight,
                     forceFallback
                 ).unwrap()
+            } catch (e: PdfRenderCancelledException) {
+                if (!currentCoroutineContext().isActive) {
+                    throw CancellationException("Render cancelled: renderId=$renderId", e)
+                }
+                throw e
             } finally {
                 shouldCancelService = false
                 watcher.cancel()
