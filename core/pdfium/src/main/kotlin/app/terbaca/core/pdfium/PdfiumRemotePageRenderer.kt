@@ -13,6 +13,7 @@ import app.terbaca.core.render.PageRenderer
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -241,12 +242,14 @@ class PdfiumRemotePageRenderer(
     ): Bitmap = withContext(Dispatchers.IO) {
         val service = getService()
         val result = coroutineScope {
-            var shouldCancelService = true
-            val watcher = launch {
+            val renderFinished = AtomicBoolean(false)
+            // UNDISPATCHED: the watcher is registered before the Binder call starts, so even a
+            // cancellation that arrives immediately reaches the service.
+            val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
                 try {
                     awaitCancellation()
                 } finally {
-                    if (shouldCancelService) {
+                    if (!renderFinished.get()) {
                         cancelTile(renderId)
                     }
                 }
@@ -270,7 +273,7 @@ class PdfiumRemotePageRenderer(
                 }
                 throw e
             } finally {
-                shouldCancelService = false
+                renderFinished.set(true)
                 watcher.cancel()
             }
         }

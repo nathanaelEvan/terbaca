@@ -33,6 +33,11 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 class PdfiumRemoteServiceTest {
 
+    private companion object {
+        const val MIN_MEASURABLE_RENDER_MS = 40L
+    }
+
+
     private lateinit var context: Context
     private lateinit var renderer: PdfiumRemotePageRenderer
     private val tempFiles = mutableListOf<File>()
@@ -628,20 +633,30 @@ class PdfiumRemoteServiceTest {
             }
             assertTrue(handle > 0L)
 
-            // Measure full uncancelled render duration of the heavy vector plot
-            val fullStart = System.currentTimeMillis()
-            val fullTile = renderer.renderTile(
-                docHandle = handle,
-                pageIndex = 0,
-                fullWidth = 2448,
-                fullHeight = 3168,
-                startX = 0,
-                startY = 0,
-                tileWidth = 1024,
-                tileHeight = 1024
+            // Measure the full, uncancelled render of the heavy vector plot. Render twice and keep
+            // the second (warm) timing, so the cancelled run below can't look faster just because
+            // page data is already loaded.
+            var fullDuration = 0L
+            repeat(2) {
+                val fullStart = System.currentTimeMillis()
+                val fullTile = renderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 2448,
+                    fullHeight = 3168,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1024,
+                    tileHeight = 1024
+                )
+                fullDuration = System.currentTimeMillis() - fullStart
+                assertNotNull(fullTile)
+                fullTile.recycle()
+            }
+            org.junit.Assume.assumeTrue(
+                "Heavy render too fast ($fullDuration ms) to measure cancellation on this device",
+                fullDuration >= MIN_MEASURABLE_RENDER_MS
             )
-            val fullDuration = System.currentTimeMillis() - fullStart
-            assertNotNull(fullTile)
 
             val renderJob = launch(Dispatchers.IO) {
                 try {
@@ -667,9 +682,11 @@ class PdfiumRemoteServiceTest {
             val cancelDuration = System.currentTimeMillis() - cancelStart
 
             assertTrue("Render job must be cancelled", renderJob.isCancelled)
+            // If cancellation didn't reach PDFium, cancelAndJoin would wait for the rest of the
+            // render (~fullDuration - 5 ms). Requiring under half rules that out.
             assertTrue(
-                "Cancelled render must terminate much faster than full render (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms)",
-                cancelDuration < fullDuration
+                "Cancelled render must stop early (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms)",
+                cancelDuration < fullDuration / 2
             )
 
             // Service must still be connected

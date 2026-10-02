@@ -9,7 +9,6 @@ import android.os.ParcelFileDescriptor
 import android.os.SharedMemory
 import android.system.OsConstants
 import android.util.Log
-import java.util.Collections
 import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -26,17 +25,22 @@ class PdfiumRenderService : Service() {
 
     companion object {
         private const val TAG = "PdfiumRenderService"
+        private const val MAX_PENDING_CANCELLATIONS = 256
     }
 
     private class ActiveRender(val docHandle: Long, val signal: AtomicBoolean)
 
     private val activeDocuments = ConcurrentHashMap<Long, PdfiumDocument>()
     private val activeRenders = ConcurrentHashMap<Long, ActiveRender>()
-    private val pendingCancellations = Collections.synchronizedMap(
+
+    // Cancels that arrived before their render started. Guarded by itself so that registering a
+    // render and recording an early cancel can't interleave and lose the cancel. Bounded: IDs
+    // that never arrive (render already finished) age out.
+    private val pendingCancellations =
         object : LinkedHashMap<Long, Boolean>(64, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Boolean>?): Boolean = size > 256
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Boolean>?): Boolean =
+                size > MAX_PENDING_CANCELLATIONS
         }
-    )
 
     // Sticky flag tracking hardware transport failure on this device (PRD §4.3 review item)
     @Volatile private var isHardwareTransportBroken = false
@@ -172,9 +176,11 @@ class PdfiumRenderService : Service() {
             tileHeight: Int,
             forceFallback: Boolean
         ): RenderResult {
-            val preCancelled = pendingCancellations.remove(renderId) == true
-            val signal = AtomicBoolean(preCancelled)
-            activeRenders[renderId] = ActiveRender(docHandle, signal)
+            val signal = AtomicBoolean(false)
+            synchronized(pendingCancellations) {
+                if (pendingCancellations.remove(renderId) == true) signal.set(true)
+                activeRenders[renderId] = ActiveRender(docHandle, signal)
+            }
 
             val renderResult = try {
                 runOnRenderThread { result ->
@@ -350,11 +356,13 @@ class PdfiumRenderService : Service() {
         }
 
         override fun cancelTile(renderId: Long) {
-            val existing = activeRenders[renderId]
-            if (existing != null) {
-                existing.signal.set(true)
-            } else {
-                pendingCancellations[renderId] = true
+            synchronized(pendingCancellations) {
+                val existing = activeRenders[renderId]
+                if (existing != null) {
+                    existing.signal.set(true)
+                } else {
+                    pendingCancellations[renderId] = true
+                }
             }
         }
 
@@ -385,7 +393,7 @@ class PdfiumRenderService : Service() {
     override fun onDestroy() {
         activeRenders.values.forEach { it.signal.set(true) }
         activeRenders.clear()
-        pendingCancellations.clear()
+        synchronized(pendingCancellations) { pendingCancellations.clear() }
         renderExecutor.submit {
             activeDocuments.values.forEach { doc ->
                 runCatching { doc.close() }
