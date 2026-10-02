@@ -21,8 +21,12 @@ class BaselineProfileGenerator {
         packageName = TARGET_PACKAGE,
         includeInStartupProfile = true
     ) {
+        // Cold start lands on the library (PRD §7: cold start → library visible).
         pressHome()
         startActivityAndWait()
+        // Then the reader on a corpus document for the gesture paths.
+        pressHome()
+        startActivityAndWait { it.putExtra(EXTRA_CORPUS_FILE, "corpus/paper_two_column.pdf") }
         Thread.sleep(1_500)
         exerciseReader()
     }
