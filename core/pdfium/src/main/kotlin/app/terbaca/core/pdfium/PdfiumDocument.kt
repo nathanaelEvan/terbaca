@@ -26,7 +26,9 @@ class PdfiumDocument internal constructor(
 
     fun getPageSize(pageIndex: Int): PageInfo = synchronized(lock) {
         checkNotClosed()
-        require(pageIndex >= 0) { "pageIndex must be non-negative: $pageIndex" }
+        if (pageIndex < 0) {
+            throw PdfPageNotFoundException("Invalid page index: $pageIndex (must be non-negative)")
+        }
         val sizeBuf = FloatArray(2)
         val success = PdfiumNative.nativeGetPageSize(nativePtr, pageIndex, sizeBuf)
         if (!success) {

@@ -42,7 +42,8 @@ Chosen option: **Option 1: AIDL over Binder**, because it provides compile-time 
 
 3. **Crash Recovery & Death Recipient:**
    - The UI client (`PdfiumRemotePageRenderer`) registers an `IBinder.DeathRecipient` upon connection.
-   - If the render process crashes, `binderDied()` fires immediately. The client marks `isServiceConnected = false`, clears active handles, and triggers reconnection logic, satisfying the crash resilience exit criteria of M1.
+   - If the render process crashes, `binderDied()` fires immediately. The client marks `isServiceConnected = false`, clears active connection state, notifies listeners via `onProcessDied`, and invalidates stale handles across process restarts via epoch checking.
+   - Full automated document reopen-and-resume after a render process crash (PRD §4.2, an M1 exit criterion) is deferred to task **M1-09** (Render process crash recovery). In M1-03, the client detects process death, notifies callers once per incident, provides a clean `rebind()` mechanism, and rejects stale document handles with typed exceptions.
 
 ### Positive Consequences
 
@@ -76,7 +77,14 @@ Chosen option: **Option 1: AIDL over Binder**, because it provides compile-time 
 - Bad, because requires manual framing, socket lifecycle management, custom `sendmsg(SCM_RIGHTS)` for passing fds, and JNI/C++ IPC glue.
 - Bad, because does not integrate with Android Service lifecycle (`BIND_AUTO_CREATE`, system process management).
 
+### Option 4: Custom ContentProvider / SharedMemory interface
+
+- Good, because `SharedMemory` is well-suited for zero-copy bulk memory transfers across process boundaries.
+- Bad, because `ContentProvider` is designed for structured database-like URI queries and cursors, introducing unnecessary serialization and overhead for synchronous render RPCs.
+- Bad, because requires an out-of-band signaling mechanism or custom `call()` bundles to coordinate interactive rendering requests, page geometry queries, and cancellation signals.
+
 ## Links
 
 - [PRD.md §4.2 Threading and process model](../PRD.md#42-threading-and-process-model-critical)
 - [PRD.md §4.3 Pixel transport](../PRD.md#43-pixel-transport)
+- [PRD.md §8 Milestones and Task Breakdown](../PRD.md#8-milestones-and-task-breakdown)

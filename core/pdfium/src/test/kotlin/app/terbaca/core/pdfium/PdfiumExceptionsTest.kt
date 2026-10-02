@@ -28,6 +28,10 @@ class PdfiumExceptionsTest {
         assertTrue(pageEx is PdfPageNotFoundException)
         assertEquals(PdfiumException.ERROR_PAGE, pageEx.errorCode)
 
+        val handleEx = PdfiumException.fromErrorCode(PdfiumException.ERROR_HANDLE)
+        assertTrue(handleEx is PdfInvalidHandleException)
+        assertEquals(PdfiumException.ERROR_HANDLE, handleEx.errorCode)
+
         val unknownEx = PdfiumException.fromErrorCode(999)
         assertEquals(999, unknownEx.errorCode)
     }

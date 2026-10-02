@@ -6,11 +6,13 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.ServiceSpecificException
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -22,16 +24,21 @@ class PdfiumRemotePageRenderer(
     private val onProcessDied: (() -> Unit)? = null
 ) : PageRenderer {
 
+    companion object {
+        const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000L
+    }
+
     private val appContext = context.applicationContext
-    private var serviceConnection: ServiceConnection? = null
-    private var serviceBinder: IPdfiumRenderService? = null
-    private var connectionDeferred = CompletableDeferred<IPdfiumRenderService>()
+    private val lock = Any()
     private val isClosed = AtomicBoolean(false)
+    private val isDeadNotified = AtomicBoolean(false)
+
+    private var serviceConnection: ServiceConnection? = null
+    @Volatile private var serviceBinder: IPdfiumRenderService? = null
+    @Volatile private var connectionDeferred = CompletableDeferred<IPdfiumRenderService>()
 
     private val deathRecipient = IBinder.DeathRecipient {
-        serviceBinder = null
-        connectionDeferred = CompletableDeferred()
-        onProcessDied?.invoke()
+        handleProcessDeath()
     }
 
     override val isServiceConnected: Boolean
@@ -41,61 +48,106 @@ class PdfiumRemotePageRenderer(
         bind()
     }
 
+    private fun handleProcessDeath() {
+        synchronized(lock) {
+            serviceBinder = null
+            if (connectionDeferred.isCompleted) {
+                connectionDeferred = CompletableDeferred()
+            }
+        }
+        if (isDeadNotified.compareAndSet(false, true)) {
+            onProcessDied?.invoke()
+        }
+    }
+
     private fun bind() {
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                 if (service != null) {
-                    service.linkToDeath(deathRecipient, 0)
+                    runCatching { service.linkToDeath(deathRecipient, 0) }
                     val proxy = IPdfiumRenderService.Stub.asInterface(service)
-                    serviceBinder = proxy
-                    if (!connectionDeferred.isCompleted) {
-                        connectionDeferred.complete(proxy)
+                    synchronized(lock) {
+                        serviceBinder = proxy
+                        if (!connectionDeferred.isCompleted) {
+                            connectionDeferred.complete(proxy)
+                        }
                     }
+                    isDeadNotified.set(false)
                 }
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                serviceBinder = null
-                if (!connectionDeferred.isCompleted) {
-                    connectionDeferred = CompletableDeferred()
-                }
-                onProcessDied?.invoke()
+                handleProcessDeath()
             }
         }
         serviceConnection = connection
         val intent = Intent(appContext, PdfiumRenderService::class.java)
-        appContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        val bound = appContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        if (!bound) {
+            val error = IllegalStateException(
+                "Failed to bind to PdfiumRenderService: bindService returned false"
+            )
+            connectionDeferred.completeExceptionally(error)
+        }
+    }
+
+    fun rebind() {
+        synchronized(lock) {
+            check(!isClosed.get()) { "PageRenderer is closed" }
+            serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
+            serviceBinder = null
+            serviceConnection?.let {
+                runCatching { appContext.unbindService(it) }
+            }
+            if (connectionDeferred.isCompleted) {
+                connectionDeferred = CompletableDeferred()
+            }
+            isDeadNotified.set(false)
+            bind()
+        }
     }
 
     private suspend fun getService(): IPdfiumRenderService {
         check(!isClosed.get()) { "PageRenderer is closed" }
         serviceBinder?.let { return it }
-        return connectionDeferred.await()
+        return withTimeout(DEFAULT_CONNECT_TIMEOUT_MS) {
+            connectionDeferred.await()
+        }
+    }
+
+    private inline fun <T> wrapServiceExceptions(block: () -> T): T {
+        try {
+            return block()
+        } catch (e: ServiceSpecificException) {
+            throw PdfiumException.fromErrorCode(e.errorCode, e.message)
+        }
     }
 
     override suspend fun openDocument(pfd: ParcelFileDescriptor, password: String?): Long =
         withContext(Dispatchers.IO) {
-            val service = getService()
             try {
-                service.openDocument(pfd, password)
-            } catch (e: SecurityException) {
-                throw PdfPasswordException(e.message ?: "Password required or invalid")
-            } catch (e: IllegalArgumentException) {
-                if (e.message?.contains("CORRUPT") == true) {
-                    throw PdfCorruptException(e.message ?: "Corrupt PDF")
-                } else {
-                    throw PdfFileException(e.message ?: "File error")
+                val service = getService()
+                wrapServiceExceptions {
+                    service.openDocument(pfd, password)
                 }
+            } finally {
+                runCatching { pfd.close() }
             }
         }
 
     override suspend fun getPageCount(docHandle: Long): Int = withContext(Dispatchers.IO) {
-        getService().getPageCount(docHandle)
+        val service = getService()
+        wrapServiceExceptions {
+            service.getPageCount(docHandle)
+        }
     }
 
     override suspend fun getPageInfo(docHandle: Long, pageIndex: Int): PageInfo =
         withContext(Dispatchers.IO) {
-            val sizes = getService().getPageSize(docHandle, pageIndex)
+            val service = getService()
+            val sizes = wrapServiceExceptions {
+                service.getPageSize(docHandle, pageIndex)
+            }
             PageInfo(
                 index = pageIndex,
                 widthPoints = sizes[0],
@@ -111,19 +163,28 @@ class PdfiumRemotePageRenderer(
 
     override suspend fun closeDocument(docHandle: Long): Unit = withContext(Dispatchers.IO) {
         if (isServiceConnected) {
-            runCatching { getService().closeDocument(docHandle) }
+            runCatching {
+                wrapServiceExceptions {
+                    getService().closeDocument(docHandle)
+                }
+            }
         }
         Unit
     }
 
     fun close() {
         if (isClosed.compareAndSet(false, true)) {
-            serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
-            serviceBinder = null
-            serviceConnection?.let {
-                runCatching { appContext.unbindService(it) }
+            synchronized(lock) {
+                serviceBinder?.asBinder()?.unlinkToDeath(deathRecipient, 0)
+                serviceBinder = null
+                serviceConnection?.let {
+                    runCatching { appContext.unbindService(it) }
+                }
+                serviceConnection = null
+                if (!connectionDeferred.isCompleted) {
+                    connectionDeferred.cancel()
+                }
             }
-            serviceConnection = null
         }
     }
 }
