@@ -79,7 +79,7 @@ A pure viewer that feels like macOS Preview and Apple Books: opens instantly, te
 | Item | Value |
 |---|---|
 | Primary device | Xiaomi Pad 7 (Snapdragon 7+ Gen 3) and Pad 7 Pro (8s Gen 3) |
-| Display | 3200×2136, 3:2, up to 144 Hz |
+| Display | 3200×2136, 3:2, up to 144 Hz panel; HyperOS grants ordinary apps at most 120 Hz (measured 2026-10-02) |
 | OS on device | HyperOS (Android 15 base) |
 | minSdk | 33 (required for AGSL `RuntimeShader`) |
 | targetSdk / compileSdk | Latest stable |
@@ -334,9 +334,9 @@ Measured on a Xiaomi Pad 7 (or Pro), release build with baseline profile, using 
 
 | Metric | Budget |
 |---|---|
-| Frame time during continuous pinch/pan on corpus docs | ≥ 99% of frames within 6.94 ms at 144 Hz; zero frames over 16.6 ms |
+| Frame time during continuous pinch/pan on corpus docs | ≥ 99% of frames within 8.33 ms (120 Hz, the highest rate HyperOS grants apps); zero frames over 16.6 ms |
 | Fling scroll through a 30-page paper | Same as above |
-| Slide flip | No frame over 6.94 ms; next slide always sharp on arrival |
+| Slide flip | No frame over 8.33 ms; next slide always sharp on arrival |
 | Tile sharpening latency (gesture end → visible area fully sharp), typical text page | p95 ≤ 150 ms at fit width, ≤ 300 ms at 800% |
 | Heavy vector page (corpus "heavy-plot") | No UI jank; sharp within 1 s |
 | Cold start → library visible | ≤ 500 ms |
@@ -436,8 +436,8 @@ Each task = one PR (or a short sequence of `a/b/c` PRs). Order within a mileston
 |---|---|---|
 | Single-threaded PDFium vs. heavy pages | Slow sharpening, queue stalls | Strict prioritization, progressive render cancellation, page handle cache; second render process if still insufficient |
 | Malformed PDFs crash native code | App crash | PDFium in separate process with automatic recovery (§4.2) |
-| GPU upload on UI thread | Jank at 144 Hz | HardwareBuffer transport / background hardware-bitmap copy; per-frame swap cap |
-| HyperOS caps refresh rate | Not truly 144 Hz | Explicit frame-rate requests; verify on device; document findings in ADR |
+| GPU upload on UI thread | Jank at 120 Hz | HardwareBuffer transport / background hardware-bitmap copy; per-frame swap cap |
+| HyperOS caps refresh rate | Confirmed: apps get 120 Hz even with the 144 Hz setting on (2026-10-02) | Budgets use 120 Hz. Keep the explicit frame-rate request so the app benefits if 144 Hz is granted |
 | Compose Canvas throughput ceiling | Missed frame budget | Backend-agnostic tile manager; planned SurfaceView/GL fallback |
 | HardwareBuffer CPU-write path unreliable on driver | Corrupt tiles or crashes | SharedMemory fallback path (§4.3) |
 | Column detection fails on unusual layouts | Bad double-tap zoom | Region segmentation, fit-width fallback, fixtures for edge cases |
