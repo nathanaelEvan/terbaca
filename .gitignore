@@ -13,3 +13,4 @@ captures/
 *.aab
 *.hprof
 output.json
+__pycache__/
