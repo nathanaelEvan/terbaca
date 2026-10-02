@@ -315,6 +315,65 @@ class PdfiumNativeExecutionTest {
         }
     }
 
+    @Test
+    fun testNativeRenderTileToDirectBuffer_withCancellationSignal_returnsCancelledStatus() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val buffer = ByteBuffer.allocateDirect(512 * 512 * 4)
+                val cancelSignal = java.util.concurrent.atomic.AtomicBoolean(true)
+                val status = doc.renderTileToDirectBuffer(
+                    pageIndex = 0,
+                    directBuffer = buffer,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 512,
+                    tileHeight = 512,
+                    cancellationSignal = cancelSignal
+                )
+                assertEquals(
+                    "Native rendering with pre-cancelled signal must return STATUS_ERR_CANCELLED",
+                    PdfiumDocument.STATUS_ERR_CANCELLED,
+                    status
+                )
+            }
+        }
+    }
+
+    @Test
+    fun testNativeRenderTileToHardwareBuffer_withCancellationSignal_returnsCancelledStatus() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val usage = HardwareBuffer.USAGE_CPU_WRITE_OFTEN or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                val hwBuffer = HardwareBuffer.create(512, 512, HardwareBuffer.RGBA_8888, 1, usage)
+                try {
+                    val cancelSignal = java.util.concurrent.atomic.AtomicBoolean(true)
+                    val status = doc.renderTileToHardwareBuffer(
+                        pageIndex = 0,
+                        hardwareBuffer = hwBuffer,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512,
+                        cancellationSignal = cancelSignal
+                    )
+                    assertEquals(
+                        "Native rendering to HardwareBuffer with cancelled signal must return STATUS_ERR_CANCELLED",
+                        PdfiumDocument.STATUS_ERR_CANCELLED,
+                        status
+                    )
+                } finally {
+                    hwBuffer.close()
+                }
+            }
+        }
+    }
+
     private companion object {
         const val STRESS_ITERATIONS = 200
     }

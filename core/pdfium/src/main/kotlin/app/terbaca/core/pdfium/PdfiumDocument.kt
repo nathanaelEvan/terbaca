@@ -58,6 +58,7 @@ class PdfiumDocument internal constructor(
         const val STATUS_ERR_LOCK_FAILED = 4
         const val STATUS_ERR_PAGE_NOT_FOUND = 5
         const val STATUS_ERR_PDFIUM = 6
+        const val STATUS_ERR_CANCELLED = 7
     }
 
     fun renderTileToHardwareBuffer(
@@ -68,7 +69,8 @@ class PdfiumDocument internal constructor(
         startX: Int,
         startY: Int,
         tileWidth: Int,
-        tileHeight: Int
+        tileHeight: Int,
+        cancellationSignal: Any? = null
     ): Int = synchronized(lock) {
         checkNotClosed()
         if (pageIndex < 0 || pageIndex >= pageCount) {
@@ -89,7 +91,8 @@ class PdfiumDocument internal constructor(
             startX = startX,
             startY = startY,
             tileWidth = tileWidth,
-            tileHeight = tileHeight
+            tileHeight = tileHeight,
+            cancellationSignal = cancellationSignal
         )
     }
 
@@ -102,7 +105,8 @@ class PdfiumDocument internal constructor(
         startY: Int,
         tileWidth: Int,
         tileHeight: Int,
-        stride: Int = tileWidth * 4
+        stride: Int = tileWidth * 4,
+        cancellationSignal: Any? = null
     ): Int = synchronized(lock) {
         checkNotClosed()
         if (pageIndex < 0 || pageIndex >= pageCount) {
@@ -129,7 +133,8 @@ class PdfiumDocument internal constructor(
             startY = startY,
             tileWidth = tileWidth,
             tileHeight = tileHeight,
-            stride = stride
+            stride = stride,
+            cancellationSignal = cancellationSignal
         )
     }
 

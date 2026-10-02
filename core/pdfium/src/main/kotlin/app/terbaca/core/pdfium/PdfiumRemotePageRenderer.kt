@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Concrete [PageRenderer] implementation communicating with [PdfiumRenderService]
@@ -159,10 +160,14 @@ class PdfiumRemotePageRenderer(
             (0 until count).map { getPageInfo(docHandle, it) }
         }
 
+    private val renderIdSequence = AtomicLong(1L)
+
     override suspend fun closeDocument(docHandle: Long): Unit = withContext(Dispatchers.IO) {
         if (isServiceConnected) {
             runCatching {
-                getService().closeDocument(docHandle)
+                val service = getService()
+                service.cancelAllTiles(docHandle)
+                service.closeDocument(docHandle)
             }
         }
         Unit
@@ -178,6 +183,30 @@ class PdfiumRemotePageRenderer(
         tileWidth: Int,
         tileHeight: Int
     ): Bitmap = renderTile(
+        renderId = renderIdSequence.getAndIncrement(),
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        forceFallback = false
+    )
+
+    override suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap = renderTile(
+        renderId = renderId,
         docHandle = docHandle,
         pageIndex = pageIndex,
         fullWidth = fullWidth,
@@ -190,6 +219,7 @@ class PdfiumRemotePageRenderer(
     )
 
     suspend fun renderTile(
+        renderId: Long = renderIdSequence.getAndIncrement(),
         docHandle: Long,
         pageIndex: Int,
         fullWidth: Int,
@@ -201,17 +231,28 @@ class PdfiumRemotePageRenderer(
         forceFallback: Boolean
     ): Bitmap = withContext(Dispatchers.IO) {
         val service = getService()
-        val result = service.renderTile(
-            docHandle,
-            pageIndex,
-            fullWidth,
-            fullHeight,
-            startX,
-            startY,
-            tileWidth,
-            tileHeight,
-            forceFallback
-        ).unwrap()
+        val job = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]
+        val completionHandle = job?.invokeOnCompletion { cause ->
+            if (cause is kotlinx.coroutines.CancellationException) {
+                cancelTile(renderId)
+            }
+        }
+        val result = try {
+            service.renderTile(
+                renderId,
+                docHandle,
+                pageIndex,
+                fullWidth,
+                fullHeight,
+                startX,
+                startY,
+                tileWidth,
+                tileHeight,
+                forceFallback
+            ).unwrap()
+        } finally {
+            completionHandle?.dispose()
+        }
 
         val hwBuffer = result.hardwareBuffer
         if (hwBuffer != null) {
@@ -258,6 +299,18 @@ class PdfiumRemotePageRenderer(
                     sharedMem.close()
                 }
             }
+        }
+    }
+
+    override fun cancelTile(renderId: Long) {
+        if (isServiceConnected) {
+            runCatching { serviceBinder?.cancelTile(renderId) }
+        }
+    }
+
+    override fun cancelAllTiles(docHandle: Long) {
+        if (isServiceConnected) {
+            runCatching { serviceBinder?.cancelAllTiles(docHandle) }
         }
     }
 

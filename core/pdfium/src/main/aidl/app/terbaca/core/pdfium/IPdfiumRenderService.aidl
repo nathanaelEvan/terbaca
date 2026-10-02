@@ -29,8 +29,10 @@ interface IPdfiumRenderService {
 
     /**
      * Renders a page or sub-page tile into a HardwareBuffer (or SharedMemory fallback).
+     * The in-flight render can be cancelled via cancelTile(renderId).
      */
     RenderResult renderTile(
+        long renderId,
         long docHandle,
         int pageIndex,
         int fullWidth,
@@ -41,6 +43,16 @@ interface IPdfiumRenderService {
         int tileHeight,
         boolean forceFallback
     );
+
+    /**
+     * Cancels an in-flight or pending tile render identified by renderId.
+     */
+    void cancelTile(long renderId);
+
+    /**
+     * Cancels all in-flight or pending tile renders for docHandle.
+     */
+    void cancelAllTiles(long docHandle);
 
     /**
      * Closes the document and releases native resources.

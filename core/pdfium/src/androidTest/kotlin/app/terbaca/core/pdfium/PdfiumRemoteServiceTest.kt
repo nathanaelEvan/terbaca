@@ -10,6 +10,10 @@ import android.os.Process
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -543,6 +547,174 @@ class PdfiumRemoteServiceTest {
                     tileHeight = 512
                 )
             }
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_inFlightCancellation_viaCancelTile() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val renderId = 8888L
+            var caughtException: Throwable? = null
+            val renderLatch = CountDownLatch(1)
+
+            val renderJob = launch(Dispatchers.IO) {
+                try {
+                    renderer.renderTile(
+                        renderId = renderId,
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024,
+                        forceFallback = false
+                    )
+                } catch (t: Throwable) {
+                    caughtException = t
+                } finally {
+                    renderLatch.countDown()
+                }
+            }
+
+            // Immediately cancel the tile
+            renderer.cancelTile(renderId)
+
+            val finished = renderLatch.await(5, TimeUnit.SECONDS)
+            assertTrue("Cancelled render must complete promptly", finished)
+            renderJob.join()
+
+            assertNotNull("Render must throw an exception on cancellation", caughtException)
+            assertTrue(
+                "Caught exception must be PdfRenderCancelledException, was: $caughtException",
+                caughtException is PdfRenderCancelledException
+            )
+
+            // Render service must remain connected and operational
+            assertTrue("Render service must remain connected after cancellation", renderer.isServiceConnected)
+
+            // Subsequent tile must succeed without falling back to software/SharedMemory
+            val validTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull("Subsequent tile must succeed", validTile)
+            assertEquals("Hardware transport must still be active", Bitmap.Config.HARDWARE, validTile.config)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_inFlightCancellation_viaCoroutineCancellation() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val renderJob = launch(Dispatchers.IO) {
+                renderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 2448,
+                    fullHeight = 3168,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1024,
+                    tileHeight = 1024
+                )
+            }
+
+            // Let coroutine start, then cancel
+            delay(2)
+            renderJob.cancelAndJoin()
+            assertTrue("Render job must be cancelled", renderJob.isCancelled)
+
+            // Service must still be connected
+            assertTrue("Render service must remain connected after job cancellation", renderer.isServiceConnected)
+
+            // Subsequent tile must succeed
+            val validTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull("Subsequent tile must succeed", validTile)
+            assertEquals(256, validTile.width)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_cancelAllTiles() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val latch = CountDownLatch(1)
+
+            launch(Dispatchers.IO) {
+                try {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024
+                    )
+                } catch (_: Throwable) {
+                    // Ignored
+                } finally {
+                    latch.countDown()
+                }
+            }
+
+            renderer.cancelAllTiles(handle)
+            val finished = latch.await(5, TimeUnit.SECONDS)
+            assertTrue("Render must complete after cancelAllTiles", finished)
+
+            // Service remains healthy and subsequent render succeeds
+            assertTrue(renderer.isServiceConnected)
+            val tile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull(tile)
+
+            renderer.closeDocument(handle)
         }
     }
 }
