@@ -53,8 +53,11 @@ import kotlin.math.roundToInt
 
 private const val SCROLLBAR_HIDE_DELAY_MS = 1500L
 private val THUMB_HEIGHT = 56.dp
-private val THUMB_TOUCH_WIDTH = 32.dp
-private val THUMB_VISIBLE_WIDTH = 6.dp
+private val THUMB_TOUCH_WIDTH = 48.dp // Material minimum touch target
+private val THUMB_VISIBLE_WIDTH = 8.dp
+
+// Keeps the thumb clear of the screen edge, where it is hard to grab and the system back swipe starts.
+private val THUMB_EDGE_GAP = 12.dp
 
 /**
  * Fast-scroll handle on the right edge (F-NAV-3). Shows while the document moves, hides after
@@ -89,6 +92,7 @@ fun BoxScope.FastScrollbar(state: DocumentTransformState, modifier: Modifier = M
             .statusBarsPadding()
             .navigationBarsPadding()
             .fillMaxHeight()
+            .padding(end = THUMB_EDGE_GAP)
             .width(THUMB_TOUCH_WIDTH)
             .onSizeChanged { trackHeightPx = it.height }
     ) {
@@ -124,8 +128,7 @@ fun BoxScope.FastScrollbar(state: DocumentTransformState, modifier: Modifier = M
         ) {
             Box(
                 modifier = Modifier
-                    .padding(end = 4.dp)
-                    .align(Alignment.CenterEnd)
+                    .align(Alignment.Center)
                     .width(THUMB_VISIBLE_WIDTH)
                     .fillMaxHeight()
                     .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(50))
