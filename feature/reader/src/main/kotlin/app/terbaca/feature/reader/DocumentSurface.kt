@@ -648,15 +648,14 @@ private fun DrawScope.drawTilePyramid(
 
     // Skip the full-page base layer when opaque detail tiles cover the visible page: on a
     // full-screen page it is a whole extra screen of GPU fill per frame (ADR 0004).
-    if (!isDetailLayerOpaque(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)) {
+    val detailOpaque = isDetailLayerOpaque(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)
+    if (!detailOpaque) {
         drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
     }
 
-    // Unrevealed tiles draw at alpha 0, so they don't count as covering yet.
-    val allCurrentShown = visibleTiles.all {
-        tileCache.get(it.key) != null && tileFadeStartTimes[it.key] != TILE_UNREVEALED
-    }
-    if (allCurrentShown) {
+    // Keep the previous level underneath until the current one has fully faded in: dropping it
+    // when the fade started let the blurry base show through for a frame (a blink on zoom end).
+    if (detailOpaque) {
         underlayLevels[page.index] = currentLevel
     } else {
         val prevLevel = underlayLevels[page.index]
