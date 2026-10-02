@@ -199,7 +199,7 @@ class PdfiumNativeExecutionTest {
                     usage
                 )
                 try {
-                    val success = doc.renderTileToHardwareBuffer(
+                    val status = doc.renderTileToHardwareBuffer(
                         pageIndex = 0,
                         hardwareBuffer = hwBuffer,
                         fullWidth = 612,
@@ -209,7 +209,7 @@ class PdfiumNativeExecutionTest {
                         tileWidth = 512,
                         tileHeight = 512
                     )
-                    assertTrue("Native rendering to HardwareBuffer must succeed", success)
+                    assertEquals("Native rendering to HardwareBuffer must succeed", PdfiumDocument.STATUS_SUCCESS, status)
 
                     val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, null)
                     assertNotNull("Bitmap.wrapHardwareBuffer must return non-null Bitmap", bitmap)
@@ -229,7 +229,7 @@ class PdfiumNativeExecutionTest {
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             PdfiumEngine.openDocument(pfd).use { doc ->
                 val buffer = ByteBuffer.allocateDirect(512 * 512 * 4)
-                val success = doc.renderTileToDirectBuffer(
+                val status = doc.renderTileToDirectBuffer(
                     pageIndex = 0,
                     directBuffer = buffer,
                     fullWidth = 612,
@@ -239,7 +239,7 @@ class PdfiumNativeExecutionTest {
                     tileWidth = 512,
                     tileHeight = 512
                 )
-                assertTrue("Native rendering to direct ByteBuffer must succeed", success)
+                assertEquals("Native rendering to direct ByteBuffer must succeed", PdfiumDocument.STATUS_SUCCESS, status)
 
                 // Background was cleared to opaque white (0xFFFFFFFF = all bytes 0xFF)
                 buffer.rewind()
@@ -251,6 +251,66 @@ class PdfiumNativeExecutionTest {
                 assertEquals("Top-left pixel must be opaque white", 0xFF, b1)
                 assertEquals("Top-left pixel must be opaque white", 0xFF, b2)
                 assertEquals("Top-left pixel must be opaque white", 0xFF, b3)
+            }
+        }
+    }
+
+    @Test
+    fun testNativeRenderTile_oversizedTileRequestThrows() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val buffer = ByteBuffer.allocateDirect(1024)
+                // Oversized tile width > MAX_TILE_DIMENSION (4096)
+                assertThrows(IllegalArgumentException::class.java) {
+                    doc.renderTileToDirectBuffer(
+                        pageIndex = 0,
+                        directBuffer = buffer,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 5000,
+                        tileHeight = 512
+                    )
+                }
+
+                // Oversized full dimensions > MAX_PAGE_DIMENSION (65536)
+                assertThrows(IllegalArgumentException::class.java) {
+                    doc.renderTileToDirectBuffer(
+                        pageIndex = 0,
+                        directBuffer = buffer,
+                        fullWidth = 70000,
+                        fullHeight = 70000,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testNativeRenderTileToDirectBuffer_bufferTooSmallThrows() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                // Buffer capacity is smaller than tileWidth * tileHeight * 4
+                val buffer = ByteBuffer.allocateDirect(100)
+                assertThrows(IllegalArgumentException::class.java) {
+                    doc.renderTileToDirectBuffer(
+                        pageIndex = 0,
+                        directBuffer = buffer,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512
+                    )
+                }
             }
         }
     }

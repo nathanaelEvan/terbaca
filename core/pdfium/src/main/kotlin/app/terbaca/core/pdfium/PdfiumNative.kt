@@ -27,7 +27,7 @@ internal object PdfiumNative {
         startY: Int,
         tileWidth: Int,
         tileHeight: Int
-    ): Boolean
+    ): Int
     external fun nativeRenderTileToDirectBuffer(
         docPtr: Long,
         pageIndex: Int,
@@ -39,7 +39,7 @@ internal object PdfiumNative {
         tileWidth: Int,
         tileHeight: Int,
         stride: Int
-    ): Boolean
+    ): Int
     external fun nativeCloseDocument(docPtr: Long)
     external fun nativeGetLastError(): Int
 }

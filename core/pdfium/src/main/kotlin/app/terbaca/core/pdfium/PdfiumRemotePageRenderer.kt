@@ -238,15 +238,19 @@ class PdfiumRemotePageRenderer(
                 try {
                     val readBuffer = sharedMem.mapReadOnly()
                     try {
-                        val softwareBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        softwareBitmap.copyPixelsFromBuffer(readBuffer)
-                        val hardwareBitmap = softwareBitmap.copy(Bitmap.Config.HARDWARE, false)
-                            ?: throw PdfiumException(
-                                "Failed to copy software bitmap to HARDWARE config",
-                                PdfiumException.ERROR_UNKNOWN
-                            )
-                        softwareBitmap.recycle()
-                        hardwareBitmap
+                        var softwareBitmap: Bitmap? = null
+                        try {
+                            softwareBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            softwareBitmap.copyPixelsFromBuffer(readBuffer)
+                            val hardwareBitmap = softwareBitmap.copy(Bitmap.Config.HARDWARE, false)
+                                ?: throw PdfiumException(
+                                    "Failed to copy software bitmap to HARDWARE config",
+                                    PdfiumException.ERROR_UNKNOWN
+                                )
+                            hardwareBitmap
+                        } finally {
+                            softwareBitmap?.recycle()
+                        }
                     } finally {
                         SharedMemory.unmap(readBuffer)
                     }

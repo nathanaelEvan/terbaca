@@ -8,8 +8,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include "fpdfview.h"
+
+enum RenderTileStatus {
+    RENDER_TILE_SUCCESS = 0,
+    RENDER_TILE_ERR_INVALID_PARAM = 1,
+    RENDER_TILE_ERR_BUFFER_TOO_SMALL = 2,
+    RENDER_TILE_ERR_UNSUPPORTED_FORMAT = 3,
+    RENDER_TILE_ERR_LOCK_FAILED = 4,
+    RENDER_TILE_ERR_PAGE_NOT_FOUND = 5,
+    RENDER_TILE_ERR_PDFIUM = 6
+};
 
 
 #define TAG "TerbacaPdfiumNative"
@@ -94,7 +105,7 @@ struct NativeDocument {
     int dup_fd = -1;
 };
 
-static bool RenderPageTile(
+static int RenderPageTile(
     FPDF_DOCUMENT doc,
     int pageIndex,
     void* buffer,
@@ -106,23 +117,24 @@ static bool RenderPageTile(
     int startX,
     int startY
 ) {
-    if (!doc || !buffer || tileWidth <= 0 || tileHeight <= 0 || fullWidth <= 0 || fullHeight <= 0) {
+    if (!doc || !buffer || tileWidth <= 0 || tileHeight <= 0 || fullWidth <= 0 || fullHeight <= 0 ||
+        tileWidth > 4096 || tileHeight > 4096 || fullWidth > 65536 || fullHeight > 65536) {
         LOGE("Invalid parameters for RenderPageTile: doc=%p buffer=%p tile=%dx%d full=%dx%d",
              doc, buffer, tileWidth, tileHeight, fullWidth, fullHeight);
-        return false;
+        return RENDER_TILE_ERR_INVALID_PARAM;
     }
 
     FPDF_PAGE page = FPDF_LoadPage(doc, pageIndex);
     if (!page) {
         LOGE("Failed to load page %d for tile rendering", pageIndex);
-        return false;
+        return RENDER_TILE_ERR_PAGE_NOT_FOUND;
     }
 
     FPDF_BITMAP bitmap = FPDFBitmap_CreateEx(tileWidth, tileHeight, FPDFBitmap_BGRA, buffer, stride);
     if (!bitmap) {
         LOGE("FPDFBitmap_CreateEx failed for %dx%d stride %d", tileWidth, tileHeight, stride);
         FPDF_ClosePage(page);
-        return false;
+        return RENDER_TILE_ERR_PDFIUM;
     }
 
     // Initialize background to opaque white (0xFFFFFFFF in ARGB format)
@@ -142,7 +154,7 @@ static bool RenderPageTile(
 
     FPDFBitmap_Destroy(bitmap);
     FPDF_ClosePage(page);
-    return true;
+    return RENDER_TILE_SUCCESS;
 }
 
 } // namespace
@@ -338,7 +350,7 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetLastError(
     return static_cast<jint>(FPDF_GetLastError());
 }
 
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jint JNICALL
 Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
         JNIEnv* env,
         jclass /* clazz */,
@@ -354,7 +366,14 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
     if (docPtr == 0 || hardwareBufferObj == nullptr) {
         LOGE("Invalid parameters for nativeRenderTileToHardwareBuffer: docPtr=%ld buffer=%p",
              static_cast<long>(docPtr), hardwareBufferObj);
-        return JNI_FALSE;
+        return RENDER_TILE_ERR_INVALID_PARAM;
+    }
+
+    if (tileWidth <= 0 || tileHeight <= 0 || tileWidth > 4096 || tileHeight > 4096 ||
+        fullWidth <= 0 || fullHeight <= 0 || fullWidth > 65536 || fullHeight > 65536) {
+        LOGE("Invalid dimensions for nativeRenderTileToHardwareBuffer: tile=%dx%d full=%dx%d",
+             tileWidth, tileHeight, fullWidth, fullHeight);
+        return RENDER_TILE_ERR_INVALID_PARAM;
     }
 
     auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
@@ -362,11 +381,22 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
     AHardwareBuffer* hw_buffer = AHardwareBuffer_fromHardwareBuffer(env, hardwareBufferObj);
     if (!hw_buffer) {
         LOGE("AHardwareBuffer_fromHardwareBuffer returned null");
-        return JNI_FALSE;
+        return RENDER_TILE_ERR_LOCK_FAILED;
     }
 
     AHardwareBuffer_Desc desc{};
     AHardwareBuffer_describe(hw_buffer, &desc);
+
+    if (desc.format != AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM) {
+        LOGE("HardwareBuffer format is not R8G8B8A8_UNORM (format=%u)", desc.format);
+        return RENDER_TILE_ERR_UNSUPPORTED_FORMAT;
+    }
+
+    if (static_cast<int>(desc.width) < tileWidth || static_cast<int>(desc.height) < tileHeight) {
+        LOGE("HardwareBuffer dimensions %ux%u smaller than tile %dx%d",
+             desc.width, desc.height, tileWidth, tileHeight);
+        return RENDER_TILE_ERR_BUFFER_TOO_SMALL;
+    }
 
     void* virtualAddress = nullptr;
     int lock_res = AHardwareBuffer_lock(
@@ -379,13 +409,13 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
 
     if (lock_res != 0 || !virtualAddress) {
         LOGE("AHardwareBuffer_lock failed with code: %d", lock_res);
-        return JNI_FALSE;
+        return RENDER_TILE_ERR_LOCK_FAILED;
     }
 
-    bool success = false;
+    int status = RENDER_TILE_SUCCESS;
     {
         PthreadGuard lock(s_pdfium_mutex);
-        success = RenderPageTile(
+        status = RenderPageTile(
             doc_handle->doc,
             pageIndex,
             virtualAddress,
@@ -404,10 +434,10 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
         LOGW("AHardwareBuffer_unlock failed with code: %d", unlock_res);
     }
 
-    return success ? JNI_TRUE : JNI_FALSE;
+    return status;
 }
 
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jint JNICALL
 Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
         JNIEnv* env,
         jclass /* clazz */,
@@ -424,26 +454,47 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
     if (docPtr == 0 || directBuffer == nullptr) {
         LOGE("Invalid parameters for nativeRenderTileToDirectBuffer: docPtr=%ld buffer=%p",
              static_cast<long>(docPtr), directBuffer);
-        return JNI_FALSE;
+        return RENDER_TILE_ERR_INVALID_PARAM;
+    }
+
+    if (tileWidth <= 0 || tileHeight <= 0 || tileWidth > 4096 || tileHeight > 4096 ||
+        fullWidth <= 0 || fullHeight <= 0 || fullWidth > 65536 || fullHeight > 65536) {
+        LOGE("Invalid dimensions for nativeRenderTileToDirectBuffer: tile=%dx%d full=%dx%d",
+             tileWidth, tileHeight, fullWidth, fullHeight);
+        return RENDER_TILE_ERR_INVALID_PARAM;
+    }
+
+    int actual_stride = stride > 0 ? stride : (tileWidth * 4);
+    if (actual_stride < tileWidth * 4) {
+        LOGE("stride %d is less than tileWidth * 4 (%d)", actual_stride, tileWidth * 4);
+        return RENDER_TILE_ERR_INVALID_PARAM;
+    }
+
+    jlong capacity = env->GetDirectBufferCapacity(directBuffer);
+    int64_t required_capacity = static_cast<int64_t>(actual_stride) * static_cast<int64_t>(tileHeight);
+    if (capacity < required_capacity) {
+        LOGE("directBuffer capacity %lld is smaller than required %lld",
+             static_cast<long long>(capacity), static_cast<long long>(required_capacity));
+        return RENDER_TILE_ERR_BUFFER_TOO_SMALL;
     }
 
     auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
     void* bufferAddress = env->GetDirectBufferAddress(directBuffer);
     if (!bufferAddress) {
         LOGE("GetDirectBufferAddress returned null");
-        return JNI_FALSE;
+        return RENDER_TILE_ERR_INVALID_PARAM;
     }
 
-    bool success = false;
+    int status = RENDER_TILE_SUCCESS;
     {
         PthreadGuard lock(s_pdfium_mutex);
-        success = RenderPageTile(
+        status = RenderPageTile(
             doc_handle->doc,
             pageIndex,
             bufferAddress,
             tileWidth,
             tileHeight,
-            stride > 0 ? stride : (tileWidth * 4),
+            actual_stride,
             fullWidth,
             fullHeight,
             startX,
@@ -451,7 +502,7 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
         );
     }
 
-    return success ? JNI_TRUE : JNI_FALSE;
+    return status;
 }
 
 } // extern "C"
