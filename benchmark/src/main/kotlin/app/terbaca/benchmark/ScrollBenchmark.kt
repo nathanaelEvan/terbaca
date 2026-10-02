@@ -7,6 +7,7 @@ import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.Until
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,10 +33,26 @@ class ScrollBenchmark {
         pressHome()
         startActivityAndWait()
 
+        device.wait(Until.hasObject(By.pkg("app.terbaca")), 5_000)
+        Thread.sleep(1000)
+
         val content = device.findObject(By.pkg("app.terbaca"))
+        // Continuous fling up and down
         content?.fling(Direction.DOWN)
         device.waitForIdle()
         content?.fling(Direction.UP)
+        device.waitForIdle()
+
+        // Pan / scroll
+        content?.scroll(Direction.DOWN, 0.5f)
+        device.waitForIdle()
+        content?.scroll(Direction.UP, 0.5f)
+        device.waitForIdle()
+
+        // Pinch zoom in and out
+        content?.pinchOpen(0.8f, 30)
+        device.waitForIdle()
+        content?.pinchClose(0.8f, 30)
         device.waitForIdle()
     }
 }
