@@ -81,7 +81,7 @@ However, committing binary files directly into Git permanently increases reposit
 
 ### License Audit
 
-PDFium is licensed under the 3-Clause BSD License (Copyright 2014 PDFium Authors). Third-party subcomponents included in this build (Abseil, FreeType, ICU, libjpeg-turbo, libopenjpeg, libpng, zlib, LCMS) are all permissive open-source licenses (BSD, MIT, FTL, IJG, zlib). Full upstream notices are maintained in `core/pdfium/src/main/cpp/LICENSE` and `THIRD_PARTY_NOTICES`.
+PDFium is licensed under the 3-Clause BSD License (Copyright 2014 PDFium Authors). Third-party subcomponents included in this build (Abseil, FreeType, ICU, libjpeg-turbo, libopenjpeg, libpng, zlib, LCMS) are all permissive open-source licenses (BSD, MIT, FTL, IJG, zlib). Full upstream notices are maintained in `core/pdfium/src/main/cpp/LICENSE.pdfium-binaries` and `THIRD_PARTY_NOTICES`.
 
 ### Evaluation of Skia Backend
 
