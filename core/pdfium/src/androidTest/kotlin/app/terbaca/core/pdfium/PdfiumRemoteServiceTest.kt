@@ -627,13 +627,14 @@ class PdfiumRemoteServiceTest {
     @Test
     fun testRemoteRenderService_inFlightCancellation_viaCoroutineCancellation() {
         runBlocking {
-            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val file = copyAssetToTempFile("fixtures/many_objects.pdf")
             val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
                 renderer.openDocument(pfd)
             }
             assertTrue(handle > 0L)
 
-            // Measure the full, uncancelled render of the heavy vector plot. Render twice and keep
+            // Measure the full, uncancelled render of a page with many separate objects (PDFium can only
+            // pause between objects, so heavy_plot.pdf, which is mostly two polylines, can't show this). Render twice and keep
             // the second (warm) timing, so the cancelled run below can't look faster just because
             // page data is already loaded.
             var fullDuration = 0L

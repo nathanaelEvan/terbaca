@@ -24,6 +24,7 @@ clean IP provenance, zero copyright encumbrance, and reproducible benchmark test
 | `malformed_corrupt.pdf` | N/A (corrupt) | N/A | 1,100 B | `ed80f4c8e9d7da8f3f49ea6c9866d5f3bc551b65458bceb60c323fe0e0ccc27e` | Corrupt binary stream PDF (PRD §7.1.8) |
 | `encrypted_password.pdf` | 2 | 595.28x841.89 (A4) | 960 B | `f1219db3ce233f34cadd8912f72859ce89da47a9bb67a27df56f8870eae57e22` | Encrypted PDF protected by password 'secret123' (PRD §7.1.8) |
 | `red_rectangle.pdf` | 1 | 200.0x200.0 (Square) | 657 B | `3032d535127c358e51a417349e2c731dccb33242180124e7933ede9eb6ebbd0e` | Single-page PDF with 100x100 pure-red rectangle centered at [50, 50, 150, 150] on white background for pixel color fidelity tests |
+| `many_objects.pdf` | 1 | 612.0x792.0 (Letter) | 146,991 B | `59baa43d410b81ecb054eae8c435e8ff7d21235144fe2079dfd14ed33dff2650` | One page with 3,000 separate overlapping translucent circles, for measuring mid-render cancellation (test fixture) |
 
 
 ## Regeneration

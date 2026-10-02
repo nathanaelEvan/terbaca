@@ -414,6 +414,29 @@ def generate_encrypted_password(out_path: Path) -> dict:
     return {"pages": 2, "dimensions": "595.28x841.89 (A4)", "password": "secret123"}
 
 
+def generate_many_objects(out_path: Path) -> dict:
+    """Test fixture: one page with thousands of separate path objects.
+
+    PDFium's progressive renderer can only pause between page objects, so this page lets tests
+    measure mid-render cancellation (heavy_plot.pdf is mostly two huge polylines).
+    """
+    doc = pymupdf.open()
+    page_width, page_height = 612.0, 792.0
+    page = doc.new_page(width=page_width, height=page_height)
+    # One content stream, one path object per circle. Overlapping semi-transparent fills make each
+    # object expensive to draw, so rendering (pausable) dominates parsing (not pausable).
+    shape = page.new_shape()
+    count = 3000
+    for i in range(count):
+        center = pymupdf.Point(36 + (i * 37) % 540, 36 + (i * 53) % 720)
+        shape.draw_circle(center, 30)
+        shape.finish(color=(0.1, 0.1, 0.3), fill=((i % 17) / 20.0, 0.2, 0.6), width=0.5, fill_opacity=0.5)
+    shape.commit()
+    doc.save(str(out_path), deflate=True)
+    doc.close()
+    return {"pages": 1, "dimensions": f"{page_width}x{page_height} (Letter)", "objects": count}
+
+
 def main():
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
     manifest = [
@@ -427,6 +450,7 @@ def main():
         ("malformed_truncated.pdf", generate_malformed_truncated, "Malformed/truncated PDF file (PRD §7.1.8)"),
         ("malformed_corrupt.pdf", generate_malformed_corrupt, "Corrupt binary stream PDF (PRD §7.1.8)"),
         ("encrypted_password.pdf", generate_encrypted_password, "Encrypted PDF protected by password 'secret123' (PRD §7.1.8)"),
+        ("many_objects.pdf", generate_many_objects, "One page with 3,000 separate overlapping translucent circles, for measuring mid-render cancellation (test fixture)"),
     ]
 
     records = []
