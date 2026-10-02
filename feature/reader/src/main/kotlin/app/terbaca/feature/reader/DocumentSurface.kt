@@ -1,6 +1,8 @@
 package app.terbaca.feature.reader
 
 import android.app.Activity
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.animation.core.exponentialDecay
@@ -15,8 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -33,6 +35,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import app.terbaca.core.model.TileKey
 import app.terbaca.core.render.PageRenderer
+import app.terbaca.core.render.cache.TileCache
+import app.terbaca.core.render.cache.TileMemoryBudget
 import app.terbaca.core.render.pyramid.PyramidLevel
 import app.terbaca.core.render.pyramid.TileBounds
 import app.terbaca.core.render.pyramid.TilePyramid
@@ -83,14 +87,35 @@ fun DocumentSurface(
         onDispose {}
     }
 
-    // Tile storage and crossfade tracking
-    val loadedTiles = remember { mutableStateMapOf<TileKey, Bitmap>() }
-    val tileFadeStartTimes = remember { mutableStateMapOf<TileKey, Long>() }
+    // Tile storage (byte-budgeted, PRD §5) and crossfade tracking.
+    // Only touched on the main thread: coroutines run on the composition's scope, the draw lambda on the UI thread.
+    val context = view.context
+    val tileCache = remember { TileCache(TileMemoryBudget.fromContext(context)) }
+    val tileFadeStartTimes = remember { HashMap<TileKey, Long>() }
     val pendingTileArrivals = remember { ArrayDeque<Pair<TileKey, Bitmap>>() }
-    var baseBitmap = remember { mutableStateMapOf<Int, Bitmap>() }
+    val inFlightTiles = remember { HashSet<TileKey>() }
 
-    // Animation frame clock for crossfade progression
+    // Read in the draw phase so tile arrivals and running crossfades redraw without recomposing
+    val tileArrivals = remember { mutableIntStateOf(0) }
     val frameClock = remember { mutableLongStateOf(0L) }
+
+    DisposableEffect(tileCache) {
+        val appContext = context.applicationContext
+        val callbacks = object : ComponentCallbacks2 {
+            override fun onTrimMemory(level: Int) = tileCache.onTrimMemory(level)
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated in Java")
+            override fun onLowMemory() = tileCache.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+        }
+        appContext.registerComponentCallbacks(callbacks)
+        onDispose {
+            appContext.unregisterComponentCallbacks(callbacks)
+            pendingTileArrivals.forEach { (_, bmp) -> bmp.recycle() }
+            pendingTileArrivals.clear()
+            tileCache.clear()
+        }
+    }
 
     // Measure viewport on size change
     val sizeModifier = Modifier.onSizeChanged { size ->
@@ -161,10 +186,11 @@ fun DocumentSurface(
 
         // Render base level at fit-width scale once
         val pageInfo = state.pageInfo
+        val baseKey = TileCache.baseLayerKey(pageInfo.index)
         coroutineScope.launch {
             val fitWidthPx = (pageInfo.widthPoints * state.fitWidthScale).roundToInt()
             val fitHeightPx = (pageInfo.heightPoints * state.fitWidthScale).roundToInt()
-            if (fitWidthPx > 0 && fitHeightPx > 0 && !baseBitmap.containsKey(pageInfo.index)) {
+            if (fitWidthPx > 0 && fitHeightPx > 0 && tileCache.get(baseKey) == null) {
                 runCatching {
                     val bmp = renderer.renderTile(
                         docHandle = docHandle,
@@ -176,7 +202,8 @@ fun DocumentSurface(
                         tileWidth = fitWidthPx,
                         tileHeight = fitHeightPx
                     )
-                    baseBitmap[pageInfo.index] = bmp
+                    tileCache.put(baseKey, bmp)
+                    tileArrivals.intValue++
                 }
             }
         }
@@ -196,10 +223,14 @@ fun DocumentSurface(
             val visibleRect = state.getVisibleRectPoints()
             val visibleTiles = TilePyramid.getVisibleTiles(pageInfo, currentLevel, visibleRect)
 
+            // Visible tiles + base layer are hot; everything else ages out of the warm tier by bytes
+            tileCache.pinHot(visibleTiles.mapTo(HashSet()) { it.key } + baseKey)
+            tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
+
             for (tile in visibleTiles) {
-                if (!loadedTiles.containsKey(tile.key)) {
+                if (tileCache.get(tile.key) == null && inFlightTiles.add(tile.key)) {
                     coroutineScope.launch {
-                        runCatching {
+                        try {
                             val startX = tile.key.col * currentLevel.tileSize
                             val startY = tile.key.row * currentLevel.tileSize
                             val bmp = renderer.renderTile(
@@ -213,6 +244,13 @@ fun DocumentSurface(
                                 tileHeight = tile.pixelHeight
                             )
                             pendingTileArrivals.add(tile.key to bmp)
+                            tileArrivals.intValue++
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // Failed tile stays missing; it is retried on the next viewport change
+                        } finally {
+                            inFlightTiles.remove(tile.key)
                         }
                     }
                 }
@@ -231,19 +269,21 @@ fun DocumentSurface(
             val scale = state.scale
             val offsetX = state.offsetX
             val offsetY = state.offsetY
+            tileArrivals.intValue
+            frameClock.longValue
             val now = System.currentTimeMillis()
 
             // Drain up to MAX_TILES_SWAPPED_PER_FRAME pending tiles per frame
             var swapped = 0
             while (swapped < MAX_TILES_SWAPPED_PER_FRAME && pendingTileArrivals.isNotEmpty()) {
                 val (key, bmp) = pendingTileArrivals.removeFirst()
-                loadedTiles[key] = bmp
+                tileCache.put(key, bmp)
                 tileFadeStartTimes[key] = now
                 swapped++
             }
 
             // 1. Draw base layer
-            val base = baseBitmap[state.pageInfo.index]
+            val base = tileCache.get(TileCache.baseLayerKey(state.pageInfo.index))
             val contentW = (state.pageInfo.widthPoints * scale).roundToInt()
             val contentH = (state.pageInfo.heightPoints * scale).roundToInt()
 
@@ -268,7 +308,7 @@ fun DocumentSurface(
                 val visibleTiles = TilePyramid.getVisibleTiles(state.pageInfo, currentLevel, visibleRect)
 
                 for (tile in visibleTiles) {
-                    val bmp = loadedTiles[tile.key]
+                    val bmp = tileCache.get(tile.key)
                     if (bmp != null && !bmp.isRecycled) {
                         val fadeStart = tileFadeStartTimes[tile.key] ?: now
                         val elapsed = now - fadeStart
