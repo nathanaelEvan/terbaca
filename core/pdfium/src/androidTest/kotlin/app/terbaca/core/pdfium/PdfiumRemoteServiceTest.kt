@@ -3,10 +3,10 @@ package app.terbaca.core.pdfium
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
 import android.os.ParcelFileDescriptor
 import android.os.Process
+
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -266,19 +266,18 @@ class PdfiumRemoteServiceTest {
             assertEquals(512, bitmap.width)
             assertEquals(512, bitmap.height)
 
-            // Verify pixel contents by drawing HARDWARE bitmap to software Canvas
-            val softwareBitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+            // Verify pixel contents by copying HARDWARE bitmap to CPU-accessible ARGB_8888
+            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull("Software copy of hardware bitmap must not be null", softwareBitmap)
             try {
-                val canvas = Canvas(softwareBitmap)
-                canvas.drawBitmap(bitmap, 0f, 0f, null)
-                val pixel = softwareBitmap.getPixel(10, 10)
+                val pixel = softwareBitmap!!.getPixel(10, 10)
                 assertEquals("Alpha must be fully opaque", 255, Color.alpha(pixel))
                 // Background of valid_2pages.pdf is white
                 assertEquals("Red channel must be white", 255, Color.red(pixel))
                 assertEquals("Green channel must be white", 255, Color.green(pixel))
                 assertEquals("Blue channel must be white", 255, Color.blue(pixel))
             } finally {
-                softwareBitmap.recycle()
+                softwareBitmap?.recycle()
             }
 
             renderer.closeDocument(handle)
@@ -340,19 +339,19 @@ class PdfiumRemoteServiceTest {
             assertEquals(512, bitmap.width)
             assertEquals(512, bitmap.height)
 
-            val softwareBitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull("Software copy of fallback bitmap must not be null", softwareBitmap)
             try {
-                val canvas = Canvas(softwareBitmap)
-                canvas.drawBitmap(bitmap, 0f, 0f, null)
-                val pixel = softwareBitmap.getPixel(10, 10)
+                val pixel = softwareBitmap!!.getPixel(10, 10)
                 assertEquals("Alpha must be fully opaque", 255, Color.alpha(pixel))
             } finally {
-                softwareBitmap.recycle()
+                softwareBitmap?.recycle()
             }
 
             renderer.closeDocument(handle)
         }
     }
+
 
     @Test
     fun testRemoteRenderService_renderTileInvalidPageThrows() {
