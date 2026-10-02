@@ -1,0 +1,32 @@
+# Baseline Profile Rules for Terbaca (PRD §4.6, M1-10)
+HSPLapp/terbaca/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLapp/terbaca/TerbacaApp;->onCreate()V
+
+# Core PDFium and Render Service IPC
+HSPLapp/terbaca/core/pdfium/PdfiumEngine;->initialize()V
+HSPLapp/terbaca/core/pdfium/PdfiumEngine;->openDocument(ILjava/lang/String;)Lapp/terbaca/core/pdfium/PdfiumDocument;
+HSPLapp/terbaca/core/pdfium/PdfiumNative;->loadLibrary()V
+HSPLapp/terbaca/core/pdfium/PdfiumRemotePageRenderer;-><init>(Landroid/content/Context;Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function0;)V
+HSPLapp/terbaca/core/pdfium/PdfiumRemotePageRenderer;->openDocument(Landroid/os/ParcelFileDescriptor;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+HSPLapp/terbaca/core/pdfium/PdfiumRemotePageRenderer;->renderTile(JJIIIIIIZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+HSPLapp/terbaca/core/pdfium/PdfiumRenderService;->onBind(Landroid/content/Intent;)Landroid/os/IBinder;
+
+# Tile Cache and Memory Management
+HSPLapp/terbaca/core/render/cache/TileCache;-><init>(Lapp/terbaca/core/render/cache/TileMemoryBudget;)V
+HSPLapp/terbaca/core/render/cache/TileCache;->get(Lapp/terbaca/core/model/TileKey;)Landroid/graphics/Bitmap;
+HSPLapp/terbaca/core/render/cache/TileCache;->put(Lapp/terbaca/core/model/TileKey;Landroid/graphics/Bitmap;)V
+HSPLapp/terbaca/core/render/cache/TileCache;->pinHot(Ljava/util/Set;)V
+HSPLapp/terbaca/core/render/cache/TileCache;->onTrimMemory(I)V
+
+# Tile Pyramid and Scheduler
+HSPLapp/terbaca/core/render/pyramid/TilePyramid;->buildLevels(Lapp/terbaca/core/model/PageInfo;FF)Ljava/util/List;
+HSPLapp/terbaca/core/render/pyramid/TilePyramid;->selectLevel(Ljava/util/List;F)Lapp/terbaca/core/render/pyramid/PyramidLevel;
+HSPLapp/terbaca/core/render/pyramid/TilePyramid;->getVisibleTiles(Lapp/terbaca/core/model/PageInfo;Lapp/terbaca/core/render/pyramid/PyramidLevel;Lapp/terbaca/core/render/pyramid/ViewportRect;)Ljava/util/List;
+HSPLapp/terbaca/core/render/scheduler/RenderScheduler;->enqueue(Lapp/terbaca/core/render/scheduler/TileRequest;)V
+
+# Reader UI & DocumentSurface Composable
+HSPLapp/terbaca/feature/reader/DocumentSurfaceKt;->DocumentSurface(Landroidx/compose/ui/Modifier;Lapp/terbaca/feature/reader/DocumentTransformState;Lapp/terbaca/core/render/PageRenderer;JLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+HSPLapp/terbaca/feature/reader/DocumentTransformState;-><init>(Lapp/terbaca/core/model/PageInfo;)V
+HSPLapp/terbaca/feature/reader/DocumentTransformState;->updateViewport(FF)V
+HSPLapp/terbaca/feature/reader/DocumentTransformState;->onPan(FF)V
+HSPLapp/terbaca/feature/reader/DocumentTransformState;->onPinch(FLandroidx/compose/ui/geometry/Offset;)V
