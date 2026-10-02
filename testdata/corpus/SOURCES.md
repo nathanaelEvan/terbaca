@@ -23,6 +23,8 @@ clean IP provenance, zero copyright encumbrance, and reproducible benchmark test
 | `malformed_truncated.pdf` | N/A (truncated) | N/A | 1,208 B | `5ddfaafa6d294993d4496a4b8497fd210c55c0610aa492f7e3cac0d9347ed3c7` | Malformed/truncated PDF file (PRD §7.1.8) |
 | `malformed_corrupt.pdf` | N/A (corrupt) | N/A | 1,100 B | `ed80f4c8e9d7da8f3f49ea6c9866d5f3bc551b65458bceb60c323fe0e0ccc27e` | Corrupt binary stream PDF (PRD §7.1.8) |
 | `encrypted_password.pdf` | 2 | 595.28x841.89 (A4) | 960 B | `f1219db3ce233f34cadd8912f72859ce89da47a9bb67a27df56f8870eae57e22` | Encrypted PDF protected by password 'secret123' (PRD §7.1.8) |
+| `red_rectangle.pdf` | 1 | 200.0x200.0 (Square) | 657 B | `3032d535127c358e51a417349e2c731dccb33242180124e7933ede9eb6ebbd0e` | Single-page PDF with 100x100 pure-red rectangle centered at [50, 50, 150, 150] on white background for pixel color fidelity tests |
+
 
 ## Regeneration
 

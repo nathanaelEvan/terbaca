@@ -1,5 +1,6 @@
 package app.terbaca.core.render
 
+import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import app.terbaca.core.model.PageInfo
 import java.util.concurrent.ConcurrentHashMap
@@ -11,8 +12,12 @@ import java.util.concurrent.atomic.AtomicLong
 class InProcessPageRenderer(
     private val defaultPageCount: Int = 1,
     private val defaultWidthPoints: Float = 612f,
-    private val defaultHeightPoints: Float = 792f
+    private val defaultHeightPoints: Float = 792f,
+    private val bitmapSupplier: (width: Int, height: Int) -> Bitmap = { w, h ->
+        Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    }
 ) : PageRenderer {
+
 
     private val documents = ConcurrentHashMap<Long, List<PageInfo>>()
     private val nextHandle = AtomicLong(1L)
@@ -55,7 +60,23 @@ class InProcessPageRenderer(
         return documents[docHandle] ?: error("Invalid document handle: $docHandle")
     }
 
+    override suspend fun renderTile(
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap {
+        check(isServiceConnected) { "Service is disconnected" }
+        getPageInfo(docHandle, pageIndex)
+        return bitmapSupplier(tileWidth, tileHeight)
+    }
+
     override suspend fun closeDocument(docHandle: Long) {
         documents.remove(docHandle)
     }
 }
+

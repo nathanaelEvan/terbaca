@@ -4,10 +4,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Bitmap
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.SharedMemory
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
+
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -164,6 +167,100 @@ class PdfiumRemotePageRenderer(
         }
         Unit
     }
+
+    override suspend fun renderTile(
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap = renderTile(
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        forceFallback = false
+    )
+
+    suspend fun renderTile(
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int,
+        forceFallback: Boolean
+    ): Bitmap = withContext(Dispatchers.IO) {
+        val service = getService()
+        val result = service.renderTile(
+            docHandle,
+            pageIndex,
+            fullWidth,
+            fullHeight,
+            startX,
+            startY,
+            tileWidth,
+            tileHeight,
+            forceFallback
+        ).unwrap()
+
+        val hwBuffer = result.hardwareBuffer
+        if (hwBuffer != null) {
+            try {
+                val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, null)
+                    ?: throw PdfiumException(
+                        "Failed to wrap HardwareBuffer into Bitmap",
+                        PdfiumException.ERROR_UNKNOWN
+                    )
+                bitmap
+            } finally {
+                hwBuffer.close()
+            }
+        } else {
+            val sharedMem = result.sharedMemory
+                ?: throw PdfiumException(
+                    "RenderResult contained neither HardwareBuffer nor SharedMemory",
+                    PdfiumException.ERROR_UNKNOWN
+                )
+            val width = result.bufferWidth
+            val height = result.bufferHeight
+            // Background copy to HARDWARE bitmap per PRD §4.3
+            withContext(Dispatchers.Default) {
+                try {
+                    val readBuffer = sharedMem.mapReadOnly()
+                    try {
+                        var softwareBitmap: Bitmap? = null
+                        try {
+                            softwareBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            softwareBitmap.copyPixelsFromBuffer(readBuffer)
+                            val hardwareBitmap = softwareBitmap.copy(Bitmap.Config.HARDWARE, false)
+                                ?: throw PdfiumException(
+                                    "Failed to copy software bitmap to HARDWARE config",
+                                    PdfiumException.ERROR_UNKNOWN
+                                )
+                            hardwareBitmap
+                        } finally {
+                            softwareBitmap?.recycle()
+                        }
+                    } finally {
+                        SharedMemory.unmap(readBuffer)
+                    }
+                } finally {
+                    sharedMem.close()
+                }
+            }
+        }
+    }
+
 
     fun close() {
         if (isClosed.compareAndSet(false, true)) {

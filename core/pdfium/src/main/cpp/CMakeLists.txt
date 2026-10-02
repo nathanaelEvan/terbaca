@@ -27,8 +27,11 @@ target_include_directories(terbaca_pdfium PRIVATE
 )
 
 find_library(log-lib log)
+find_library(android-lib android)
 
 target_link_libraries(terbaca_pdfium
     pdfium
     ${log-lib}
+    ${android-lib}
 )
+

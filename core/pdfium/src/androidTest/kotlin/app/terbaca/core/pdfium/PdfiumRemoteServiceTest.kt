@@ -2,8 +2,12 @@ package app.terbaca.core.pdfium
 
 import android.app.ActivityManager
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.ParcelFileDescriptor
 import android.os.Process
+
+
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -236,4 +240,310 @@ class PdfiumRemoteServiceTest {
             testRenderer.close()
         }
     }
+
+    @Test
+    fun testRemoteRenderService_renderTileHardwareBuffer() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 512,
+                tileHeight = 512
+            )
+
+            assertNotNull("Rendered bitmap must not be null", bitmap)
+            assertEquals("Rendered bitmap must have HARDWARE config", Bitmap.Config.HARDWARE, bitmap.config)
+            assertEquals(512, bitmap.width)
+            assertEquals(512, bitmap.height)
+
+            // Verify pixel contents by copying HARDWARE bitmap to CPU-accessible ARGB_8888
+            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull("Software copy of hardware bitmap must not be null", softwareBitmap)
+            try {
+                val pixel = softwareBitmap!!.getPixel(10, 10)
+                assertEquals("Alpha must be fully opaque", 255, Color.alpha(pixel))
+                // Background of valid_2pages.pdf is white
+                assertEquals("Red channel must be white", 255, Color.red(pixel))
+                assertEquals("Green channel must be white", 255, Color.green(pixel))
+                assertEquals("Blue channel must be white", 255, Color.blue(pixel))
+            } finally {
+                softwareBitmap?.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_pixelColor_hardwareBuffer() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/red_rectangle.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            // red_rectangle.pdf is 200x200 pt with a pure-red rect [50, 50, 150, 150] on white background
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 200,
+                fullHeight = 200,
+                startX = 0,
+                startY = 0,
+                tileWidth = 200,
+                tileHeight = 200,
+                forceFallback = false
+            )
+
+            assertNotNull("Rendered bitmap must not be null", bitmap)
+            assertEquals("Rendered bitmap must have HARDWARE config", Bitmap.Config.HARDWARE, bitmap.config)
+
+            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull("Software copy of hardware bitmap must not be null", softwareBitmap)
+            try {
+                // (100, 100) is inside the red rectangle -> pure red (R=255, G=0, B=0)
+                val insidePixel = softwareBitmap!!.getPixel(100, 100)
+                assertEquals("Alpha inside must be 255", 255, Color.alpha(insidePixel))
+                assertEquals("Red inside must be 255 (RGBA byte order)", 255, Color.red(insidePixel))
+                assertEquals("Green inside must be 0", 0, Color.green(insidePixel))
+                assertEquals("Blue inside must be 0", 0, Color.blue(insidePixel))
+
+                // (10, 10) is outside the red rectangle -> pure white (R=255, G=255, B=255)
+                val outsidePixel = softwareBitmap.getPixel(10, 10)
+                assertEquals("Alpha outside must be 255", 255, Color.alpha(outsidePixel))
+                assertEquals("Red outside must be 255", 255, Color.red(outsidePixel))
+                assertEquals("Green outside must be 255", 255, Color.green(outsidePixel))
+                assertEquals("Blue outside must be 255", 255, Color.blue(outsidePixel))
+            } finally {
+                softwareBitmap?.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_pixelColor_forceFallback() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/red_rectangle.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            // Render via SharedMemory fallback path
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 200,
+                fullHeight = 200,
+                startX = 0,
+                startY = 0,
+                tileWidth = 200,
+                tileHeight = 200,
+                forceFallback = true
+            )
+
+            assertNotNull("Fallback bitmap must not be null", bitmap)
+            assertEquals("Fallback bitmap must be promoted to HARDWARE config", Bitmap.Config.HARDWARE, bitmap.config)
+
+            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull("Software copy of fallback bitmap must not be null", softwareBitmap)
+            try {
+                // (100, 100) is inside the red rectangle -> pure red (R=255, G=0, B=0)
+                val insidePixel = softwareBitmap!!.getPixel(100, 100)
+                assertEquals("Alpha inside must be 255", 255, Color.alpha(insidePixel))
+                assertEquals("Red inside must be 255 (RGBA byte order)", 255, Color.red(insidePixel))
+                assertEquals("Green inside must be 0", 0, Color.green(insidePixel))
+                assertEquals("Blue inside must be 0", 0, Color.blue(insidePixel))
+
+                // (10, 10) is outside the red rectangle -> pure white (R=255, G=255, B=255)
+                val outsidePixel = softwareBitmap.getPixel(10, 10)
+                assertEquals("Alpha outside must be 255", 255, Color.alpha(outsidePixel))
+                assertEquals("Red outside must be 255", 255, Color.red(outsidePixel))
+                assertEquals("Green outside must be 255", 255, Color.green(outsidePixel))
+                assertEquals("Blue outside must be 255", 255, Color.blue(outsidePixel))
+            } finally {
+                softwareBitmap?.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileSubRectangle() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/red_rectangle.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            // Red rectangle is at [50, 50, 150, 150] on 200x200 page.
+            // Rendering sub-rectangle tile shifted by (startX=50, startY=50) of size 100x100:
+            // Pixel (0, 0) in the shifted tile corresponds to (50, 50) on page (the top-left of the red rect).
+            val shiftedTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 200,
+                fullHeight = 200,
+                startX = 50,
+                startY = 50,
+                tileWidth = 100,
+                tileHeight = 100
+            )
+
+            assertNotNull("Shifted tile bitmap must not be null", shiftedTile)
+            assertEquals(100, shiftedTile.width)
+            assertEquals(100, shiftedTile.height)
+
+            val softwareShifted = shiftedTile.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull(softwareShifted)
+            try {
+                // (0, 0) in shifted tile maps to (50, 50) on page -> inside red rect
+                val p00 = softwareShifted!!.getPixel(0, 0)
+                assertEquals("Pixel (0,0) of tile shifted to (50,50) must be red", 255, Color.red(p00))
+                assertEquals(0, Color.green(p00))
+                assertEquals(0, Color.blue(p00))
+
+                // (50, 50) in shifted tile maps to (100, 100) on page -> inside red rect
+                val p50 = softwareShifted.getPixel(50, 50)
+                assertEquals("Pixel (50,50) of tile shifted to (50,50) must be red", 255, Color.red(p50))
+                assertEquals(0, Color.green(p50))
+                assertEquals(0, Color.blue(p50))
+            } finally {
+                softwareShifted?.recycle()
+            }
+
+            // In contrast, unshifted tile at (startX=0, startY=0):
+            // Pixel (0, 0) corresponds to (0, 0) on page -> white background
+            val unshiftedTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 200,
+                fullHeight = 200,
+                startX = 0,
+                startY = 0,
+                tileWidth = 100,
+                tileHeight = 100
+            )
+            val softwareUnshifted = unshiftedTile.copy(Bitmap.Config.ARGB_8888, false)
+            assertNotNull(softwareUnshifted)
+            try {
+                val p00 = softwareUnshifted!!.getPixel(0, 0)
+                assertEquals("Pixel (0,0) of unshifted tile must be white", 255, Color.red(p00))
+                assertEquals(255, Color.green(p00))
+                assertEquals(255, Color.blue(p00))
+            } finally {
+                softwareUnshifted?.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_oversizedTileRequest_returnsErrorWithoutCrashing() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            // Request tile with dimension > 4096
+            assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 8192,
+                        tileHeight = 512
+                    )
+                }
+            }
+
+            // Ensure the :render service process is still alive and operational
+            assertTrue("Render service must remain connected after oversized tile error", renderer.isServiceConnected)
+            val validTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull("Subsequent valid tile must succeed", validTile)
+            assertEquals(256, validTile.width)
+            assertEquals(256, validTile.height)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+
+    @Test
+    fun testRemoteRenderService_renderTileInvalidPageThrows() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            assertThrows(PdfPageNotFoundException::class.java) {
+                runBlocking {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 99,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512
+                    )
+                }
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileInvalidHandleThrows() {
+        assertThrows(PdfInvalidHandleException::class.java) {
+            runBlocking {
+                renderer.renderTile(
+                    docHandle = 999999L,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 512,
+                    tileHeight = 512
+                )
+            }
+        }
+    }
 }
+
