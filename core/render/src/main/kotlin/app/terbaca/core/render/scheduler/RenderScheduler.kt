@@ -1,5 +1,6 @@
 package app.terbaca.core.render.scheduler
 
+import android.graphics.Bitmap
 import app.terbaca.core.model.TileKey
 import app.terbaca.core.render.pyramid.TileBounds
 import kotlinx.coroutines.CancellationException
@@ -25,12 +26,13 @@ class RenderScheduler<T>(
     private val queuedRequests = mutableMapOf<TileKey, TileRequest<T>>()
     private val inFlightRequests = mutableMapOf<TileKey, TileRequest<T>>()
     private val priorityQueue = PriorityQueue<TileRequest<T>> { a, b -> a.priority.compareTo(b.priority) }
+    private var runningRendersCount: Int = 0
 
     val queuedCount: Int
         get() = synchronized(lock) { queuedRequests.size }
 
     val inFlightCount: Int
-        get() = synchronized(lock) { inFlightRequests.size }
+        get() = synchronized(lock) { runningRendersCount }
 
     fun getQueuedKeys(): Set<TileKey> = synchronized(lock) { queuedRequests.keys.toSet() }
 
@@ -154,7 +156,7 @@ class RenderScheduler<T>(
     }
 
     private fun dispatchNextLocked() {
-        while (inFlightRequests.size < maxConcurrentRenders && priorityQueue.isNotEmpty()) {
+        while (runningRendersCount < maxConcurrentRenders && priorityQueue.isNotEmpty()) {
             val next = priorityQueue.poll() ?: break
             if (next.isCancelled) {
                 queuedRequests.remove(next.key)
@@ -162,6 +164,7 @@ class RenderScheduler<T>(
             }
             queuedRequests.remove(next.key)
             inFlightRequests[next.key] = next
+            runningRendersCount++
             scope.launch {
                 executeRequest(next)
             }
@@ -177,6 +180,9 @@ class RenderScheduler<T>(
             }
             val result = renderAction(request.bounds, token)
             if (request.isCancelled) {
+                (result as? Bitmap)?.let { bmp ->
+                    runCatching { if (!bmp.isRecycled) bmp.recycle() }
+                }
                 request.deferred.cancel()
             } else {
                 request.deferred.complete(result)
@@ -187,7 +193,10 @@ class RenderScheduler<T>(
             request.deferred.completeExceptionally(t)
         } finally {
             synchronized(lock) {
-                inFlightRequests.remove(request.key)
+                if (inFlightRequests[request.key] === request) {
+                    inFlightRequests.remove(request.key)
+                }
+                runningRendersCount--
                 dispatchNextLocked()
             }
         }

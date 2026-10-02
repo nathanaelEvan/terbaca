@@ -302,4 +302,182 @@ class RenderSchedulerTest {
         assertEquals("success_re-enqueued", deferred2.await())
         assertEquals(2, renderCount)
     }
+
+    private val unsafe: sun.misc.Unsafe by lazy {
+        val field = sun.misc.Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }
+        field.get(null) as sun.misc.Unsafe
+    }
+
+    private fun createFakeBitmap(): android.graphics.Bitmap {
+        return unsafe.allocateInstance(android.graphics.Bitmap::class.java) as android.graphics.Bitmap
+    }
+
+    @Test
+    fun testCancellation_triggersCancelTileOnRenderer() = runTest {
+        val startedGate = CompletableDeferred<Unit>()
+        val renderer = app.terbaca.core.render.InProcessPageRenderer(
+            renderDelayMs = 1000L,
+            onRenderStarted = { startedGate.complete(Unit) },
+            bitmapSupplier = { _, _ -> createFakeBitmap() }
+        )
+        val docHandle = renderer.createTestDocument()
+        val expectedRenderId = 777L
+
+        val scheduler = RenderScheduler<android.graphics.Bitmap>(
+            scope = this,
+            maxConcurrentRenders = 1
+        ) { bounds, token ->
+            renderer.renderTile(
+                renderId = expectedRenderId,
+                docHandle = docHandle,
+                pageIndex = bounds.key.pageIndex,
+                fullWidth = bounds.fullWidth,
+                fullHeight = bounds.fullHeight,
+                startX = bounds.startX,
+                startY = bounds.startY,
+                tileWidth = bounds.pixelWidth,
+                tileHeight = bounds.pixelHeight,
+                cancellationToken = token
+            )
+        }
+
+        val tile = createBounds(0, 0)
+        val deferred = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_DETAIL))
+
+        testScheduler.runCurrent()
+        startedGate.await()
+
+        // Cancel while render is in flight
+        scheduler.cancel(tile.key)
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(
+            "Renderer must record cancelTile for expectedRenderId",
+            renderer.cancelledRenderIds.contains(expectedRenderId)
+        )
+        assertTrue(deferred.isCancelled)
+    }
+
+    @Test
+    fun testReEnqueueAfterCancellation_preservesInFlightCoalescingWhenOldFinishes() = runTest {
+        var renderCount = 0
+        val render1Started = CompletableDeferred<Unit>()
+        val render1Finish = CompletableDeferred<Unit>()
+        val render2Started = CompletableDeferred<Unit>()
+        val render2Finish = CompletableDeferred<Unit>()
+
+        val scheduler = RenderScheduler<String>(
+            scope = this,
+            maxConcurrentRenders = 2
+        ) { bounds, _ ->
+            val count = ++renderCount
+            if (count == 1) {
+                render1Started.complete(Unit)
+                render1Finish.await()
+                "result_1"
+            } else if (count == 2) {
+                render2Started.complete(Unit)
+                render2Finish.await()
+                "result_2"
+            } else {
+                "result_$count"
+            }
+        }
+
+        val tile = createBounds(0, 0)
+
+        // 1. Enqueue K -> starts render 1
+        val def1 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_BASE))
+        testScheduler.runCurrent()
+        render1Started.await()
+        assertEquals(1, scheduler.inFlightCount)
+
+        // 2. Cancel K -> render 1 marked cancelled, but still in-flight
+        scheduler.cancel(tile.key)
+        assertTrue(def1.isCancelled)
+
+        // 3. Re-enqueue K -> starts render 2 because maxConcurrentRenders = 2
+        val def2 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_DETAIL))
+        testScheduler.runCurrent()
+        render2Started.await()
+        assertEquals(2, scheduler.inFlightCount)
+        assertEquals(2, renderCount)
+
+        // 4. Finish the old render 1
+        render1Finish.complete(Unit)
+        testScheduler.runCurrent()
+        assertEquals(1, scheduler.inFlightCount)
+
+        // 5. Enqueue K again -> must coalesce with render 2 (no second render)
+        val def3 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_DETAIL))
+        assertEquals("Enqueuing K while render 2 is running must return def2", def2, def3)
+        assertEquals("Render count must still be 2", 2, renderCount)
+
+        // 6. Finish render 2
+        render2Finish.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("result_2", def2.await())
+        assertEquals("result_2", def3.await())
+        assertEquals(2, renderCount)
+        assertEquals(0, scheduler.inFlightCount)
+    }
+
+    @Test
+    fun testReEnqueueAfterCancellation_respectsConcurrencyCap() = runTest {
+        var renderCount = 0
+        val render1Started = CompletableDeferred<Unit>()
+        val render1Finish = CompletableDeferred<Unit>()
+        val render2Started = CompletableDeferred<Unit>()
+        val render2Finish = CompletableDeferred<Unit>()
+
+        val scheduler = RenderScheduler<String>(
+            scope = this,
+            maxConcurrentRenders = 1
+        ) { bounds, _ ->
+            val count = ++renderCount
+            if (count == 1) {
+                render1Started.complete(Unit)
+                render1Finish.await()
+                "result_1"
+            } else {
+                render2Started.complete(Unit)
+                render2Finish.await()
+                "result_2"
+            }
+        }
+
+        val tile = createBounds(0, 0)
+
+        // 1. Enqueue K -> starts render 1
+        val def1 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_BASE))
+        testScheduler.runCurrent()
+        render1Started.await()
+        assertEquals(1, scheduler.inFlightCount)
+
+        // 2. Cancel K
+        scheduler.cancel(tile.key)
+        assertTrue(def1.isCancelled)
+
+        // 3. Re-enqueue K -> must be queued, NOT in flight yet because cap is 1
+        val def2 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_DETAIL))
+        testScheduler.runCurrent()
+        assertEquals("Only render 1 can be running", 1, scheduler.inFlightCount)
+        assertEquals("Render 2 has not started yet", 1, renderCount)
+        assertEquals(1, scheduler.queuedCount)
+
+        // 4. Finish render 1 -> now render 2 starts
+        render1Finish.complete(Unit)
+        testScheduler.runCurrent()
+        render2Started.await()
+        assertEquals(1, scheduler.inFlightCount)
+        assertEquals(2, renderCount)
+
+        // 5. Complete render 2
+        render2Finish.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("result_2", def2.await())
+        assertEquals(0, scheduler.inFlightCount)
+    }
 }
