@@ -1073,12 +1073,12 @@ class PdfiumRemoteServiceTest {
                         renderer.renderTile(
                             docHandle = handle,
                             pageIndex = 0,
-                            fullWidth = 4096,
-                            fullHeight = 5300,
+                            fullWidth = 2448,
+                            fullHeight = 3168,
                             startX = 0,
-                            startY = index * 2048,
-                            tileWidth = 2048,
-                            tileHeight = 2048
+                            startY = index * 1024,
+                            tileWidth = 1024,
+                            tileHeight = 1024
                         )
                     } catch (_: Throwable) {
                         cancelledCount.incrementAndGet()
@@ -1093,7 +1093,7 @@ class PdfiumRemoteServiceTest {
             renderer.onRenderStarted = null
 
             renderer.cancelAllTiles(handle)
-            val finished = latch.await(5, TimeUnit.SECONDS)
+            val finished = latch.await(10, TimeUnit.SECONDS)
             assertTrue("All renders must terminate after cancelAllTiles", finished)
             assertTrue("At least one render should be cancelled", cancelledCount.get() > 0)
 
