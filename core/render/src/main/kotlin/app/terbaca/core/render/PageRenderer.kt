@@ -18,6 +18,14 @@ interface PageRenderer {
     val isServiceConnected: Boolean
 
     /**
+     * Registers a callback invoked whenever the renderer recovers from a backend process crash
+     * and reopens active documents.
+     *
+     * @return an unregister callback to remove the listener.
+     */
+    fun registerRecoveryListener(listener: () -> Unit): () -> Unit = { }
+
+    /**
      * Opens a document from the provided [pfd], transferring ownership to the renderer.
      *
      * @return opaque positive document handle identifying the open document instance.

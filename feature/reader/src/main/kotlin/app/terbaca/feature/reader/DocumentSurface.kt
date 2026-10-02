@@ -98,6 +98,15 @@ fun DocumentSurface(
     // Read in the draw phase so tile arrivals and running crossfades redraw without recomposing
     val tileArrivals = remember { mutableIntStateOf(0) }
     val frameClock = remember { mutableLongStateOf(0L) }
+    val reloadTrigger = remember { mutableIntStateOf(0) }
+
+    DisposableEffect(renderer) {
+        if (renderer == null) return@DisposableEffect onDispose {}
+        val unregister = renderer.registerRecoveryListener {
+            reloadTrigger.intValue++
+        }
+        onDispose { unregister() }
+    }
 
     DisposableEffect(tileCache) {
         val appContext = context.applicationContext
@@ -180,39 +189,39 @@ fun DocumentSurface(
         }
     }
 
-    // Asynchronous tile fetching reacting to viewport changes via snapshotFlow without recomposing
+    // Asynchronous tile fetching reacting to viewport changes and recovery via snapshotFlow
     LaunchedEffect(state, renderer, docHandle) {
         if (renderer == null || docHandle == 0L) return@LaunchedEffect
 
-        // Render base level at fit-width scale once
         val pageInfo = state.pageInfo
         val baseKey = TileCache.baseLayerKey(pageInfo.index)
-        coroutineScope.launch {
+
+        // Monitor viewport and recovery updates without triggering recomposition of DocumentSurface
+        snapshotFlow {
+            SurfaceViewportSnapshot(state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue)
+        }.collectLatest { (scale, _, _, _) ->
+            if (state.viewportWidth <= 0f || state.viewportHeight <= 0f) return@collectLatest
+
             val fitWidthPx = (pageInfo.widthPoints * state.fitWidthScale).roundToInt()
             val fitHeightPx = (pageInfo.heightPoints * state.fitWidthScale).roundToInt()
             if (fitWidthPx > 0 && fitHeightPx > 0 && tileCache.get(baseKey) == null) {
-                runCatching {
-                    val bmp = renderer.renderTile(
-                        docHandle = docHandle,
-                        pageIndex = pageInfo.index,
-                        fullWidth = fitWidthPx,
-                        fullHeight = fitHeightPx,
-                        startX = 0,
-                        startY = 0,
-                        tileWidth = fitWidthPx,
-                        tileHeight = fitHeightPx
-                    )
-                    tileCache.put(baseKey, bmp)
-                    tileArrivals.intValue++
+                coroutineScope.launch {
+                    runCatching {
+                        val bmp = renderer.renderTile(
+                            docHandle = docHandle,
+                            pageIndex = pageInfo.index,
+                            fullWidth = fitWidthPx,
+                            fullHeight = fitHeightPx,
+                            startX = 0,
+                            startY = 0,
+                            tileWidth = fitWidthPx,
+                            tileHeight = fitHeightPx
+                        )
+                        tileCache.put(baseKey, bmp)
+                        tileArrivals.intValue++
+                    }
                 }
             }
-        }
-
-        // Monitor viewport updates without triggering recomposition of DocumentSurface
-        snapshotFlow {
-            Triple(state.scale, state.offsetX, state.offsetY)
-        }.collectLatest { (scale, _, _) ->
-            if (state.viewportWidth <= 0f || state.viewportHeight <= 0f) return@collectLatest
 
             val levels = TilePyramid.buildLevels(
                 pageInfo = pageInfo,
@@ -248,7 +257,7 @@ fun DocumentSurface(
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            // Failed tile stays missing; it is retried on the next viewport change
+                            // Failed tile stays missing; it is retried on the next viewport change or recovery
                         } finally {
                             inFlightTiles.remove(tile.key)
                         }
@@ -343,3 +352,10 @@ fun DocumentSurface(
         }
     }
 }
+
+private data class SurfaceViewportSnapshot(
+    val scale: Float,
+    val offsetX: Float,
+    val offsetY: Float,
+    val reloadTrigger: Int
+)
