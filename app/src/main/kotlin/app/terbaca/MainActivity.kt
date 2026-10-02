@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestHighestRefreshRate()
 
         val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE) ?: DEFAULT_CORPUS_ASSET
 
@@ -106,6 +107,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * PRD §4.6: ask for the display's highest refresh rate (144 Hz on Pad 7) at the current
+     * resolution. HyperOS may still cap it; ADR 0004 records what the device actually runs at.
+     */
+    private fun requestHighestRefreshRate() {
+        val display = display ?: return
+        val current = display.mode
+        val best = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .maxByOrNull { it.refreshRate } ?: return
+        window.attributes = window.attributes.apply { preferredDisplayModeId = best.modeId }
     }
 
     override fun onDestroy() {
