@@ -165,8 +165,6 @@ fun DocumentSurface(
             drainEvictedBitmaps(evictedPrevFrame, evictedThisFrame)
             swapPendingTiles(pendingTileArrivals, tileCache, tileFadeStartTimes, now)
 
-            drawBaseLayer(tileCache, state.pageInfo, offsetX, offsetY, scale)
-
             var hasActiveFade = false
             if (state.viewportWidth > 0f && state.viewportHeight > 0f) {
                 hasActiveFade = drawTilePyramid(
@@ -179,6 +177,8 @@ fun DocumentSurface(
                     offsetX = offsetX,
                     offsetY = offsetY
                 )
+            } else {
+                drawBaseLayer(tileCache, state.pageInfo, offsetX, offsetY, scale)
             }
 
             if (hasActiveFade || pendingTileArrivals.isNotEmpty()) {
@@ -396,11 +396,18 @@ private fun DocumentTileCollector(
 
         val pageInfo = state.pageInfo
         val baseKey = TileCache.baseLayerKey(pageInfo.index)
+        var lastOffsetX = state.offsetX
+        var lastOffsetY = state.offsetY
 
         snapshotFlow {
             SurfaceViewportSnapshot(state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue)
-        }.collectLatest { (scale, _, _, _) ->
+        }.collectLatest { (scale, offsetX, offsetY, _) ->
             if (state.viewportWidth <= 0f || state.viewportHeight <= 0f) return@collectLatest
+            // Content moves opposite to the viewport: offset decreasing = viewing further right/down.
+            val scrollDeltaX = lastOffsetX - offsetX
+            val scrollDeltaY = lastOffsetY - offsetY
+            lastOffsetX = offsetX
+            lastOffsetY = offsetY
 
             enqueueBaseLayerIfNeeded(
                 pageInfo = pageInfo,
@@ -426,9 +433,15 @@ private fun DocumentTileCollector(
             underlayLevel.level?.let { prev ->
                 TilePyramid.getVisibleTiles(pageInfo, prev, visibleRect).mapTo(activeKeys) { it.key }
             }
-            scheduler.cancelStaleExcept(activeKeys)
-
             tileCache.pinHot(activeKeys)
+
+            // PRD §4.5: prefetch the ring of tiles just off-screen in the scroll direction (all
+            // around when still), so panning reveals sharp tiles instead of the blurry base.
+            val prefetchTiles = TilePyramid.getPrefetchRing(
+                pageInfo, currentLevel, visibleTiles, scrollDeltaX, scrollDeltaY
+            )
+            scheduler.cancelStaleExcept(activeKeys + prefetchTiles.map { it.key })
+
             tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
 
             enqueueVisibleTiles(
@@ -441,7 +454,21 @@ private fun DocumentTileCollector(
                 tileArrivals = tileArrivals,
                 state = state,
                 scale = scale,
-                viewportGeneration = viewportGeneration
+                viewportGeneration = viewportGeneration,
+                layerType = TileLayerType.VISIBLE_DETAIL
+            )
+            enqueueVisibleTiles(
+                visibleTiles = prefetchTiles,
+                tileCache = tileCache,
+                inFlightTiles = inFlightTiles,
+                scheduler = scheduler,
+                coroutineScope = coroutineScope,
+                pendingTileArrivals = pendingTileArrivals,
+                tileArrivals = tileArrivals,
+                state = state,
+                scale = scale,
+                viewportGeneration = viewportGeneration,
+                layerType = TileLayerType.PREFETCH_DETAIL
             )
         }
     }
@@ -500,7 +527,8 @@ private fun enqueueVisibleTiles(
     tileArrivals: androidx.compose.runtime.MutableIntState,
     state: DocumentTransformState,
     scale: Float,
-    viewportGeneration: AtomicLong
+    viewportGeneration: AtomicLong,
+    layerType: TileLayerType
 ) {
     val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
     for (tile in visibleTiles) {
@@ -510,7 +538,7 @@ private fun enqueueVisibleTiles(
                 state.offsetY + tile.pageRect.top * scale + (tile.pageRect.height * scale) / 2f
             )
             val dist = (tileCenter - viewportCenter).getDistance()
-            val priority = TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist)
+            val priority = TilePriority(layerType, distanceToCenter = dist)
             val currentGen = viewportGeneration.get()
             val deferred = scheduler.enqueue(tile, priority)
             coroutineScope.launch {
@@ -599,6 +627,12 @@ private fun DrawScope.drawTilePyramid(
     val visibleRect = state.getVisibleRectPoints()
     val visibleTiles = TilePyramid.getVisibleTiles(state.pageInfo, currentLevel, visibleRect)
 
+    // Skip the full-page base layer when opaque detail tiles cover the visible page: on a
+    // full-screen page it is a whole extra screen of GPU fill per frame (ADR 0004).
+    if (!isDetailLayerOpaque(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)) {
+        drawBaseLayer(tileCache, state.pageInfo, offsetX, offsetY, scale)
+    }
+
     val allCurrentLoaded = visibleTiles.all { tileCache.get(it.key) != null }
     if (allCurrentLoaded) {
         underlayLevel.level = currentLevel
@@ -611,6 +645,16 @@ private fun DrawScope.drawTilePyramid(
     }
 
     return drawTileBoundsList(visibleTiles, tileCache, tileFadeStartTimes, offsetX, offsetY, scale, now, alphaOverride = null)
+}
+
+/** True when every visible detail tile is loaded and has finished its crossfade. */
+internal fun isDetailLayerOpaque(
+    visibleTiles: List<TileBounds>,
+    isLoaded: (TileKey) -> Boolean,
+    fadeStartTimes: Map<TileKey, Long>,
+    now: Long
+): Boolean = visibleTiles.isNotEmpty() && visibleTiles.all { tile ->
+    isLoaded(tile.key) && now - (fadeStartTimes[tile.key] ?: now) >= TILE_CROSSFADE_DURATION_MS
 }
 
 @Suppress("LongParameterList")
