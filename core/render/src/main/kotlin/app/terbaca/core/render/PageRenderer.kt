@@ -85,6 +85,34 @@ interface PageRenderer {
         tileWidth: Int,
         tileHeight: Int
     ): Bitmap = renderTile(
+        renderId = renderId,
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        cancellationToken = null
+    )
+
+    /**
+     * Renders a page or sub-page tile into a GPU-ready [Bitmap] with an explicit [renderId]
+     * and an optional [CancellationToken].
+     */
+    suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int,
+        cancellationToken: app.terbaca.core.render.scheduler.CancellationToken? = null
+    ): Bitmap = renderTile(
         docHandle = docHandle,
         pageIndex = pageIndex,
         fullWidth = fullWidth,

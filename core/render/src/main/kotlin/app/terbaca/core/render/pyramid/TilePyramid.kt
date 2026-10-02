@@ -118,7 +118,11 @@ object TilePyramid {
             key = TileKey(pageIndex = pageInfo.index, level = level.levelIndex, col = col, row = row),
             pageRect = ViewportRect(left = leftPts, top = topPts, right = rightPts, bottom = bottomPts),
             pixelWidth = pixelWidth,
-            pixelHeight = pixelHeight
+            pixelHeight = pixelHeight,
+            fullWidth = level.totalPixelWidth,
+            fullHeight = level.totalPixelHeight,
+            startX = startX,
+            startY = startY
         )
     }
 
@@ -218,7 +222,11 @@ object TilePyramid {
             key = TileKey(pageIndex = pageInfo.index, level = -1, col = 0, row = 0),
             pageRect = ViewportRect(0f, 0f, pageInfo.widthPoints, pageInfo.heightPoints),
             pixelWidth = pixelWidth,
-            pixelHeight = pixelHeight
+            pixelHeight = pixelHeight,
+            fullWidth = pixelWidth,
+            fullHeight = pixelHeight,
+            startX = 0,
+            startY = 0
         )
     }
 
@@ -229,10 +237,14 @@ object TilePyramid {
         val pixelWidth = ceil(pageInfo.widthPoints * fitWidthScale).toInt()
         val pixelHeight = ceil(pageInfo.heightPoints * fitWidthScale).toInt()
         return TileBounds(
-            key = TileKey(pageIndex = pageInfo.index, level = 0, col = 0, row = 0),
+            key = TileKey(pageIndex = pageInfo.index, level = -2, col = 0, row = 0),
             pageRect = ViewportRect(0f, 0f, pageInfo.widthPoints, pageInfo.heightPoints),
             pixelWidth = pixelWidth,
-            pixelHeight = pixelHeight
+            pixelHeight = pixelHeight,
+            fullWidth = pixelWidth,
+            fullHeight = pixelHeight,
+            startX = 0,
+            startY = 0
         )
     }
 }
