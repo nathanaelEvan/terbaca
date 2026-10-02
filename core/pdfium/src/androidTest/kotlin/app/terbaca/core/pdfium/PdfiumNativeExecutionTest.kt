@@ -24,12 +24,6 @@ import java.util.concurrent.atomic.AtomicReference
 @RunWith(AndroidJUnit4::class)
 class PdfiumNativeExecutionTest {
 
-    private companion object {
-        // many_objects.pdf (612x792 pt) at 2x
-        const val PAGE_W = 1224
-        const val PAGE_H = 1584
-    }
-
 
     private lateinit var context: Context
     private val tempFiles = mutableListOf<File>()
@@ -427,6 +421,10 @@ class PdfiumNativeExecutionTest {
 
     private companion object {
         const val STRESS_ITERATIONS = 200
+
+        // many_objects.pdf (612x792 pt) at 2x
+        const val PAGE_W = 1224
+        const val PAGE_H = 1584
     }
 }
 
