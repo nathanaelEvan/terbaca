@@ -658,7 +658,11 @@ class PdfiumRemoteServiceTest {
                 fullDuration >= MIN_MEASURABLE_RENDER_MS
             )
 
+            val startedAt = java.util.concurrent.atomic.AtomicLong(0L)
+            val returnedAt = java.util.concurrent.atomic.AtomicLong(0L)
+            val outcome = java.util.concurrent.atomic.AtomicReference("none")
             val renderJob = launch(Dispatchers.IO) {
+                startedAt.set(System.currentTimeMillis())
                 try {
                     renderer.renderTile(
                         docHandle = handle,
@@ -670,8 +674,11 @@ class PdfiumRemoteServiceTest {
                         tileWidth = 1024,
                         tileHeight = 1024
                     )
+                    outcome.set("completed")
                 } catch (e: CancellationException) {
-                    // Normal coroutine cancellation
+                    outcome.set("cancelled(${e.cause?.javaClass?.simpleName})")
+                } finally {
+                    returnedAt.set(System.currentTimeMillis())
                 }
             }
 
@@ -680,12 +687,14 @@ class PdfiumRemoteServiceTest {
             val cancelStart = System.currentTimeMillis()
             renderJob.cancelAndJoin()
             val cancelDuration = System.currentTimeMillis() - cancelStart
+            val diagnostics = "outcome=${outcome.get()}, startedBeforeCancel=${cancelStart - startedAt.get()} ms, " +
+                "cancelToReturn=${returnedAt.get() - cancelStart} ms"
 
             assertTrue("Render job must be cancelled", renderJob.isCancelled)
             // If cancellation didn't reach PDFium, cancelAndJoin would wait for the rest of the
             // render (~fullDuration - 5 ms). Requiring under half rules that out.
             assertTrue(
-                "Cancelled render must stop early (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms)",
+                "Cancelled render must stop early (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms, $diagnostics)",
                 cancelDuration < fullDuration / 2
             )
 
