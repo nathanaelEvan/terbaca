@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.foundation.MutatePriority
+import androidx.compose.foundation.MutatorMutex
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -62,6 +64,9 @@ class DocumentTransformState(
 
     private val animOffsetX = Animatable(0f)
     private val animOffsetY = Animatable(0f)
+
+    /** Runs flings; any other mutation through it (a jump, a scrollbar drag) cancels the fling. */
+    private val mutex = MutatorMutex()
 
     init {
         if (initialViewportWidth > 0f && initialViewportHeight > 0f) {
@@ -155,24 +160,52 @@ class DocumentTransformState(
         velocityX: Float,
         velocityY: Float,
         decay: DecayAnimationSpec<Float> = exponentialDecay()
-    ) = coroutineScope {
-        animOffsetX.snapTo(offsetX)
-        animOffsetY.snapTo(offsetY)
+    ) = mutex.mutate {
+        coroutineScope {
+            animOffsetX.snapTo(offsetX)
+            animOffsetY.snapTo(offsetY)
 
-        val jobX = launch {
-            animOffsetX.animateDecay(velocityX, decay) {
-                offsetX = value
-                clampOffsets()
+            val jobX = launch {
+                animOffsetX.animateDecay(velocityX, decay) {
+                    offsetX = value
+                    clampOffsets()
+                }
             }
-        }
-        val jobY = launch {
-            animOffsetY.animateDecay(velocityY, decay) {
-                offsetY = value
-                clampOffsets()
+            val jobY = launch {
+                animOffsetY.animateDecay(velocityY, decay) {
+                    offsetY = value
+                    clampOffsets()
+                }
             }
+            jobX.join()
+            jobY.join()
         }
-        jobX.join()
-        jobY.join()
+    }
+
+    /** Cancels a running fling, e.g. when the user grabs the scrollbar. */
+    suspend fun stopFling() = mutex.mutate(MutatePriority.UserInput) {}
+
+    /** Scrollable height beyond the viewport, in pixels (0 when the document fits). */
+    private val scrollRangePx: Float get() = max(0f, layout.height * scale - viewportHeight)
+
+    /** Vertical scroll position in [0, 1]; 0 when the document fits on screen. */
+    val scrollFraction: Float
+        get() = if (scrollRangePx > 0f) (-offsetY / scrollRangePx).coerceIn(0f, 1f) else 0f
+
+    /** Page under the viewport center (F-NAV-2). */
+    val currentPage: Int
+        get() = layout.pageAt(((viewportHeight / 2f - offsetY) / max(scale, MIN_SCALE)).coerceAtLeast(0f))
+
+    /** Scrolls to [fraction] of the document height (fast-scroll, F-NAV-3). Stop flings first. */
+    fun scrollToFraction(fraction: Float) {
+        offsetY = -fraction.coerceIn(0f, 1f) * scrollRangePx
+        clampOffsets()
+    }
+
+    /** Puts the top of page [index] at the top of the viewport, cancelling any fling. */
+    suspend fun scrollToPage(index: Int) = mutex.mutate(MutatePriority.UserInput) {
+        offsetY = -layout.pageRect(index.coerceIn(0, layout.pageCount - 1)).top * scale
+        clampOffsets()
     }
 
     /**
@@ -189,6 +222,8 @@ class DocumentTransformState(
         return ViewportRect(left = left, top = top, right = right, bottom = bottom)
     }
 }
+
+private const val MIN_SCALE = 1e-3f
 
 @Composable
 fun rememberDocumentTransformState(
