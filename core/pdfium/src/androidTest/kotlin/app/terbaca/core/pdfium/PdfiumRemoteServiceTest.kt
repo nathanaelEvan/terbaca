@@ -643,12 +643,12 @@ class PdfiumRemoteServiceTest {
                 val fullTile = renderer.renderTile(
                     docHandle = handle,
                     pageIndex = 0,
-                    fullWidth = 2448,
-                    fullHeight = 3168,
+                    fullWidth = 1224,
+                    fullHeight = 1584,
                     startX = 0,
                     startY = 0,
-                    tileWidth = 1024,
-                    tileHeight = 1024
+                    tileWidth = 1224,
+                    tileHeight = 1584
                 )
                 fullDuration = System.currentTimeMillis() - fullStart
                 assertNotNull(fullTile)
@@ -668,12 +668,12 @@ class PdfiumRemoteServiceTest {
                     renderer.renderTile(
                         docHandle = handle,
                         pageIndex = 0,
-                        fullWidth = 2448,
-                        fullHeight = 3168,
+                        fullWidth = 1224,
+                        fullHeight = 1584,
                         startX = 0,
                         startY = 0,
-                        tileWidth = 1024,
-                        tileHeight = 1024
+                        tileWidth = 1224,
+                        tileHeight = 1584
                     )
                     outcome.set("completed")
                 } catch (e: CancellationException) {

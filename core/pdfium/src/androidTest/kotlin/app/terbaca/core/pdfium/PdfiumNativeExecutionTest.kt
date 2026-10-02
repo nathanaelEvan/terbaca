@@ -24,6 +24,13 @@ import java.util.concurrent.atomic.AtomicReference
 @RunWith(AndroidJUnit4::class)
 class PdfiumNativeExecutionTest {
 
+    private companion object {
+        // many_objects.pdf (612x792 pt) at 2x
+        const val PAGE_W = 1224
+        const val PAGE_H = 1584
+    }
+
+
     private lateinit var context: Context
     private val tempFiles = mutableListOf<File>()
 
@@ -347,16 +354,18 @@ class PdfiumNativeExecutionTest {
         val file = copyAssetToTempFile("fixtures/many_objects.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             PdfiumEngine.openDocument(pfd).use { doc ->
-                val buffer = ByteBuffer.allocateDirect(1024 * 1024 * 4)
+                // Whole page as one tile: all 3,000 objects are drawn, so PDFium checks for a pause
+                // ~30 times (every 100 drawn objects) and the timing isn't at the mercy of a few checks.
+                val buffer = ByteBuffer.allocateDirect(PAGE_W * PAGE_H * 4)
                 fun render(signal: java.util.concurrent.atomic.AtomicBoolean?) = doc.renderTileToDirectBuffer(
                     pageIndex = 0,
                     directBuffer = buffer,
-                    fullWidth = 2448,
-                    fullHeight = 3168,
+                    fullWidth = PAGE_W,
+                    fullHeight = PAGE_H,
                     startX = 0,
                     startY = 0,
-                    tileWidth = 1024,
-                    tileHeight = 1024,
+                    tileWidth = PAGE_W,
+                    tileHeight = PAGE_H,
                     cancellationSignal = signal
                 )
 
