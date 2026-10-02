@@ -10,6 +10,29 @@ val terbacaAbis = providers.gradleProperty("terbaca.abis")
     .map { it.trim() }
     .filter { it.isNotEmpty() }
 
+abstract class CopyLicensesTask : DefaultTask() {
+    @get:InputDirectory
+    abstract val inputDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val src = inputDir.get().asFile
+        val dest = outputDir.get().asFile
+        dest.mkdirs()
+        File(src, "LICENSE.pdfium-binaries").copyTo(File(dest, "LICENSE"), overwrite = true)
+        File(src, "LICENSE.pdfium-binaries").copyTo(File(dest, "LICENSE.pdfium-binaries"), overwrite = true)
+        File(src, "THIRD_PARTY_NOTICES").copyTo(File(dest, "THIRD_PARTY_NOTICES"), overwrite = true)
+    }
+}
+
+val copyLicenseAssets by tasks.registering(CopyLicensesTask::class) {
+    inputDir.set(file("${project(":core:pdfium").projectDir}/src/main/cpp"))
+    outputDir.set(layout.buildDirectory.dir("generated/license-assets"))
+}
+
 android {
     namespace = "app.terbaca"
     compileSdk = 36
@@ -52,6 +75,15 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(
+            copyLicenseAssets,
+            CopyLicensesTask::outputDir
+        )
     }
 }
 
