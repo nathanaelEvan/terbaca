@@ -196,10 +196,14 @@ class PdfiumRemoteServiceTest {
     fun testRemoteRenderService_processKillAndRecovery() {
         val deathCount = AtomicInteger(0)
         val deathLatch = CountDownLatch(1)
-        val testRenderer = PdfiumRemotePageRenderer(context) {
-            deathCount.incrementAndGet()
-            deathLatch.countDown()
-        }
+        val testRenderer = PdfiumRemotePageRenderer(
+            context = context,
+            autoRecover = false,
+            onProcessDied = {
+                deathCount.incrementAndGet()
+                deathLatch.countDown()
+            }
+        )
 
         try {
             val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
@@ -770,6 +774,224 @@ class PdfiumRemoteServiceTest {
 
             renderer.closeDocument(handle)
         }
+    }
+
+    @Test
+    fun testRemoteRenderService_automatedCrashRecovery_restoresSessionAndResumes() {
+        val deathLatch = CountDownLatch(1)
+        val recoveryLatch = CountDownLatch(1)
+        val testRenderer = PdfiumRemotePageRenderer(
+            context = context,
+            autoRecover = true,
+            onProcessDied = {
+                deathLatch.countDown()
+            },
+            onProcessRecovered = {
+                recoveryLatch.countDown()
+            }
+        )
+
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+            assertEquals(2, runBlocking { testRenderer.getPageCount(handle) })
+
+            // Render a tile before crash
+            val tileBefore = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull(tileBefore)
+
+            // Locate and kill :render process
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+            assertNotNull("Render process must be running", renderProcess)
+            Process.killProcess(renderProcess!!.pid)
+
+            // Assert death callback fired
+            assertTrue("Death callback must fire", deathLatch.await(5, TimeUnit.SECONDS))
+
+            // Assert recovery callback fired
+            assertTrue("Recovery callback must fire", recoveryLatch.await(10, TimeUnit.SECONDS))
+
+            // The client handle remains valid and session is restored!
+            val pageCountAfter = runBlocking { testRenderer.getPageCount(handle) }
+            assertEquals(2, pageCountAfter)
+
+            val page0 = runBlocking { testRenderer.getPageInfo(handle, 0) }
+            assertEquals(0, page0.index)
+            assertEquals(612f, page0.widthPoints, 1f)
+
+            // Render a tile after crash recovery using the same handle
+            val tileAfter = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull(tileAfter)
+            assertEquals(Bitmap.Config.HARDWARE, tileAfter.config)
+            assertEquals(256, tileAfter.width)
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            testRenderer.close()
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_recoveryListenerNotification() {
+        val testRenderer = PdfiumRemotePageRenderer(context = context, autoRecover = true)
+        val listenerLatch = CountDownLatch(1)
+        val unregister = testRenderer.registerRecoveryListener {
+            listenerLatch.countDown()
+        }
+
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+
+            // Kill :render process
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+            assertNotNull(renderProcess)
+            Process.killProcess(renderProcess!!.pid)
+
+            // Wait for recovery listener to be invoked
+            assertTrue("Recovery listener must be invoked after crash", listenerLatch.await(10, TimeUnit.SECONDS))
+            assertTrue(testRenderer.isServiceConnected)
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            unregister()
+            testRenderer.close()
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_midRenderCrashRecovery() {
+        val testRenderer = PdfiumRemotePageRenderer(context = context, autoRecover = true)
+        try {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+
+            val renderLatch = CountDownLatch(1)
+            val testScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO)
+
+            testScope.launch {
+                try {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024
+                    )
+                } catch (_: Throwable) {
+                    // Ignored
+                } finally {
+                    renderLatch.countDown()
+                }
+            }
+
+            // Give it a brief moment to start, then kill :render process
+            Thread.sleep(15)
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+            if (renderProcess != null) {
+                Process.killProcess(renderProcess.pid)
+            }
+
+            renderLatch.await(10, TimeUnit.SECONDS)
+
+            // Now perform a new render call after the crash
+            val recoveredTile = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull("Tile rendered after recovery must be non-null", recoveredTile)
+            assertEquals(256, recoveredTile.width)
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            testRenderer.close()
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_malformedDocument_uiProcessNeverCrashes() {
+        val fileCorrupt = copyAssetToTempFile("fixtures/corrupt.pdf")
+        val fileValid = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+
+        // Opening corrupt file must throw PdfCorruptException and NEVER crash UI
+        assertThrows(PdfCorruptException::class.java) {
+            runBlocking {
+                ParcelFileDescriptor.open(fileCorrupt, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                    renderer.openDocument(pfd)
+                }
+            }
+        }
+
+        // Service remains fully operational
+        assertTrue(renderer.isServiceConnected)
+
+        // Subsequently opening valid document succeeds
+        val handle = ParcelFileDescriptor.open(fileValid, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            runBlocking { renderer.openDocument(pfd) }
+        }
+        assertTrue(handle > 0L)
+        val count = runBlocking { renderer.getPageCount(handle) }
+        assertEquals(2, count)
+
+        val tile = runBlocking {
+            renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+        }
+        assertNotNull(tile)
+        runBlocking { renderer.closeDocument(handle) }
     }
 }
 

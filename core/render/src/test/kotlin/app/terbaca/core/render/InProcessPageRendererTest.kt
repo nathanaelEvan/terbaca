@@ -60,5 +60,24 @@ class InProcessPageRendererTest {
         assertEquals(512, suppliedWidth)
         assertEquals(512, suppliedHeight)
     }
+
+    @Test
+    fun testRecoveryListeners() {
+        val renderer = InProcessPageRenderer()
+        var invocationCount = 0
+        val unregister = renderer.registerRecoveryListener {
+            invocationCount++
+        }
+
+        renderer.simulateRecovery()
+        assertEquals(1, invocationCount)
+
+        renderer.simulateRecovery()
+        assertEquals(2, invocationCount)
+
+        unregister()
+        renderer.simulateRecovery()
+        assertEquals(2, invocationCount)
+    }
 }
 

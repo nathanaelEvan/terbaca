@@ -21,7 +21,18 @@ class InProcessPageRenderer(
 
     private val documents = ConcurrentHashMap<Long, List<PageInfo>>()
     private val nextHandle = AtomicLong(1L)
+    private val recoveryListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
     override var isServiceConnected: Boolean = true
+
+    override fun registerRecoveryListener(listener: () -> Unit): () -> Unit {
+        recoveryListeners.add(listener)
+        return { recoveryListeners.remove(listener) }
+    }
+
+    fun simulateRecovery() {
+        recoveryListeners.forEach { it.invoke() }
+    }
 
     fun createTestDocument(
         pageCount: Int = defaultPageCount,
