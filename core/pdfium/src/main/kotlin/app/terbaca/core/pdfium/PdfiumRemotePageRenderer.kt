@@ -82,6 +82,10 @@ class PdfiumRemotePageRenderer(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val recoveryListeners = CopyOnWriteArrayList<() -> Unit>()
     private val openSessions = ConcurrentHashMap<Long, DocumentSession>()
+
+    // renderId -> client docHandle for renders sent (or about to be sent) to the service.
+    // cancelAllTiles cancels these by id, so a render still in transit can't miss the cancel.
+    private val inFlightRenderIds = ConcurrentHashMap<Long, Long>()
     private val clientHandleSequence = AtomicLong(
         (ThreadLocalRandom.current().nextLong(1L, 0x7FFF_FFFFL) shl 32) or 1L
     )
@@ -591,6 +595,7 @@ class PdfiumRemotePageRenderer(
                         }
                     }
                     try {
+                        inFlightRenderIds[renderId] = docHandle
                         onRenderStarted?.invoke(renderId)
                         service.renderTile(
                             renderId,
@@ -610,6 +615,7 @@ class PdfiumRemotePageRenderer(
                         }
                         throw e
                     } finally {
+                        inFlightRenderIds.remove(renderId)
                         renderFinished.set(true)
                         watcher.cancel()
                     }
@@ -707,6 +713,12 @@ class PdfiumRemotePageRenderer(
         if (isServiceConnected) {
             val remoteHandle = getRemoteHandle(docHandle)
             runCatching { serviceBinder?.cancelAllTiles(remoteHandle) }
+            // The service-side cancel only reaches renders it has already received. Also cancel
+            // every render this client has sent by id: one that arrives later finds its id in the
+            // service's pending-cancellation set and stops before it starts.
+            inFlightRenderIds.forEach { (renderId, handle) ->
+                if (handle == docHandle) cancelTile(renderId)
+            }
         }
     }
 
