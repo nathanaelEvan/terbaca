@@ -10,6 +10,11 @@ import android.os.Process
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -27,6 +32,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class PdfiumRemoteServiceTest {
+
+    private companion object {
+        const val MIN_MEASURABLE_RENDER_MS = 40L
+    }
+
 
     private lateinit var context: Context
     private lateinit var renderer: PdfiumRemotePageRenderer
@@ -543,6 +553,222 @@ class PdfiumRemoteServiceTest {
                     tileHeight = 512
                 )
             }
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_inFlightCancellation_viaCancelTile() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val renderId = 8888L
+            var caughtException: Throwable? = null
+            val renderLatch = CountDownLatch(1)
+
+            val renderJob = launch(Dispatchers.IO) {
+                try {
+                    renderer.renderTile(
+                        renderId = renderId,
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024,
+                        forceFallback = false
+                    )
+                } catch (t: Throwable) {
+                    caughtException = t
+                } finally {
+                    renderLatch.countDown()
+                }
+            }
+
+            // Immediately cancel the tile
+            renderer.cancelTile(renderId)
+
+            val finished = renderLatch.await(5, TimeUnit.SECONDS)
+            assertTrue("Cancelled render must complete promptly", finished)
+            renderJob.join()
+
+            assertNotNull("Render must throw an exception on cancellation", caughtException)
+            assertTrue(
+                "Caught exception must be PdfRenderCancelledException, was: $caughtException",
+                caughtException is PdfRenderCancelledException
+            )
+
+            // Render service must remain connected and operational
+            assertTrue("Render service must remain connected after cancellation", renderer.isServiceConnected)
+
+            // Subsequent tile must succeed without falling back to software/SharedMemory
+            val validTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull("Subsequent tile must succeed", validTile)
+            assertEquals("Hardware transport must still be active", Bitmap.Config.HARDWARE, validTile.config)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_inFlightCancellation_viaCoroutineCancellation() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/many_objects.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            // Measure the full, uncancelled render of a page with many separate objects (PDFium can only
+            // pause between objects, so heavy_plot.pdf, which is mostly two polylines, can't show this). Render twice and keep
+            // the second (warm) timing, so the cancelled run below can't look faster just because
+            // page data is already loaded.
+            var fullDuration = 0L
+            repeat(2) {
+                val fullStart = System.currentTimeMillis()
+                val fullTile = renderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 1224,
+                    fullHeight = 1584,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1224,
+                    tileHeight = 1584
+                )
+                fullDuration = System.currentTimeMillis() - fullStart
+                assertNotNull(fullTile)
+                fullTile.recycle()
+            }
+            org.junit.Assume.assumeTrue(
+                "Heavy render too fast ($fullDuration ms) to measure cancellation on this device",
+                fullDuration >= MIN_MEASURABLE_RENDER_MS
+            )
+
+            val startedAt = java.util.concurrent.atomic.AtomicLong(0L)
+            val returnedAt = java.util.concurrent.atomic.AtomicLong(0L)
+            val outcome = java.util.concurrent.atomic.AtomicReference("none")
+            val renderJob = launch(Dispatchers.IO) {
+                startedAt.set(System.currentTimeMillis())
+                try {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 1224,
+                        fullHeight = 1584,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1224,
+                        tileHeight = 1584
+                    )
+                    outcome.set("completed")
+                } catch (e: CancellationException) {
+                    outcome.set("cancelled(${e.cause?.javaClass?.simpleName})")
+                } finally {
+                    returnedAt.set(System.currentTimeMillis())
+                }
+            }
+
+            // Let coroutine start rendering, then cancel and measure time to return
+            delay(5)
+            val cancelStart = System.currentTimeMillis()
+            renderJob.cancelAndJoin()
+            val cancelDuration = System.currentTimeMillis() - cancelStart
+            val diagnostics = "outcome=${outcome.get()}, startedBeforeCancel=${cancelStart - startedAt.get()} ms, " +
+                "cancelToReturn=${returnedAt.get() - cancelStart} ms"
+
+            assertTrue("Render job must be cancelled", renderJob.isCancelled)
+            // If cancellation didn't reach PDFium, cancelAndJoin would wait for the rest of the
+            // render (~fullDuration - 5 ms). Requiring under half rules that out.
+            assertTrue(
+                "Cancelled render must stop early (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms, $diagnostics)",
+                cancelDuration < fullDuration / 2
+            )
+
+            // Service must still be connected
+            assertTrue("Render service must remain connected after job cancellation", renderer.isServiceConnected)
+
+            // Subsequent tile must succeed
+            val validTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull("Subsequent tile must succeed", validTile)
+            assertEquals(256, validTile.width)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_cancelAllTiles() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val latch = CountDownLatch(1)
+
+            launch(Dispatchers.IO) {
+                try {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 2448,
+                        fullHeight = 3168,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 1024,
+                        tileHeight = 1024
+                    )
+                } catch (_: Throwable) {
+                    // Ignored
+                } finally {
+                    latch.countDown()
+                }
+            }
+
+            renderer.cancelAllTiles(handle)
+            val finished = latch.await(5, TimeUnit.SECONDS)
+            assertTrue("Render must complete after cancelAllTiles", finished)
+
+            // Service remains healthy and subsequent render succeeds
+            assertTrue(renderer.isServiceConnected)
+            val tile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull(tile)
+
+            renderer.closeDocument(handle)
         }
     }
 }

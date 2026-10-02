@@ -9,9 +9,11 @@ import android.os.ParcelFileDescriptor
 import android.os.SharedMemory
 import android.system.OsConstants
 import android.util.Log
+import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 
@@ -23,9 +25,22 @@ class PdfiumRenderService : Service() {
 
     companion object {
         private const val TAG = "PdfiumRenderService"
+        private const val MAX_PENDING_CANCELLATIONS = 256
     }
 
+    private class ActiveRender(val docHandle: Long, val signal: AtomicBoolean)
+
     private val activeDocuments = ConcurrentHashMap<Long, PdfiumDocument>()
+    private val activeRenders = ConcurrentHashMap<Long, ActiveRender>()
+
+    // Cancels that arrived before their render started. Guarded by itself so that registering a
+    // render and recording an early cancel can't interleave and lose the cancel. Bounded: IDs
+    // that never arrive (render already finished) age out.
+    private val pendingCancellations =
+        object : LinkedHashMap<Long, Boolean>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Boolean>?): Boolean =
+                size > MAX_PENDING_CANCELLATIONS
+        }
 
     // Sticky flag tracking hardware transport failure on this device (PRD §4.3 review item)
     @Volatile private var isHardwareTransportBroken = false
@@ -150,6 +165,7 @@ class PdfiumRenderService : Service() {
         }
 
         override fun renderTile(
+            renderId: Long,
             docHandle: Long,
             pageIndex: Int,
             fullWidth: Int,
@@ -160,156 +176,176 @@ class PdfiumRenderService : Service() {
             tileHeight: Int,
             forceFallback: Boolean
         ): RenderResult {
-            val renderResult = runOnRenderThread { result ->
-                val doc = getDocumentOrThrow(docHandle)
+            val signal = AtomicBoolean(false)
+            synchronized(pendingCancellations) {
+                if (pendingCancellations.remove(renderId) == true) signal.set(true)
+                activeRenders[renderId] = ActiveRender(docHandle, signal)
+            }
 
-                require(
-                    tileWidth in 1..PdfiumDocument.MAX_TILE_DIMENSION &&
-                        tileHeight in 1..PdfiumDocument.MAX_TILE_DIMENSION
-                ) {
-                    "Tile dimensions must be in 1..${PdfiumDocument.MAX_TILE_DIMENSION} ($tileWidth x $tileHeight)"
-                }
-                require(
-                    fullWidth in 1..PdfiumDocument.MAX_PAGE_DIMENSION &&
-                        fullHeight in 1..PdfiumDocument.MAX_PAGE_DIMENSION
-                ) {
-                    "Full dimensions must be in 1..${PdfiumDocument.MAX_PAGE_DIMENSION} ($fullWidth x $fullHeight)"
-                }
-
-                val shouldAttemptHardware = !forceFallback && !isHardwareTransportBroken
-                var usedFallback = !shouldAttemptHardware
-
-                if (shouldAttemptHardware) {
-                    var buffer: HardwareBuffer? = null
-                    try {
-                        val usage = HardwareBuffer.USAGE_CPU_WRITE_OFTEN or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
-                        buffer = HardwareBuffer.create(
-                            tileWidth,
-                            tileHeight,
-                            HardwareBuffer.RGBA_8888,
-                            1,
-                            usage
-                        )
-                        val status = doc.renderTileToHardwareBuffer(
-                            pageIndex = pageIndex,
-                            hardwareBuffer = buffer,
-                            fullWidth = fullWidth,
-                            fullHeight = fullHeight,
-                            startX = startX,
-                            startY = startY,
-                            tileWidth = tileWidth,
-                            tileHeight = tileHeight
-                        )
-                        when (status) {
-                            PdfiumDocument.STATUS_SUCCESS -> {
-                                result.hardwareBuffer = buffer
-                                result.bufferWidth = tileWidth
-                                result.bufferHeight = tileHeight
-                            }
-                            PdfiumDocument.STATUS_ERR_LOCK_FAILED,
-                            PdfiumDocument.STATUS_ERR_UNSUPPORTED_FORMAT,
-                            PdfiumDocument.STATUS_ERR_BUFFER_TOO_SMALL -> {
-                                Log.w(
-                                    TAG,
-                                    "HardwareBuffer transport failed (status=$status). Falling back to SharedMemory."
-                                )
-                                isHardwareTransportBroken = true
-                                buffer.close()
-                                buffer = null
-                                usedFallback = true
-                            }
-                            PdfiumDocument.STATUS_ERR_PAGE_NOT_FOUND -> {
-                                buffer.close()
-                                throw PdfPageNotFoundException("Page not found: $pageIndex")
-                            }
-                            PdfiumDocument.STATUS_ERR_INVALID_PARAM -> {
-                                buffer.close()
-                                throw IllegalArgumentException(
-                                    "Invalid render parameters: page=$pageIndex, tile=${tileWidth}x$tileHeight"
-                                )
-                            }
-                            else -> {
-                                buffer.close()
-                                throw PdfiumException(
-                                    "Native tile rendering failed with status $status",
-                                    PdfiumException.ERROR_UNKNOWN
-                                )
-                            }
-                        }
-                    } catch (e: PdfPageNotFoundException) {
-                        throw e
-                    } catch (e: IllegalArgumentException) {
-                        throw e
-                    } catch (e: PdfiumException) {
-                        throw e
-                    } catch (t: Throwable) {
-                        Log.w(
-                            TAG,
-                            "HardwareBuffer transport threw exception: ${t.message}. Falling back to SharedMemory.",
-                            t
-                        )
-                        isHardwareTransportBroken = true
-                        buffer?.let { runCatching { it.close() } }
-                        usedFallback = true
+            val renderResult = try {
+                runOnRenderThread { result ->
+                    if (signal.get()) {
+                        throw PdfRenderCancelledException("Render cancelled before start: renderId=$renderId")
                     }
-                }
+                    val doc = getDocumentOrThrow(docHandle)
 
-                if (usedFallback) {
-                    Log.w(
-                        TAG,
-                        "Using SharedMemory fallback: forceFallback=$forceFallback, " +
-                            "isHardwareTransportBroken=$isHardwareTransportBroken"
-                    )
-                    val bufferSizeLong = tileWidth.toLong() * tileHeight.toLong() * 4L
-                    require(bufferSizeLong <= Int.MAX_VALUE) { "Tile buffer size exceeds Int.MAX_VALUE" }
-                    val bufferSize = bufferSizeLong.toInt()
-                    val sharedMemory = SharedMemory.create("pdfium_tile_${docHandle}_${pageIndex}", bufferSize)
-                    try {
-                        val byteBuffer = sharedMemory.mapReadWrite()
+                    require(
+                        tileWidth in 1..PdfiumDocument.MAX_TILE_DIMENSION &&
+                            tileHeight in 1..PdfiumDocument.MAX_TILE_DIMENSION
+                    ) {
+                        "Tile dimensions must be in 1..${PdfiumDocument.MAX_TILE_DIMENSION} ($tileWidth x $tileHeight)"
+                    }
+                    require(
+                        fullWidth in 1..PdfiumDocument.MAX_PAGE_DIMENSION &&
+                            fullHeight in 1..PdfiumDocument.MAX_PAGE_DIMENSION
+                    ) {
+                        "Full dimensions must be in 1..${PdfiumDocument.MAX_PAGE_DIMENSION} ($fullWidth x $fullHeight)"
+                    }
+
+                    val shouldAttemptHardware = !forceFallback && !isHardwareTransportBroken
+                    var usedFallback = !shouldAttemptHardware
+
+                    if (shouldAttemptHardware) {
+                        var buffer: HardwareBuffer? = null
                         try {
-                            val status = doc.renderTileToDirectBuffer(
+                            val usage = HardwareBuffer.USAGE_CPU_WRITE_OFTEN or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                            buffer = HardwareBuffer.create(
+                                tileWidth,
+                                tileHeight,
+                                HardwareBuffer.RGBA_8888,
+                                1,
+                                usage
+                            )
+                            val status = doc.renderTileToHardwareBuffer(
                                 pageIndex = pageIndex,
-                                directBuffer = byteBuffer,
+                                hardwareBuffer = buffer,
                                 fullWidth = fullWidth,
                                 fullHeight = fullHeight,
                                 startX = startX,
                                 startY = startY,
                                 tileWidth = tileWidth,
                                 tileHeight = tileHeight,
-                                stride = tileWidth * 4
+                                cancellationSignal = signal
                             )
                             when (status) {
                                 PdfiumDocument.STATUS_SUCCESS -> {
-                                    // Successfully rendered into direct buffer
+                                    result.hardwareBuffer = buffer
+                                    result.bufferWidth = tileWidth
+                                    result.bufferHeight = tileHeight
+                                }
+                                PdfiumDocument.STATUS_ERR_CANCELLED -> {
+                                    buffer.close()
+                                    throw PdfRenderCancelledException("Render cancelled: renderId=$renderId")
+                                }
+                                PdfiumDocument.STATUS_ERR_LOCK_FAILED,
+                                PdfiumDocument.STATUS_ERR_UNSUPPORTED_FORMAT,
+                                PdfiumDocument.STATUS_ERR_BUFFER_TOO_SMALL -> {
+                                    Log.w(
+                                        TAG,
+                                        "HardwareBuffer transport failed (status=$status). Falling back to SharedMemory."
+                                    )
+                                    isHardwareTransportBroken = true
+                                    buffer.close()
+                                    buffer = null
+                                    usedFallback = true
                                 }
                                 PdfiumDocument.STATUS_ERR_PAGE_NOT_FOUND -> {
+                                    buffer.close()
                                     throw PdfPageNotFoundException("Page not found: $pageIndex")
                                 }
                                 PdfiumDocument.STATUS_ERR_INVALID_PARAM -> {
+                                    buffer.close()
                                     throw IllegalArgumentException(
                                         "Invalid render parameters: page=$pageIndex, tile=${tileWidth}x$tileHeight"
                                     )
                                 }
                                 else -> {
+                                    buffer.close()
                                     throw PdfiumException(
-                                        "Native tile rendering to buffer failed with status $status",
+                                        "Native tile rendering failed with status $status",
                                         PdfiumException.ERROR_UNKNOWN
                                     )
                                 }
                             }
-                        } finally {
-                            SharedMemory.unmap(byteBuffer)
+                        } catch (e: PdfiumException) {
+                            throw e
+                        } catch (e: IllegalArgumentException) {
+                            throw e
+                        } catch (t: Throwable) {
+                            Log.w(
+                                TAG,
+                                "HardwareBuffer transport threw exception: ${t.message}. Falling back to SharedMemory.",
+                                t
+                            )
+                            isHardwareTransportBroken = true
+                            buffer?.let { runCatching { it.close() } }
+                            usedFallback = true
                         }
-                        sharedMemory.setProtect(OsConstants.PROT_READ)
-                        result.sharedMemory = sharedMemory
-                        result.bufferWidth = tileWidth
-                        result.bufferHeight = tileHeight
-                        result.bufferStride = tileWidth * 4
-                    } catch (t: Throwable) {
-                        runCatching { sharedMemory.close() }
-                        throw t
+                    }
+
+                    if (usedFallback) {
+                        Log.w(
+                            TAG,
+                            "Using SharedMemory fallback: forceFallback=$forceFallback, " +
+                                "isHardwareTransportBroken=$isHardwareTransportBroken"
+                        )
+                        val bufferSizeLong = tileWidth.toLong() * tileHeight.toLong() * 4L
+                        require(bufferSizeLong <= Int.MAX_VALUE) { "Tile buffer size exceeds Int.MAX_VALUE" }
+                        val bufferSize = bufferSizeLong.toInt()
+                        val sharedMemory = SharedMemory.create("pdfium_tile_${docHandle}_${pageIndex}", bufferSize)
+                        try {
+                            val byteBuffer = sharedMemory.mapReadWrite()
+                            try {
+                                val status = doc.renderTileToDirectBuffer(
+                                    pageIndex = pageIndex,
+                                    directBuffer = byteBuffer,
+                                    fullWidth = fullWidth,
+                                    fullHeight = fullHeight,
+                                    startX = startX,
+                                    startY = startY,
+                                    tileWidth = tileWidth,
+                                    tileHeight = tileHeight,
+                                    stride = tileWidth * 4,
+                                    cancellationSignal = signal
+                                )
+                                when (status) {
+                                    PdfiumDocument.STATUS_SUCCESS -> {
+                                        // Successfully rendered into direct buffer
+                                    }
+                                    PdfiumDocument.STATUS_ERR_CANCELLED -> {
+                                        throw PdfRenderCancelledException("Render cancelled: renderId=$renderId")
+                                    }
+                                    PdfiumDocument.STATUS_ERR_PAGE_NOT_FOUND -> {
+                                        throw PdfPageNotFoundException("Page not found: $pageIndex")
+                                    }
+                                    PdfiumDocument.STATUS_ERR_INVALID_PARAM -> {
+                                        throw IllegalArgumentException(
+                                            "Invalid render parameters: page=$pageIndex, tile=${tileWidth}x$tileHeight"
+                                        )
+                                    }
+                                    else -> {
+                                        throw PdfiumException(
+                                            "Native tile rendering to buffer failed with status $status",
+                                            PdfiumException.ERROR_UNKNOWN
+                                        )
+                                    }
+                                }
+                            } finally {
+                                SharedMemory.unmap(byteBuffer)
+                            }
+                            sharedMemory.setProtect(OsConstants.PROT_READ)
+                            result.sharedMemory = sharedMemory
+                            result.bufferWidth = tileWidth
+                            result.bufferHeight = tileHeight
+                            result.bufferStride = tileWidth * 4
+                        } catch (t: Throwable) {
+                            runCatching { sharedMemory.close() }
+                            throw t
+                        }
                     }
                 }
+            } finally {
+                activeRenders.remove(renderId)
             }
 
             if (renderResult.errorCode == PdfiumException.ERROR_SUCCESS) {
@@ -319,7 +355,27 @@ class PdfiumRenderService : Service() {
             return renderResult
         }
 
+        override fun cancelTile(renderId: Long) {
+            synchronized(pendingCancellations) {
+                val existing = activeRenders[renderId]
+                if (existing != null) {
+                    existing.signal.set(true)
+                } else {
+                    pendingCancellations[renderId] = true
+                }
+            }
+        }
+
+        override fun cancelAllTiles(docHandle: Long) {
+            activeRenders.values.forEach { active ->
+                if (active.docHandle == docHandle) {
+                    active.signal.set(true)
+                }
+            }
+        }
+
         override fun closeDocument(docHandle: Long) {
+            cancelAllTiles(docHandle)
             renderExecutor.submit {
                 val doc = activeDocuments.remove(docHandle)
                 doc?.close()
@@ -335,6 +391,9 @@ class PdfiumRenderService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
+        activeRenders.values.forEach { it.signal.set(true) }
+        activeRenders.clear()
+        synchronized(pendingCancellations) { pendingCancellations.clear() }
         renderExecutor.submit {
             activeDocuments.values.forEach { doc ->
                 runCatching { doc.close() }

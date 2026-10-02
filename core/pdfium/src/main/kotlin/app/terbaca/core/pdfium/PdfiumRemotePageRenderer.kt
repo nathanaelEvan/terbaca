@@ -11,11 +11,20 @@ import android.os.SharedMemory
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Concrete [PageRenderer] implementation communicating with [PdfiumRenderService]
@@ -159,10 +168,16 @@ class PdfiumRemotePageRenderer(
             (0 until count).map { getPageInfo(docHandle, it) }
         }
 
+    private val renderIdSequence = AtomicLong(
+        (ThreadLocalRandom.current().nextLong(1L, 0x7FFF_FFFFL) shl 32) or 1L
+    )
+
     override suspend fun closeDocument(docHandle: Long): Unit = withContext(Dispatchers.IO) {
         if (isServiceConnected) {
             runCatching {
-                getService().closeDocument(docHandle)
+                val service = getService()
+                service.cancelAllTiles(docHandle)
+                service.closeDocument(docHandle)
             }
         }
         Unit
@@ -178,6 +193,30 @@ class PdfiumRemotePageRenderer(
         tileWidth: Int,
         tileHeight: Int
     ): Bitmap = renderTile(
+        renderId = renderIdSequence.getAndIncrement(),
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        forceFallback = false
+    )
+
+    override suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap = renderTile(
+        renderId = renderId,
         docHandle = docHandle,
         pageIndex = pageIndex,
         fullWidth = fullWidth,
@@ -190,6 +229,7 @@ class PdfiumRemotePageRenderer(
     )
 
     suspend fun renderTile(
+        renderId: Long = renderIdSequence.getAndIncrement(),
         docHandle: Long,
         pageIndex: Int,
         fullWidth: Int,
@@ -201,17 +241,42 @@ class PdfiumRemotePageRenderer(
         forceFallback: Boolean
     ): Bitmap = withContext(Dispatchers.IO) {
         val service = getService()
-        val result = service.renderTile(
-            docHandle,
-            pageIndex,
-            fullWidth,
-            fullHeight,
-            startX,
-            startY,
-            tileWidth,
-            tileHeight,
-            forceFallback
-        ).unwrap()
+        val result = coroutineScope {
+            val renderFinished = AtomicBoolean(false)
+            // UNDISPATCHED: the watcher is registered before the Binder call starts, so even a
+            // cancellation that arrives immediately reaches the service.
+            val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    if (!renderFinished.get()) {
+                        cancelTile(renderId)
+                    }
+                }
+            }
+            try {
+                service.renderTile(
+                    renderId,
+                    docHandle,
+                    pageIndex,
+                    fullWidth,
+                    fullHeight,
+                    startX,
+                    startY,
+                    tileWidth,
+                    tileHeight,
+                    forceFallback
+                ).unwrap()
+            } catch (e: PdfRenderCancelledException) {
+                if (!currentCoroutineContext().isActive) {
+                    throw CancellationException("Render cancelled: renderId=$renderId", e)
+                }
+                throw e
+            } finally {
+                renderFinished.set(true)
+                watcher.cancel()
+            }
+        }
 
         val hwBuffer = result.hardwareBuffer
         if (hwBuffer != null) {
@@ -258,6 +323,18 @@ class PdfiumRemotePageRenderer(
                     sharedMem.close()
                 }
             }
+        }
+    }
+
+    override fun cancelTile(renderId: Long) {
+        if (isServiceConnected) {
+            runCatching { serviceBinder?.cancelTile(renderId) }
+        }
+    }
+
+    override fun cancelAllTiles(docHandle: Long) {
+        if (isServiceConnected) {
+            runCatching { serviceBinder?.cancelAllTiles(docHandle) }
         }
     }
 

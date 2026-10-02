@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstring>
 #include "fpdfview.h"
+#include "fpdf_progressive.h"
 
 enum RenderTileStatus {
     RENDER_TILE_SUCCESS = 0,
@@ -19,7 +20,8 @@ enum RenderTileStatus {
     RENDER_TILE_ERR_UNSUPPORTED_FORMAT = 3,
     RENDER_TILE_ERR_LOCK_FAILED = 4,
     RENDER_TILE_ERR_PAGE_NOT_FOUND = 5,
-    RENDER_TILE_ERR_PDFIUM = 6
+    RENDER_TILE_ERR_PDFIUM = 6,
+    RENDER_TILE_ERR_CANCELLED = 7
 };
 
 
@@ -105,6 +107,31 @@ struct NativeDocument {
     int dup_fd = -1;
 };
 
+struct JniPauseHandler : public IFSDK_PAUSE {
+    JNIEnv* env = nullptr;
+    jobject token = nullptr;
+    jmethodID isCancelledMethod = nullptr;
+    bool cancelled = false;
+
+    static FPDF_BOOL NeedToPause(IFSDK_PAUSE* pThis) {
+        if (!pThis) return 0;
+        auto* self = static_cast<JniPauseHandler*>(pThis);
+        if (self->cancelled) return 1;
+        if (self->token && self->isCancelledMethod && self->env) {
+            jboolean isCancelled = self->env->CallBooleanMethod(self->token, self->isCancelledMethod);
+            if (self->env->ExceptionCheck()) {
+                self->env->ExceptionClear();
+                return 0;
+            }
+            if (isCancelled) {
+                self->cancelled = true;
+                return 1;
+            }
+        }
+        return 0;
+    }
+};
+
 static int RenderPageTile(
     FPDF_DOCUMENT doc,
     int pageIndex,
@@ -115,7 +142,9 @@ static int RenderPageTile(
     int fullWidth,
     int fullHeight,
     int startX,
-    int startY
+    int startY,
+    jobject cancellationSignal,
+    JNIEnv* env
 ) {
     if (!doc || !buffer || tileWidth <= 0 || tileHeight <= 0 || fullWidth <= 0 || fullHeight <= 0 ||
         tileWidth > 4096 || tileHeight > 4096 || fullWidth > 65536 || fullHeight > 65536) {
@@ -140,8 +169,34 @@ static int RenderPageTile(
     // Initialize background to opaque white (0xFFFFFFFF in ARGB format)
     FPDFBitmap_FillRect(bitmap, 0, 0, tileWidth, tileHeight, 0xFFFFFFFF);
 
-    // Render with FPDF_REVERSE_BYTE_ORDER (outputs RGBA matching Android RGBA_8888) and FPDF_ANNOT
-    FPDF_RenderPageBitmap(
+    JniPauseHandler pauseHandler{};
+    pauseHandler.version = 1;
+    pauseHandler.NeedToPauseNow = JniPauseHandler::NeedToPause;
+    pauseHandler.user = nullptr;
+    pauseHandler.env = env;
+    pauseHandler.token = cancellationSignal;
+    pauseHandler.cancelled = false;
+
+    if (cancellationSignal != nullptr && env != nullptr) {
+        jclass tokenCls = env->GetObjectClass(cancellationSignal);
+        pauseHandler.isCancelledMethod = env->GetMethodID(tokenCls, "get", "()Z");
+        if (!pauseHandler.isCancelledMethod) {
+            env->ExceptionClear();
+            LOGW("Could not find get() method on cancellationSignal");
+        } else {
+            jboolean isCancelled = env->CallBooleanMethod(cancellationSignal, pauseHandler.isCancelledMethod);
+            if (env->ExceptionCheck()) {
+                env->ExceptionClear();
+            } else if (isCancelled) {
+                pauseHandler.cancelled = true;
+                FPDFBitmap_Destroy(bitmap);
+                FPDF_ClosePage(page);
+                return RENDER_TILE_ERR_CANCELLED;
+            }
+        }
+    }
+
+    int render_status = FPDF_RenderPageBitmap_Start(
         bitmap,
         page,
         -startX,
@@ -149,11 +204,31 @@ static int RenderPageTile(
         fullWidth,
         fullHeight,
         0, // rotate
-        FPDF_REVERSE_BYTE_ORDER | FPDF_ANNOT
+        FPDF_REVERSE_BYTE_ORDER | FPDF_ANNOT,
+        &pauseHandler
     );
 
+    while (render_status == FPDF_RENDER_TOBECONTINUED) {
+        if (pauseHandler.cancelled) {
+            break;
+        }
+        render_status = FPDF_RenderPage_Continue(page, &pauseHandler);
+    }
+
+    FPDF_RenderPage_Close(page);
     FPDFBitmap_Destroy(bitmap);
     FPDF_ClosePage(page);
+
+    if (pauseHandler.cancelled) {
+        LOGI("Tile render cancelled for page %d", pageIndex);
+        return RENDER_TILE_ERR_CANCELLED;
+    }
+
+    if (render_status != FPDF_RENDER_DONE) {
+        LOGE("Progressive tile render failed with status %d", render_status);
+        return RENDER_TILE_ERR_PDFIUM;
+    }
+
     return RENDER_TILE_SUCCESS;
 }
 
@@ -362,7 +437,8 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
         jint startX,
         jint startY,
         jint tileWidth,
-        jint tileHeight) {
+        jint tileHeight,
+        jobject cancellationSignal) {
     if (docPtr == 0 || hardwareBufferObj == nullptr) {
         LOGE("Invalid parameters for nativeRenderTileToHardwareBuffer: docPtr=%ld buffer=%p",
              static_cast<long>(docPtr), hardwareBufferObj);
@@ -425,7 +501,9 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToHardwareBuffer(
             fullWidth,
             fullHeight,
             startX,
-            startY
+            startY,
+            cancellationSignal,
+            env
         );
     }
 
@@ -450,7 +528,8 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
         jint startY,
         jint tileWidth,
         jint tileHeight,
-        jint stride) {
+        jint stride,
+        jobject cancellationSignal) {
     if (docPtr == 0 || directBuffer == nullptr) {
         LOGE("Invalid parameters for nativeRenderTileToDirectBuffer: docPtr=%ld buffer=%p",
              static_cast<long>(docPtr), directBuffer);
@@ -498,7 +577,9 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
             fullWidth,
             fullHeight,
             startX,
-            startY
+            startY,
+            cancellationSignal,
+            env
         );
     }
 

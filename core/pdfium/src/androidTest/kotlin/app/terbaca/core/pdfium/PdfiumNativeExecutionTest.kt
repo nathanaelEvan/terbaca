@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 @RunWith(AndroidJUnit4::class)
 class PdfiumNativeExecutionTest {
 
+
     private lateinit var context: Context
     private val tempFiles = mutableListOf<File>()
 
@@ -315,8 +316,115 @@ class PdfiumNativeExecutionTest {
         }
     }
 
+    @Test
+    fun testNativeRenderTileToDirectBuffer_withCancellationSignal_returnsCancelledStatus() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val buffer = ByteBuffer.allocateDirect(512 * 512 * 4)
+                val cancelSignal = java.util.concurrent.atomic.AtomicBoolean(true)
+                val status = doc.renderTileToDirectBuffer(
+                    pageIndex = 0,
+                    directBuffer = buffer,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 512,
+                    tileHeight = 512,
+                    cancellationSignal = cancelSignal
+                )
+                assertEquals(
+                    "Native rendering with pre-cancelled signal must return STATUS_ERR_CANCELLED",
+                    PdfiumDocument.STATUS_ERR_CANCELLED,
+                    status
+                )
+            }
+        }
+    }
+
+    @Test
+    fun testNativeRenderTile_cancelledMidRender_stopsEarly() {
+        val file = copyAssetToTempFile("fixtures/many_objects.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                // Whole page as one tile: all 3,000 objects are drawn, so PDFium checks for a pause
+                // ~30 times (every 100 drawn objects) and the timing isn't at the mercy of a few checks.
+                val buffer = ByteBuffer.allocateDirect(PAGE_W * PAGE_H * 4)
+                fun render(signal: java.util.concurrent.atomic.AtomicBoolean?) = doc.renderTileToDirectBuffer(
+                    pageIndex = 0,
+                    directBuffer = buffer,
+                    fullWidth = PAGE_W,
+                    fullHeight = PAGE_H,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = PAGE_W,
+                    tileHeight = PAGE_H,
+                    cancellationSignal = signal
+                )
+
+                render(null) // warm-up
+                val fullStart = System.nanoTime()
+                assertEquals(PdfiumDocument.STATUS_SUCCESS, render(null))
+                val fullMs = (System.nanoTime() - fullStart) / 1_000_000
+
+                val signal = java.util.concurrent.atomic.AtomicBoolean(false)
+                val cancelAfterMs = fullMs / 4
+                val canceller = Thread {
+                    Thread.sleep(cancelAfterMs)
+                    signal.set(true)
+                }
+                val start = System.nanoTime()
+                canceller.start()
+                val status = render(signal)
+                val cancelledMs = (System.nanoTime() - start) / 1_000_000
+                canceller.join()
+
+                val details = "fullMs=$fullMs, cancelAfterMs=$cancelAfterMs, cancelledMs=$cancelledMs, status=$status"
+                assertEquals("Render must report cancellation ($details)", PdfiumDocument.STATUS_ERR_CANCELLED, status)
+                assertTrue("Render must stop well before finishing ($details)", cancelledMs < fullMs * 3 / 4)
+            }
+        }
+    }
+
+    @Test
+    fun testNativeRenderTileToHardwareBuffer_withCancellationSignal_returnsCancelledStatus() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val usage = HardwareBuffer.USAGE_CPU_WRITE_OFTEN or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                val hwBuffer = HardwareBuffer.create(512, 512, HardwareBuffer.RGBA_8888, 1, usage)
+                try {
+                    val cancelSignal = java.util.concurrent.atomic.AtomicBoolean(true)
+                    val status = doc.renderTileToHardwareBuffer(
+                        pageIndex = 0,
+                        hardwareBuffer = hwBuffer,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512,
+                        cancellationSignal = cancelSignal
+                    )
+                    assertEquals(
+                        "Native rendering to HardwareBuffer with cancelled signal must return STATUS_ERR_CANCELLED",
+                        PdfiumDocument.STATUS_ERR_CANCELLED,
+                        status
+                    )
+                } finally {
+                    hwBuffer.close()
+                }
+            }
+        }
+    }
+
     private companion object {
         const val STRESS_ITERATIONS = 200
+
+        // many_objects.pdf (612x792 pt) at 2x
+        const val PAGE_W = 1224
+        const val PAGE_H = 1584
     }
 }
 

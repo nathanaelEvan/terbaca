@@ -64,6 +64,40 @@ interface PageRenderer {
     ): Bitmap
 
     /**
+     * Renders a page or sub-page tile into a GPU-ready [Bitmap] with an explicit [renderId].
+     */
+    suspend fun renderTile(
+        renderId: Long,
+        docHandle: Long,
+        pageIndex: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Bitmap = renderTile(
+        docHandle = docHandle,
+        pageIndex = pageIndex,
+        fullWidth = fullWidth,
+        fullHeight = fullHeight,
+        startX = startX,
+        startY = startY,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight
+    )
+
+    /**
+     * Cancels an in-flight or pending tile render identified by [renderId].
+     */
+    fun cancelTile(renderId: Long) {}
+
+    /**
+     * Cancels all in-flight or pending tile renders for [docHandle].
+     */
+    fun cancelAllTiles(docHandle: Long) {}
+
+    /**
      * Closes the document handle and releases native memory and file descriptors.
      */
     suspend fun closeDocument(docHandle: Long)
