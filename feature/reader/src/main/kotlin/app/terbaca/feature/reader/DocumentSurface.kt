@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -34,6 +37,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.TileKey
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.TileCache
@@ -41,6 +45,7 @@ import app.terbaca.core.render.cache.TileMemoryBudget
 import app.terbaca.core.render.pyramid.PyramidLevel
 import app.terbaca.core.render.pyramid.TileBounds
 import app.terbaca.core.render.pyramid.TilePyramid
+import app.terbaca.core.render.pyramid.ViewportRect
 import app.terbaca.core.render.scheduler.RenderScheduler
 import app.terbaca.core.render.scheduler.TileLayerType
 import app.terbaca.core.render.scheduler.TilePriority
@@ -49,16 +54,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 const val MAX_TILES_SWAPPED_PER_FRAME = 4
 const val TILE_CROSSFADE_DURATION_MS = 120L
 private const val RENDER_SCHEDULER_CONCURRENCY = 2
 
+/** Drawn where a page has no content yet, so a fast fling shows page shapes, not a void. */
+private val PAGE_PLACEHOLDER_COLOR = Color.White
+
 private class IntSizeRef(var width: Int = 0, var height: Int = 0)
-private class LevelRef(var level: PyramidLevel? = null)
 
 @Composable
 fun DocumentSurface(
@@ -87,7 +95,6 @@ fun DocumentSurface(
     val tileFadeStartTimes = remember { HashMap<TileKey, Long>() }
     val pendingTileArrivals = remember { ArrayDeque<Pair<TileKey, Bitmap>>() }
     val inFlightTiles = remember { HashSet<TileKey>() }
-    val isBaseLayerInFlight = remember { AtomicBoolean(false) }
 
     val tileArrivals = remember { mutableIntStateOf(0) }
     val frameClock = remember { mutableLongStateOf(0L) }
@@ -109,7 +116,8 @@ fun DocumentSurface(
     )
 
     val lastSize = remember { IntSizeRef() }
-    val underlayLevel = remember { LevelRef() }
+    // Per page: the last level that fully covered its visible part (kept under the next level).
+    val underlayLevels = remember { HashMap<Int, PyramidLevel>() }
     val viewportGeneration = remember { AtomicLong(0L) }
 
     val sizeModifier = Modifier.onSizeChanged { size ->
@@ -120,31 +128,29 @@ fun DocumentSurface(
             tileFadeStartTimes = tileFadeStartTimes,
             pendingTileArrivals = pendingTileArrivals,
             scheduler = scheduler,
-            underlayLevel = underlayLevel,
+            underlayLevels = underlayLevels,
             state = state,
             inFlightTiles = inFlightTiles,
-            isBaseLayerInFlight = isBaseLayerInFlight,
             viewportGeneration = viewportGeneration
         )
     }
     val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay)
 
-    DocumentTileCollector(
-        state = state,
-        renderer = renderer,
-        docHandle = docHandle,
-        scheduler = scheduler,
-        tileCache = tileCache,
-        tileFadeStartTimes = tileFadeStartTimes,
-        pendingTileArrivals = pendingTileArrivals,
-        inFlightTiles = inFlightTiles,
-        isBaseLayerInFlight = isBaseLayerInFlight,
-        underlayLevel = underlayLevel,
-        tileArrivals = tileArrivals,
-        reloadTrigger = reloadTrigger,
-        coroutineScope = coroutineScope,
-        viewportGeneration = viewportGeneration
-    )
+    if (scheduler != null) {
+        DocumentTileCollector(
+            state = state,
+            requester = remember(scheduler) {
+                TileRequester(
+                    scheduler, coroutineScope, tileCache, inFlightTiles,
+                    pendingTileArrivals, tileArrivals, viewportGeneration
+                )
+            },
+            tileCache = tileCache,
+            tileFadeStartTimes = tileFadeStartTimes,
+            underlayLevels = underlayLevels,
+            reloadTrigger = reloadTrigger
+        )
+    }
 
     Box(
         modifier = modifier
@@ -165,18 +171,24 @@ fun DocumentSurface(
 
             var hasActiveFade = false
             if (state.viewportWidth > 0f && state.viewportHeight > 0f) {
-                hasActiveFade = drawTilePyramid(
-                    tileCache = tileCache,
-                    tileFadeStartTimes = tileFadeStartTimes,
-                    underlayLevel = underlayLevel,
-                    state = state,
-                    now = now,
-                    scale = scale,
-                    offsetX = offsetX,
-                    offsetY = offsetY
-                )
-            } else {
-                drawBaseLayer(tileCache, state.pageInfo, offsetX, offsetY, scale)
+                val layout = state.layout
+                val visibleRect = state.getVisibleRectPoints()
+                for (index in layout.pagesIn(visibleRect)) {
+                    val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: continue
+                    val pageRect = layout.pageRect(index)
+                    hasActiveFade = drawTilePyramid(
+                        page = layout.pages[index],
+                        pageVisible = pageVisible,
+                        tileCache = tileCache,
+                        tileFadeStartTimes = tileFadeStartTimes,
+                        underlayLevels = underlayLevels,
+                        state = state,
+                        now = now,
+                        scale = scale,
+                        offsetX = offsetX + pageRect.left * scale,
+                        offsetY = offsetY + pageRect.top * scale
+                    ) || hasActiveFade
+                }
             }
 
             if (hasActiveFade || pendingTileArrivals.isNotEmpty()) {
@@ -185,6 +197,17 @@ fun DocumentSurface(
             onSurfaceDrawn?.invoke()
         }
     }
+}
+
+/** The part of page [index] inside document-point rect [visible], in page points; null if none. */
+internal fun DocumentLayout.visibleRectOnPage(index: Int, visible: ViewportRect): ViewportRect? {
+    val page = pageRect(index)
+    val left = max(visible.left, page.left)
+    val top = max(visible.top, page.top)
+    val right = min(visible.right, page.right)
+    val bottom = min(visible.bottom, page.bottom)
+    if (left >= right || top >= bottom) return null
+    return ViewportRect(left - page.left, top - page.top, right - page.left, bottom - page.top)
 }
 
 private fun createRenderScheduler(
@@ -220,10 +243,9 @@ private fun handleSizeChanged(
     tileFadeStartTimes: HashMap<TileKey, Long>,
     pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
     scheduler: RenderScheduler<Bitmap>?,
-    underlayLevel: LevelRef,
+    underlayLevels: HashMap<Int, PyramidLevel>,
     state: DocumentTransformState,
     inFlightTiles: HashSet<TileKey>,
-    isBaseLayerInFlight: AtomicBoolean,
     viewportGeneration: AtomicLong
 ) {
     if (size.width > 0 && size.height > 0) {
@@ -237,8 +259,7 @@ private fun handleSizeChanged(
             pendingTileArrivals.clear()
             scheduler?.cancelAll()
             inFlightTiles.clear()
-            isBaseLayerInFlight.set(false)
-            underlayLevel.level = null
+            underlayLevels.clear()
         }
         lastSize.width = size.width
         lastSize.height = size.height
@@ -270,7 +291,7 @@ private fun SetupHighRefreshRate(view: android.view.View) {
 @Suppress("LongParameterList")
 private fun SetupLifecycleEffects(
     renderer: PageRenderer?,
-    reloadTrigger: androidx.compose.runtime.MutableIntState,
+    reloadTrigger: MutableIntState,
     context: android.content.Context,
     tileCache: TileCache,
     pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
@@ -374,29 +395,59 @@ private fun Modifier.documentGestures(
     }
 }
 
+/**
+ * Requests tiles and base layers, coalescing on [inFlightTiles] (main thread only, like every
+ * caller), and queues arrivals for [swapPendingTiles]. Arrivals from before a viewport reset
+ * ([viewportGeneration]) are dropped.
+ */
+private class TileRequester(
+    val scheduler: RenderScheduler<Bitmap>,
+    private val coroutineScope: CoroutineScope,
+    private val tileCache: TileCache,
+    private val inFlightTiles: HashSet<TileKey>,
+    private val pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
+    private val tileArrivals: MutableIntState,
+    private val viewportGeneration: AtomicLong
+) {
+    fun request(bounds: TileBounds, priority: TilePriority) {
+        if (bounds.pixelWidth <= 0 || bounds.pixelHeight <= 0) return
+        if (tileCache.get(bounds.key) != null || !inFlightTiles.add(bounds.key)) return
+        val currentGen = viewportGeneration.get()
+        val deferred = scheduler.enqueue(bounds, priority)
+        coroutineScope.launch {
+            var bmp: Bitmap? = null
+            try {
+                bmp = deferred.await()
+                if (viewportGeneration.get() != currentGen) {
+                    if (!bmp.isRecycled) bmp.recycle()
+                    return@launch
+                }
+                pendingTileArrivals.add(bounds.key to bmp)
+                tileArrivals.intValue++
+            } catch (e: Throwable) {
+                if (e is CancellationException) {
+                    bmp?.let { if (!it.isRecycled) it.recycle() }
+                }
+                // Retried on next viewport update
+            } finally {
+                inFlightTiles.remove(bounds.key)
+            }
+        }
+    }
+}
+
 @Composable
 @Suppress("LongParameterList")
 private fun DocumentTileCollector(
     state: DocumentTransformState,
-    renderer: PageRenderer?,
-    docHandle: Long,
-    scheduler: RenderScheduler<Bitmap>?,
+    requester: TileRequester,
     tileCache: TileCache,
     tileFadeStartTimes: HashMap<TileKey, Long>,
-    pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
-    inFlightTiles: HashSet<TileKey>,
-    isBaseLayerInFlight: AtomicBoolean,
-    underlayLevel: LevelRef,
-    tileArrivals: androidx.compose.runtime.MutableIntState,
-    reloadTrigger: androidx.compose.runtime.MutableIntState,
-    coroutineScope: CoroutineScope,
-    viewportGeneration: AtomicLong
+    underlayLevels: HashMap<Int, PyramidLevel>,
+    reloadTrigger: MutableIntState
 ) {
-    LaunchedEffect(state, renderer, docHandle) {
-        if (renderer == null || docHandle == 0L || scheduler == null) return@LaunchedEffect
-
-        val pageInfo = state.pageInfo
-        val baseKey = TileCache.baseLayerKey(pageInfo.index)
+    LaunchedEffect(state, requester) {
+        val layout = state.layout
         var lastOffsetX = state.offsetX
         var lastOffsetY = state.offsetY
 
@@ -410,157 +461,61 @@ private fun DocumentTileCollector(
             lastOffsetX = offsetX
             lastOffsetY = offsetY
 
-            enqueueBaseLayerIfNeeded(
-                pageInfo = pageInfo,
-                fitWidthScale = state.fitWidthScale,
-                baseKey = baseKey,
-                tileCache = tileCache,
-                isBaseLayerInFlight = isBaseLayerInFlight,
-                scheduler = scheduler,
-                coroutineScope = coroutineScope,
-                pendingTileArrivals = pendingTileArrivals,
-                tileArrivals = tileArrivals,
-                viewportGeneration = viewportGeneration
-            )
-
-            val levels = TilePyramid.buildLevels(pageInfo, state.viewportWidth, state.viewportHeight)
-            val currentLevel = TilePyramid.selectLevel(levels, scale)
             val visibleRect = state.getVisibleRectPoints()
-            val visibleTiles = TilePyramid.getVisibleTiles(pageInfo, currentLevel, visibleRect)
+            val visiblePages = layout.pagesIn(visibleRect)
+            val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
 
             val activeKeys = HashSet<TileKey>()
-            activeKeys.add(baseKey)
-            visibleTiles.mapTo(activeKeys) { it.key }
-            underlayLevel.level?.let { prev ->
-                TilePyramid.getVisibleTiles(pageInfo, prev, visibleRect).mapTo(activeKeys) { it.key }
-            }
-            tileCache.pinHot(activeKeys)
+            val visibleBases = ArrayList<TileBounds>()
+            val visibleDetail = ArrayList<Pair<TileBounds, Float>>()
+            val prefetch = ArrayList<Pair<TileBounds, Float>>()
+            for (index in visiblePages) {
+                val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: continue
+                val page = layout.pages[index]
+                val pageRect = layout.pageRect(index)
+                val origin = Offset(offsetX + pageRect.left * scale, offsetY + pageRect.top * scale)
+                fun distance(tile: TileBounds) = (
+                    origin + Offset(tile.pageRect.centerX * scale, tile.pageRect.centerY * scale) - viewportCenter
+                    ).getDistance()
 
-            // PRD §4.5: prefetch the ring of tiles just off-screen in the scroll direction (all
-            // around when still), so panning reveals sharp tiles instead of the blurry base.
-            val prefetchTiles = TilePyramid.getPrefetchRing(
-                pageInfo, currentLevel, visibleTiles, scrollDeltaX, scrollDeltaY
+                visibleBases += TilePyramid.computeBaseLevelBounds(page, state.fitWidthScale)
+                val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
+                val currentLevel = TilePyramid.selectLevel(levels, scale)
+                val tiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
+                tiles.mapTo(visibleDetail) { it to distance(it) }
+                underlayLevels[index]?.let { prev ->
+                    TilePyramid.getVisibleTiles(page, prev, pageVisible).mapTo(activeKeys) { it.key }
+                }
+                // PRD §4.5: prefetch the ring of tiles just off-screen in the scroll direction (all
+                // around when still), so panning reveals sharp tiles instead of the blurry base.
+                TilePyramid.getPrefetchRing(page, currentLevel, tiles, scrollDeltaX, scrollDeltaY)
+                    .mapTo(prefetch) { it to distance(it) }
+            }
+            // Base layers of the pages just above and below the viewport, so scrolling onto them
+            // never shows a placeholder.
+            val adjacentBases = if (visiblePages.isEmpty()) emptyList() else {
+                listOf(visiblePages.first - 1, visiblePages.last + 1)
+                    .filter { it in layout.pages.indices }
+                    .map { TilePyramid.computeBaseLevelBounds(layout.pages[it], state.fitWidthScale) }
+            }
+
+            visibleBases.mapTo(activeKeys) { it.key }
+            visibleDetail.mapTo(activeKeys) { it.first.key }
+            tileCache.pinHot(activeKeys)
+            requester.scheduler.cancelStaleExcept(
+                activeKeys + prefetch.map { it.first.key } + adjacentBases.map { it.key }
             )
-            scheduler.cancelStaleExcept(activeKeys + prefetchTiles.map { it.key })
 
             tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
 
-            enqueueVisibleTiles(
-                visibleTiles = visibleTiles,
-                tileCache = tileCache,
-                inFlightTiles = inFlightTiles,
-                scheduler = scheduler,
-                coroutineScope = coroutineScope,
-                pendingTileArrivals = pendingTileArrivals,
-                tileArrivals = tileArrivals,
-                state = state,
-                scale = scale,
-                viewportGeneration = viewportGeneration,
-                layerType = TileLayerType.VISIBLE_DETAIL
-            )
-            enqueueVisibleTiles(
-                visibleTiles = prefetchTiles,
-                tileCache = tileCache,
-                inFlightTiles = inFlightTiles,
-                scheduler = scheduler,
-                coroutineScope = coroutineScope,
-                pendingTileArrivals = pendingTileArrivals,
-                tileArrivals = tileArrivals,
-                state = state,
-                scale = scale,
-                viewportGeneration = viewportGeneration,
-                layerType = TileLayerType.PREFETCH_DETAIL
-            )
-        }
-    }
-}
-
-@Suppress("LongParameterList")
-private fun enqueueBaseLayerIfNeeded(
-    pageInfo: app.terbaca.core.model.PageInfo,
-    fitWidthScale: Float,
-    baseKey: TileKey,
-    tileCache: TileCache,
-    isBaseLayerInFlight: AtomicBoolean,
-    scheduler: RenderScheduler<Bitmap>,
-    coroutineScope: CoroutineScope,
-    pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
-    tileArrivals: androidx.compose.runtime.MutableIntState,
-    viewportGeneration: AtomicLong
-) {
-    val baseBounds = TilePyramid.computeBaseLevelBounds(pageInfo, fitWidthScale)
-    if (baseBounds.pixelWidth > 0 && baseBounds.pixelHeight > 0 &&
-        tileCache.get(baseKey) == null &&
-        isBaseLayerInFlight.compareAndSet(false, true)
-    ) {
-        val currentGen = viewportGeneration.get()
-        val deferred = scheduler.enqueue(baseBounds, TilePriority(TileLayerType.VISIBLE_BASE))
-        coroutineScope.launch {
-            var bmp: Bitmap? = null
-            try {
-                bmp = deferred.await()
-                if (viewportGeneration.get() != currentGen) {
-                    if (!bmp.isRecycled) bmp.recycle()
-                    return@launch
-                }
-                pendingTileArrivals.add(baseKey to bmp)
-                tileArrivals.intValue++
-            } catch (e: Throwable) {
-                if (e is CancellationException) {
-                    bmp?.let { if (!it.isRecycled) it.recycle() }
-                }
-                // Retried on next viewport update
-            } finally {
-                isBaseLayerInFlight.set(false)
+            visibleBases.forEach { requester.request(it, TilePriority(TileLayerType.VISIBLE_BASE)) }
+            visibleDetail.forEach { (tile, dist) ->
+                requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
             }
-        }
-    }
-}
-
-@Suppress("LongParameterList")
-private fun enqueueVisibleTiles(
-    visibleTiles: List<TileBounds>,
-    tileCache: TileCache,
-    inFlightTiles: HashSet<TileKey>,
-    scheduler: RenderScheduler<Bitmap>,
-    coroutineScope: CoroutineScope,
-    pendingTileArrivals: ArrayDeque<Pair<TileKey, Bitmap>>,
-    tileArrivals: androidx.compose.runtime.MutableIntState,
-    state: DocumentTransformState,
-    scale: Float,
-    viewportGeneration: AtomicLong,
-    layerType: TileLayerType
-) {
-    val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
-    for (tile in visibleTiles) {
-        if (tileCache.get(tile.key) == null && inFlightTiles.add(tile.key)) {
-            val tileCenter = Offset(
-                state.offsetX + tile.pageRect.left * scale + (tile.pageRect.width * scale) / 2f,
-                state.offsetY + tile.pageRect.top * scale + (tile.pageRect.height * scale) / 2f
-            )
-            val dist = (tileCenter - viewportCenter).getDistance()
-            val priority = TilePriority(layerType, distanceToCenter = dist)
-            val currentGen = viewportGeneration.get()
-            val deferred = scheduler.enqueue(tile, priority)
-            coroutineScope.launch {
-                var bmp: Bitmap? = null
-                try {
-                    bmp = deferred.await()
-                    if (viewportGeneration.get() != currentGen) {
-                        if (!bmp.isRecycled) bmp.recycle()
-                        return@launch
-                    }
-                    pendingTileArrivals.add(tile.key to bmp)
-                    tileArrivals.intValue++
-                } catch (e: Throwable) {
-                    if (e is CancellationException) {
-                        bmp?.let { if (!it.isRecycled) it.recycle() }
-                    }
-                    // Retried on next viewport update
-                } finally {
-                    inFlightTiles.remove(tile.key)
-                }
+            prefetch.forEach { (tile, dist) ->
+                requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
             }
+            adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
         }
     }
 }
@@ -595,7 +550,7 @@ private fun swapPendingTiles(
 
 private fun DrawScope.drawBaseLayer(
     cache: TileCache,
-    pageInfo: app.terbaca.core.model.PageInfo,
+    pageInfo: PageInfo,
     offsetX: Float,
     offsetY: Float,
     scale: Float
@@ -603,44 +558,57 @@ private fun DrawScope.drawBaseLayer(
     val base = cache.get(TileCache.baseLayerKey(pageInfo.index))
     val contentW = (pageInfo.widthPoints * scale).roundToInt()
     val contentH = (pageInfo.heightPoints * scale).roundToInt()
-    if (base != null && !base.isRecycled && contentW > 0 && contentH > 0) {
+    if (contentW <= 0 || contentH <= 0) return
+    if (base != null && !base.isRecycled) {
         drawImage(
             image = base.asImageBitmap(),
             dstOffset = IntOffset(offsetX.roundToInt(), offsetY.roundToInt()),
             dstSize = IntSize(contentW, contentH)
         )
+    } else {
+        drawRect(
+            color = PAGE_PLACEHOLDER_COLOR,
+            topLeft = Offset(offsetX.roundToInt().toFloat(), offsetY.roundToInt().toFloat()),
+            size = Size(contentW.toFloat(), contentH.toFloat())
+        )
     }
 }
 
+/**
+ * Draws one page: base layer (or placeholder), the previous level as underlay until the current
+ * level covers [pageVisible], then the current level's tiles. [offsetX]/[offsetY] are the page's
+ * screen origin. Returns true while any tile is still crossfading.
+ */
 @Suppress("LongParameterList")
 private fun DrawScope.drawTilePyramid(
+    page: PageInfo,
+    pageVisible: ViewportRect,
     tileCache: TileCache,
     tileFadeStartTimes: HashMap<TileKey, Long>,
-    underlayLevel: LevelRef,
+    underlayLevels: HashMap<Int, PyramidLevel>,
     state: DocumentTransformState,
     now: Long,
     scale: Float,
     offsetX: Float,
     offsetY: Float
 ): Boolean {
-    val levels = TilePyramid.buildLevels(state.pageInfo, state.viewportWidth, state.viewportHeight)
+    val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
     val currentLevel = TilePyramid.selectLevel(levels, scale)
-    val visibleRect = state.getVisibleRectPoints()
-    val visibleTiles = TilePyramid.getVisibleTiles(state.pageInfo, currentLevel, visibleRect)
+    val visibleTiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
 
     // Skip the full-page base layer when opaque detail tiles cover the visible page: on a
     // full-screen page it is a whole extra screen of GPU fill per frame (ADR 0004).
     if (!isDetailLayerOpaque(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)) {
-        drawBaseLayer(tileCache, state.pageInfo, offsetX, offsetY, scale)
+        drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
     }
 
     val allCurrentLoaded = visibleTiles.all { tileCache.get(it.key) != null }
     if (allCurrentLoaded) {
-        underlayLevel.level = currentLevel
+        underlayLevels[page.index] = currentLevel
     } else {
-        val prevLevel = underlayLevel.level
+        val prevLevel = underlayLevels[page.index]
         if (prevLevel != null && prevLevel != currentLevel) {
-            val underlayTiles = TilePyramid.getVisibleTiles(state.pageInfo, prevLevel, visibleRect)
+            val underlayTiles = TilePyramid.getVisibleTiles(page, prevLevel, pageVisible)
             drawTileBoundsList(underlayTiles, tileCache, tileFadeStartTimes, offsetX, offsetY, scale, now, alphaOverride = 1f)
         }
     }
