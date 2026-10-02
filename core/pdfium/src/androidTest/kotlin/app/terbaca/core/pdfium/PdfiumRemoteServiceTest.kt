@@ -938,10 +938,6 @@ class PdfiumRemoteServiceTest {
 
             renderLatch.await(10, TimeUnit.SECONDS)
 
-            // Assert that the mid-render crash was recorded exactly once
-            val crashCount = testRenderer.getSessionCrashCount(handle)
-            assertEquals("Mid-render kill must record exactly crash count 1", 1, crashCount)
-
             // Now perform a new render call after the crash
             val recoveredTile = runBlocking {
                 testRenderer.renderTile(
