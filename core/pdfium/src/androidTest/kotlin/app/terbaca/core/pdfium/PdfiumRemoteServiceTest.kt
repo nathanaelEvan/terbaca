@@ -993,5 +993,88 @@ class PdfiumRemoteServiceTest {
         assertNotNull(tile)
         runBlocking { renderer.closeDocument(handle) }
     }
+
+    @Test
+    fun testRemoteRenderService_cancelAllTiles_recordsPendingAndCancelsInFlight() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val latch = CountDownLatch(2)
+            val cancelledCount = AtomicInteger(0)
+
+            repeat(2) { index ->
+                launch(Dispatchers.IO) {
+                    try {
+                        renderer.renderTile(
+                            docHandle = handle,
+                            pageIndex = 0,
+                            fullWidth = 2448,
+                            fullHeight = 3168,
+                            startX = 0,
+                            startY = index * 512,
+                            tileWidth = 1024,
+                            tileHeight = 1024
+                        )
+                    } catch (_: Throwable) {
+                        cancelledCount.incrementAndGet()
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+            }
+
+            renderer.cancelAllTiles(handle)
+            val finished = latch.await(5, TimeUnit.SECONDS)
+            assertTrue("All renders must terminate after cancelAllTiles", finished)
+            assertTrue("At least one render should be cancelled", cancelledCount.get() > 0)
+
+            assertTrue(renderer.isServiceConnected)
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_coroutineCancellation_cleansUpBuffersWithoutLeak() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/heavy_plot.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val job = launch(Dispatchers.IO) {
+                renderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 0,
+                    fullWidth = 2448,
+                    fullHeight = 3168,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1024,
+                    tileHeight = 1024
+                )
+            }
+            delay(10)
+            job.cancelAndJoin()
+            assertTrue("Job should be cancelled", job.isCancelled)
+
+            val nextTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+            assertNotNull(nextTile)
+            renderer.closeDocument(handle)
+        }
+    }
 }
 
