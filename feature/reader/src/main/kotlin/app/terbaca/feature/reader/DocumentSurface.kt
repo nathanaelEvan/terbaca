@@ -189,7 +189,7 @@ fun DocumentSurface(
                     val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: return@mapNotNull null
                     val page = layout.pages[index]
                     val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
-                    val level = TilePyramid.selectLevel(levels, scale)
+                    val level = TilePyramid.selectLevel(levels, state.levelScale)
                     PageFrame(index, pageVisible, level, TilePyramid.getVisibleTiles(page, level, pageVisible))
                 }
                 // One reveal batch across every visible page, so the whole screen sharpens at once.
@@ -380,38 +380,46 @@ private fun Modifier.documentGestures(
         var pastTouchSlop = false
         val touchSlop = viewConfiguration.touchSlop
 
-        do {
-            val event = awaitPointerEvent()
-            val canceled = event.changes.any { it.isConsumed }
-            if (!canceled) {
-                val zoomChange = event.calculateZoom()
-                val panChange = event.calculatePan()
-                val centroid = event.calculateCentroid()
+        try {
+            do {
+                val event = awaitPointerEvent()
+                val canceled = event.changes.any { it.isConsumed }
+                if (!canceled) {
+                    val zoomChange = event.calculateZoom()
+                    val panChange = event.calculatePan()
+                    val centroid = event.calculateCentroid()
 
-                if (!pastTouchSlop) {
-                    zoom *= zoomChange
-                    pan += panChange
-                    if (pan.getDistance() > touchSlop || zoom < 0.95f || zoom > 1.05f) {
-                        pastTouchSlop = true
+                    if (!pastTouchSlop) {
+                        zoom *= zoomChange
+                        pan += panChange
+                        if (pan.getDistance() > touchSlop || zoom < 0.95f || zoom > 1.05f) {
+                            pastTouchSlop = true
+                        }
+                    }
+
+                    if (pastTouchSlop) {
+                        if (centroid != Offset.Unspecified) {
+                            if (zoomChange != 1f) {
+                                state.beginZoom()
+                                state.onPinch(zoomChange, centroid)
+                            }
+                            if (panChange != Offset.Zero) state.onPan(panChange.x, panChange.y)
+                        }
+                        event.changes.forEach { change: PointerInputChange ->
+                            if (change.position != change.previousPosition) change.consume()
+                        }
+                        velocityTracker.add(
+                            timeMillis = event.changes.maxOf { it.uptimeMillis },
+                            pan = panChange,
+                            pressedPointers = event.changes.count { it.pressed }
+                        )
                     }
                 }
-
-                if (pastTouchSlop) {
-                    if (centroid != Offset.Unspecified) {
-                        if (zoomChange != 1f) state.onPinch(zoomChange, centroid)
-                        if (panChange != Offset.Zero) state.onPan(panChange.x, panChange.y)
-                    }
-                    event.changes.forEach { change: PointerInputChange ->
-                        if (change.position != change.previousPosition) change.consume()
-                    }
-                    velocityTracker.add(
-                        timeMillis = event.changes.maxOf { it.uptimeMillis },
-                        pan = panChange,
-                        pressedPointers = event.changes.count { it.pressed }
-                    )
-                }
-            }
-        } while (event.changes.any { it.pressed })
+            } while (event.changes.any { it.pressed })
+        } finally {
+            // Also on cancellation, or the level would stay frozen.
+            state.endZoom()
+        }
 
         if (pastTouchSlop) {
             val velocity = velocityTracker.velocity()
@@ -481,8 +489,10 @@ private fun DocumentTileCollector(
         var lastOffsetY = state.offsetY
 
         snapshotFlow {
-            SurfaceViewportSnapshot(state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue)
-        }.collectLatest { (scale, offsetX, offsetY, _) ->
+            SurfaceViewportSnapshot(
+                state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue, state.isZooming
+            )
+        }.collectLatest { (scale, offsetX, offsetY, _, zooming) ->
             if (state.viewportWidth <= 0f || state.viewportHeight <= 0f) return@collectLatest
             // Content moves opposite to the viewport: offset decreasing = viewing further right/down.
             val scrollDeltaX = lastOffsetX - offsetX
@@ -509,7 +519,7 @@ private fun DocumentTileCollector(
 
                 visibleBases += TilePyramid.computeBaseLevelBounds(page, state.fitWidthScale)
                 val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
-                val currentLevel = TilePyramid.selectLevel(levels, scale)
+                val currentLevel = TilePyramid.selectLevel(levels, state.levelScale)
                 val tiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
                 tiles.mapTo(visibleDetail) { it to distance(it) }
                 underlayLevels[index]?.let { prev ->
@@ -538,6 +548,9 @@ private fun DocumentTileCollector(
             tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
 
             visibleBases.forEach { requester.request(it, TilePriority(TileLayerType.VISIBLE_BASE)) }
+            // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
+            // via isZooming): zooming out at a frozen high level would ask for many large tiles.
+            if (zooming) return@collectLatest
             visibleDetail.forEach { (tile, dist) ->
                 requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
             }
@@ -746,5 +759,6 @@ private data class SurfaceViewportSnapshot(
     val scale: Float,
     val offsetX: Float,
     val offsetY: Float,
-    val reloadTrigger: Int
+    val reloadTrigger: Int,
+    val isZooming: Boolean
 )
