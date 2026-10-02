@@ -2,8 +2,12 @@ package app.terbaca.core.pdfium
 
 import android.app.ActivityManager
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.os.ParcelFileDescriptor
 import android.os.Process
+
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -236,4 +240,164 @@ class PdfiumRemoteServiceTest {
             testRenderer.close()
         }
     }
+
+    @Test
+    fun testRemoteRenderService_renderTileHardwareBuffer() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 512,
+                tileHeight = 512
+            )
+
+            assertNotNull("Rendered bitmap must not be null", bitmap)
+            assertEquals("Rendered bitmap must have HARDWARE config", Bitmap.Config.HARDWARE, bitmap.config)
+            assertEquals(512, bitmap.width)
+            assertEquals(512, bitmap.height)
+
+            // Verify pixel contents by drawing HARDWARE bitmap to software Canvas
+            val softwareBitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+            try {
+                val canvas = Canvas(softwareBitmap)
+                canvas.drawBitmap(bitmap, 0f, 0f, null)
+                val pixel = softwareBitmap.getPixel(10, 10)
+                assertEquals("Alpha must be fully opaque", 255, Color.alpha(pixel))
+                // Background of valid_2pages.pdf is white
+                assertEquals("Red channel must be white", 255, Color.red(pixel))
+                assertEquals("Green channel must be white", 255, Color.green(pixel))
+                assertEquals("Blue channel must be white", 255, Color.blue(pixel))
+            } finally {
+                softwareBitmap.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileSubRectangle() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 1024,
+                fullHeight = 1024,
+                startX = 256,
+                startY = 256,
+                tileWidth = 256,
+                tileHeight = 256
+            )
+
+            assertNotNull("Sub-rectangle tile bitmap must not be null", bitmap)
+            assertEquals(Bitmap.Config.HARDWARE, bitmap.config)
+            assertEquals(256, bitmap.width)
+            assertEquals(256, bitmap.height)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileFallbackSharedMemory() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val bitmap = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 612,
+                fullHeight = 792,
+                startX = 0,
+                startY = 0,
+                tileWidth = 512,
+                tileHeight = 512,
+                forceFallback = true
+            )
+
+            assertNotNull("Fallback tile bitmap must not be null", bitmap)
+            assertEquals("Fallback bitmap must be promoted to HARDWARE config", Bitmap.Config.HARDWARE, bitmap.config)
+            assertEquals(512, bitmap.width)
+            assertEquals(512, bitmap.height)
+
+            val softwareBitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+            try {
+                val canvas = Canvas(softwareBitmap)
+                canvas.drawBitmap(bitmap, 0f, 0f, null)
+                val pixel = softwareBitmap.getPixel(10, 10)
+                assertEquals("Alpha must be fully opaque", 255, Color.alpha(pixel))
+            } finally {
+                softwareBitmap.recycle()
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileInvalidPageThrows() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            assertThrows(PdfPageNotFoundException::class.java) {
+                runBlocking {
+                    renderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 99,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 512,
+                        tileHeight = 512
+                    )
+                }
+            }
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_renderTileInvalidHandleThrows() {
+        assertThrows(PdfInvalidHandleException::class.java) {
+            runBlocking {
+                renderer.renderTile(
+                    docHandle = 999999L,
+                    pageIndex = 0,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 512,
+                    tileHeight = 512
+                )
+            }
+        }
+    }
 }
+

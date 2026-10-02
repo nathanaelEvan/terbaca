@@ -29,4 +29,36 @@ class InProcessPageRendererTest {
             kotlinx.coroutines.runBlocking { renderer.getPageCount(handle) }
         }
     }
+
+    @Test
+    fun testRenderTile() = runTest {
+        var suppliedWidth = 0
+        var suppliedHeight = 0
+        val unsafeField = sun.misc.Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }
+        val unsafe = unsafeField.get(null) as sun.misc.Unsafe
+        val expectedBitmap = unsafe.allocateInstance(android.graphics.Bitmap::class.java) as android.graphics.Bitmap
+
+        val renderer = InProcessPageRenderer(
+            bitmapSupplier = { w, h ->
+                suppliedWidth = w
+                suppliedHeight = h
+                expectedBitmap
+            }
+        )
+        val handle = renderer.createTestDocument(pageCount = 2)
+        val bitmap = renderer.renderTile(
+            docHandle = handle,
+            pageIndex = 0,
+            fullWidth = 1000,
+            fullHeight = 1000,
+            startX = 0,
+            startY = 0,
+            tileWidth = 512,
+            tileHeight = 512
+        )
+        assertEquals(expectedBitmap, bitmap)
+        assertEquals(512, suppliedWidth)
+        assertEquals(512, suppliedHeight)
+    }
 }
+

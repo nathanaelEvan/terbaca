@@ -47,6 +47,68 @@ class PdfiumDocument internal constructor(
         (0 until count).map { index -> getPageSize(index) }
     }
 
+    fun renderTileToHardwareBuffer(
+        pageIndex: Int,
+        hardwareBuffer: android.hardware.HardwareBuffer,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int
+    ): Boolean = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) {
+            throw PdfPageNotFoundException("Invalid page index: $pageIndex (document has $pageCount pages)")
+        }
+        require(tileWidth > 0 && tileHeight > 0) { "Tile dimensions must be positive ($tileWidth x $tileHeight)" }
+        require(fullWidth > 0 && fullHeight > 0) { "Full dimensions must be positive ($fullWidth x $fullHeight)" }
+        PdfiumNative.nativeRenderTileToHardwareBuffer(
+            docPtr = nativePtr,
+            pageIndex = pageIndex,
+            hardwareBufferObj = hardwareBuffer,
+            fullWidth = fullWidth,
+            fullHeight = fullHeight,
+            startX = startX,
+            startY = startY,
+            tileWidth = tileWidth,
+            tileHeight = tileHeight
+        )
+    }
+
+    fun renderTileToDirectBuffer(
+        pageIndex: Int,
+        directBuffer: java.nio.ByteBuffer,
+        fullWidth: Int,
+        fullHeight: Int,
+        startX: Int,
+        startY: Int,
+        tileWidth: Int,
+        tileHeight: Int,
+        stride: Int = tileWidth * 4
+    ): Boolean = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) {
+            throw PdfPageNotFoundException("Invalid page index: $pageIndex (document has $pageCount pages)")
+        }
+        require(tileWidth > 0 && tileHeight > 0) { "Tile dimensions must be positive ($tileWidth x $tileHeight)" }
+        require(fullWidth > 0 && fullHeight > 0) { "Full dimensions must be positive ($fullWidth x $fullHeight)" }
+        require(directBuffer.isDirect) { "directBuffer must be a direct ByteBuffer" }
+        PdfiumNative.nativeRenderTileToDirectBuffer(
+            docPtr = nativePtr,
+            pageIndex = pageIndex,
+            directBuffer = directBuffer,
+            fullWidth = fullWidth,
+            fullHeight = fullHeight,
+            startX = startX,
+            startY = startY,
+            tileWidth = tileWidth,
+            tileHeight = tileHeight,
+            stride = stride
+        )
+    }
+
+
     override fun close() {
         if (isClosed.compareAndSet(false, true)) {
             val ptr = synchronized(lock) {

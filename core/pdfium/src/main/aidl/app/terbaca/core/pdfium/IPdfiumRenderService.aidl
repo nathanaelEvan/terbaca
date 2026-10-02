@@ -28,6 +28,21 @@ interface IPdfiumRenderService {
     RenderResult getPageSize(long docHandle, int pageIndex);
 
     /**
+     * Renders a page or sub-page tile into a HardwareBuffer (or SharedMemory fallback).
+     */
+    RenderResult renderTile(
+        long docHandle,
+        int pageIndex,
+        int fullWidth,
+        int fullHeight,
+        int startX,
+        int startY,
+        int tileWidth,
+        int tileHeight,
+        boolean forceFallback
+    );
+
+    /**
      * Closes the document and releases native resources.
      */
     void closeDocument(long docHandle);
@@ -37,3 +52,4 @@ interface IPdfiumRenderService {
      */
     int getOpenDocumentCount();
 }
+

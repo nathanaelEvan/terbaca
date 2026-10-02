@@ -2,12 +2,17 @@ package app.terbaca.core.pdfium
 
 import android.app.Service
 import android.content.Intent
+import android.hardware.HardwareBuffer
 import android.os.IBinder
+import android.os.Parcel
 import android.os.ParcelFileDescriptor
+import android.os.SharedMemory
+import android.system.OsConstants
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicLong
+
 
 /**
  * Android Service hosting PDFium native operations inside a dedicated ":render" process.
@@ -22,6 +27,10 @@ class PdfiumRenderService : Service() {
     private val processEpoch: Long =
         (ThreadLocalRandom.current().nextLong(1L, 0x7FFF_FFFFL) shl 32)
     private val sequence = AtomicLong(1L)
+
+    // Per-thread cleanup for parcelable native buffers transferred across Binder
+    private val pendingBufferCleanup = ThreadLocal<HardwareBuffer?>()
+    private val pendingSharedMemCleanup = ThreadLocal<SharedMemory?>()
 
     // Dedicated single render thread as required by PRD §4.2
     private val renderExecutor = Executors.newSingleThreadExecutor { runnable ->
@@ -76,6 +85,22 @@ class PdfiumRenderService : Service() {
     }
 
     private val binder = object : IPdfiumRenderService.Stub() {
+        override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+            val res = try {
+                super.onTransact(code, data, reply, flags)
+            } finally {
+                pendingBufferCleanup.get()?.let {
+                    runCatching { it.close() }
+                    pendingBufferCleanup.remove()
+                }
+                pendingSharedMemCleanup.get()?.let {
+                    runCatching { it.close() }
+                    pendingSharedMemCleanup.remove()
+                }
+            }
+            return res
+        }
+
         override fun openDocument(pfd: ParcelFileDescriptor?, password: String?): RenderResult {
             if (pfd == null) {
                 return RenderResult().apply {
@@ -116,6 +141,99 @@ class PdfiumRenderService : Service() {
             }
         }
 
+        override fun renderTile(
+            docHandle: Long,
+            pageIndex: Int,
+            fullWidth: Int,
+            fullHeight: Int,
+            startX: Int,
+            startY: Int,
+            tileWidth: Int,
+            tileHeight: Int,
+            forceFallback: Boolean
+        ): RenderResult {
+            val renderResult = runOnRenderThread { result ->
+                val doc = getDocumentOrThrow(docHandle)
+                var usedFallback = forceFallback
+
+                if (!forceFallback) {
+                    var buffer: HardwareBuffer? = null
+                    try {
+                        val usage = HardwareBuffer.USAGE_CPU_WRITE_OFTEN or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                        buffer = HardwareBuffer.create(
+                            tileWidth,
+                            tileHeight,
+                            HardwareBuffer.RGBA_8888,
+                            1,
+                            usage
+                        )
+                        val rendered = doc.renderTileToHardwareBuffer(
+                            pageIndex = pageIndex,
+                            hardwareBuffer = buffer,
+                            fullWidth = fullWidth,
+                            fullHeight = fullHeight,
+                            startX = startX,
+                            startY = startY,
+                            tileWidth = tileWidth,
+                            tileHeight = tileHeight
+                        )
+                        if (rendered) {
+                            result.hardwareBuffer = buffer
+                            result.bufferWidth = tileWidth
+                            result.bufferHeight = tileHeight
+                        } else {
+                            buffer.close()
+                            buffer = null
+                            usedFallback = true
+                        }
+                    } catch (t: Throwable) {
+                        buffer?.let { runCatching { it.close() } }
+                        usedFallback = true
+                    }
+                }
+
+                if (usedFallback) {
+                    val bufferSize = tileWidth * tileHeight * 4
+                    val sharedMemory = SharedMemory.create("pdfium_tile_${docHandle}_${pageIndex}", bufferSize)
+                    try {
+                        val byteBuffer = sharedMemory.mapReadWrite()
+                        try {
+                            val rendered = doc.renderTileToDirectBuffer(
+                                pageIndex = pageIndex,
+                                directBuffer = byteBuffer,
+                                fullWidth = fullWidth,
+                                fullHeight = fullHeight,
+                                startX = startX,
+                                startY = startY,
+                                tileWidth = tileWidth,
+                                tileHeight = tileHeight,
+                                stride = tileWidth * 4
+                            )
+                            if (!rendered) {
+                                throw PdfiumException("Native tile rendering to buffer failed", PdfiumException.ERROR_UNKNOWN)
+                            }
+                        } finally {
+                            SharedMemory.unmap(byteBuffer)
+                        }
+                        sharedMemory.setProtect(OsConstants.PROT_READ)
+                        result.sharedMemory = sharedMemory
+                        result.bufferWidth = tileWidth
+                        result.bufferHeight = tileHeight
+                        result.bufferStride = tileWidth * 4
+                    } catch (t: Throwable) {
+                        runCatching { sharedMemory.close() }
+                        throw t
+                    }
+                }
+            }
+
+            if (renderResult.errorCode == PdfiumException.ERROR_SUCCESS) {
+                renderResult.hardwareBuffer?.let { pendingBufferCleanup.set(it) }
+                renderResult.sharedMemory?.let { pendingSharedMemCleanup.set(it) }
+            }
+            return renderResult
+        }
+
         override fun closeDocument(docHandle: Long) {
             renderExecutor.submit {
                 val doc = activeDocuments.remove(docHandle)
@@ -127,6 +245,7 @@ class PdfiumRenderService : Service() {
             return activeDocuments.size
         }
     }
+
 
     override fun onBind(intent: Intent?): IBinder = binder
 
