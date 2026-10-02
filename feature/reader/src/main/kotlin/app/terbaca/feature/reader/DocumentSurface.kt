@@ -29,8 +29,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -321,14 +319,13 @@ private fun Modifier.documentGestures(
     coroutineScope: CoroutineScope,
     decay: DecayAnimationSpec<Float>
 ): Modifier = pointerInput(state) {
-    val velocityTracker = VelocityTracker()
+    val velocityTracker = PanVelocityTracker()
     var flingJob: Job? = null
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         flingJob?.cancel()
         flingJob = null
-        velocityTracker.resetTracking()
-        velocityTracker.addPointerInputChange(down)
+        velocityTracker.reset(down.uptimeMillis)
 
         var zoom = 1f
         var pan = Offset.Zero
@@ -358,14 +355,18 @@ private fun Modifier.documentGestures(
                     }
                     event.changes.forEach { change: PointerInputChange ->
                         if (change.position != change.previousPosition) change.consume()
-                        velocityTracker.addPointerInputChange(change)
                     }
+                    velocityTracker.add(
+                        timeMillis = event.changes.maxOf { it.uptimeMillis },
+                        pan = panChange,
+                        pressedPointers = event.changes.count { it.pressed }
+                    )
                 }
             }
         } while (event.changes.any { it.pressed })
 
         if (pastTouchSlop) {
-            val velocity = velocityTracker.calculateVelocity()
+            val velocity = velocityTracker.velocity()
             flingJob = coroutineScope.launch {
                 state.fling(velocity.x, velocity.y, decay)
             }
