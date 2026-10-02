@@ -182,15 +182,7 @@ static int RenderPageTile(
         pauseHandler.isCancelledMethod = env->GetMethodID(tokenCls, "get", "()Z");
         if (!pauseHandler.isCancelledMethod) {
             env->ExceptionClear();
-            pauseHandler.isCancelledMethod = env->GetMethodID(tokenCls, "isCancelled", "()Z");
-        }
-        if (!pauseHandler.isCancelledMethod) {
-            env->ExceptionClear();
-            pauseHandler.isCancelledMethod = env->GetMethodID(tokenCls, "getAsBoolean", "()Z");
-        }
-        if (!pauseHandler.isCancelledMethod) {
-            env->ExceptionClear();
-            LOGW("Could not find get(), isCancelled(), or getAsBoolean() on cancellationSignal");
+            LOGW("Could not find get() method on cancellationSignal");
         } else {
             jboolean isCancelled = env->CallBooleanMethod(cancellationSignal, pauseHandler.isCancelledMethod);
             if (env->ExceptionCheck()) {

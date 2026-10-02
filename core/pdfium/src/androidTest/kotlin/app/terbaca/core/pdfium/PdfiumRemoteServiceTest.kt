@@ -627,6 +627,21 @@ class PdfiumRemoteServiceTest {
             }
             assertTrue(handle > 0L)
 
+            // Measure full uncancelled render duration of the heavy vector plot
+            val fullStart = System.currentTimeMillis()
+            val fullTile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = 0,
+                fullWidth = 2448,
+                fullHeight = 3168,
+                startX = 0,
+                startY = 0,
+                tileWidth = 1024,
+                tileHeight = 1024
+            )
+            val fullDuration = System.currentTimeMillis() - fullStart
+            assertNotNull(fullTile)
+
             val renderJob = launch(Dispatchers.IO) {
                 renderer.renderTile(
                     docHandle = handle,
@@ -640,10 +655,17 @@ class PdfiumRemoteServiceTest {
                 )
             }
 
-            // Let coroutine start, then cancel
-            delay(2)
+            // Let coroutine start rendering, then cancel and measure time to return
+            delay(5)
+            val cancelStart = System.currentTimeMillis()
             renderJob.cancelAndJoin()
+            val cancelDuration = System.currentTimeMillis() - cancelStart
+
             assertTrue("Render job must be cancelled", renderJob.isCancelled)
+            assertTrue(
+                "Cancelled render must terminate much faster than full render (cancelDuration=$cancelDuration ms, fullDuration=$fullDuration ms)",
+                cancelDuration < fullDuration
+            )
 
             // Service must still be connected
             assertTrue("Render service must remain connected after job cancellation", renderer.isServiceConnected)

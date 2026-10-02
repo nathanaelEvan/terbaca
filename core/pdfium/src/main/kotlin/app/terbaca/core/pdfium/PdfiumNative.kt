@@ -27,7 +27,7 @@ internal object PdfiumNative {
         startY: Int,
         tileWidth: Int,
         tileHeight: Int,
-        cancellationSignal: Any?
+        cancellationSignal: java.util.concurrent.atomic.AtomicBoolean?
     ): Int
     external fun nativeRenderTileToDirectBuffer(
         docPtr: Long,
@@ -40,7 +40,7 @@ internal object PdfiumNative {
         tileWidth: Int,
         tileHeight: Int,
         stride: Int,
-        cancellationSignal: Any?
+        cancellationSignal: java.util.concurrent.atomic.AtomicBoolean?
     ): Int
     external fun nativeCloseDocument(docPtr: Long)
     external fun nativeGetLastError(): Int

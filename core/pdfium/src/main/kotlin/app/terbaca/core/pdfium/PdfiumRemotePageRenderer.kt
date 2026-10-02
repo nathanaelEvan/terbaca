@@ -13,8 +13,12 @@ import app.terbaca.core.render.PageRenderer
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -160,7 +164,9 @@ class PdfiumRemotePageRenderer(
             (0 until count).map { getPageInfo(docHandle, it) }
         }
 
-    private val renderIdSequence = AtomicLong(1L)
+    private val renderIdSequence = AtomicLong(
+        (ThreadLocalRandom.current().nextLong(1L, 0x7FFF_FFFFL) shl 32) or 1L
+    )
 
     override suspend fun closeDocument(docHandle: Long): Unit = withContext(Dispatchers.IO) {
         if (isServiceConnected) {
@@ -231,27 +237,34 @@ class PdfiumRemotePageRenderer(
         forceFallback: Boolean
     ): Bitmap = withContext(Dispatchers.IO) {
         val service = getService()
-        val job = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]
-        val completionHandle = job?.invokeOnCompletion { cause ->
-            if (cause is kotlinx.coroutines.CancellationException) {
-                cancelTile(renderId)
+        val result = coroutineScope {
+            var shouldCancelService = true
+            val watcher = launch {
+                try {
+                    awaitCancellation()
+                } finally {
+                    if (shouldCancelService) {
+                        cancelTile(renderId)
+                    }
+                }
             }
-        }
-        val result = try {
-            service.renderTile(
-                renderId,
-                docHandle,
-                pageIndex,
-                fullWidth,
-                fullHeight,
-                startX,
-                startY,
-                tileWidth,
-                tileHeight,
-                forceFallback
-            ).unwrap()
-        } finally {
-            completionHandle?.dispose()
+            try {
+                service.renderTile(
+                    renderId,
+                    docHandle,
+                    pageIndex,
+                    fullWidth,
+                    fullHeight,
+                    startX,
+                    startY,
+                    tileWidth,
+                    tileHeight,
+                    forceFallback
+                ).unwrap()
+            } finally {
+                shouldCancelService = false
+                watcher.cancel()
+            }
         }
 
         val hwBuffer = result.hardwareBuffer

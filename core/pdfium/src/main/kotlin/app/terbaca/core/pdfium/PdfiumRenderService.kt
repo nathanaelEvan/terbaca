@@ -9,6 +9,8 @@ import android.os.ParcelFileDescriptor
 import android.os.SharedMemory
 import android.system.OsConstants
 import android.util.Log
+import java.util.Collections
+import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
@@ -30,6 +32,11 @@ class PdfiumRenderService : Service() {
 
     private val activeDocuments = ConcurrentHashMap<Long, PdfiumDocument>()
     private val activeRenders = ConcurrentHashMap<Long, ActiveRender>()
+    private val pendingCancellations = Collections.synchronizedMap(
+        object : LinkedHashMap<Long, Boolean>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Boolean>?): Boolean = size > 256
+        }
+    )
 
     // Sticky flag tracking hardware transport failure on this device (PRD §4.3 review item)
     @Volatile private var isHardwareTransportBroken = false
@@ -165,19 +172,13 @@ class PdfiumRenderService : Service() {
             tileHeight: Int,
             forceFallback: Boolean
         ): RenderResult {
-            val signal = AtomicBoolean(false)
-            val current = activeRenders.compute(renderId) { _, existing ->
-                if (existing != null && existing.signal.get()) {
-                    ActiveRender(docHandle, existing.signal)
-                } else {
-                    ActiveRender(docHandle, signal)
-                }
-            }
-            val activeSignal = current?.signal ?: signal
+            val preCancelled = pendingCancellations.remove(renderId) == true
+            val signal = AtomicBoolean(preCancelled)
+            activeRenders[renderId] = ActiveRender(docHandle, signal)
 
             val renderResult = try {
                 runOnRenderThread { result ->
-                    if (activeSignal.get()) {
+                    if (signal.get()) {
                         throw PdfRenderCancelledException("Render cancelled before start: renderId=$renderId")
                     }
                     val doc = getDocumentOrThrow(docHandle)
@@ -218,7 +219,7 @@ class PdfiumRenderService : Service() {
                                 startY = startY,
                                 tileWidth = tileWidth,
                                 tileHeight = tileHeight,
-                                cancellationSignal = activeSignal
+                                cancellationSignal = signal
                             )
                             when (status) {
                                 PdfiumDocument.STATUS_SUCCESS -> {
@@ -299,7 +300,7 @@ class PdfiumRenderService : Service() {
                                     tileWidth = tileWidth,
                                     tileHeight = tileHeight,
                                     stride = tileWidth * 4,
-                                    cancellationSignal = activeSignal
+                                    cancellationSignal = signal
                                 )
                                 when (status) {
                                     PdfiumDocument.STATUS_SUCCESS -> {
@@ -353,7 +354,7 @@ class PdfiumRenderService : Service() {
             if (existing != null) {
                 existing.signal.set(true)
             } else {
-                activeRenders.putIfAbsent(renderId, ActiveRender(-1L, AtomicBoolean(true)))
+                pendingCancellations[renderId] = true
             }
         }
 
@@ -384,6 +385,7 @@ class PdfiumRenderService : Service() {
     override fun onDestroy() {
         activeRenders.values.forEach { it.signal.set(true) }
         activeRenders.clear()
+        pendingCancellations.clear()
         renderExecutor.submit {
             activeDocuments.values.forEach { doc ->
                 runCatching { doc.close() }

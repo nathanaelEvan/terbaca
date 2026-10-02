@@ -70,7 +70,7 @@ class PdfiumDocument internal constructor(
         startY: Int,
         tileWidth: Int,
         tileHeight: Int,
-        cancellationSignal: Any? = null
+        cancellationSignal: AtomicBoolean? = null
     ): Int = synchronized(lock) {
         checkNotClosed()
         if (pageIndex < 0 || pageIndex >= pageCount) {
@@ -106,7 +106,7 @@ class PdfiumDocument internal constructor(
         tileWidth: Int,
         tileHeight: Int,
         stride: Int = tileWidth * 4,
-        cancellationSignal: Any? = null
+        cancellationSignal: AtomicBoolean? = null
     ): Int = synchronized(lock) {
         checkNotClosed()
         if (pageIndex < 0 || pageIndex >= pageCount) {
