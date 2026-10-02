@@ -1,0 +1,239 @@
+package app.terbaca.core.pdfium
+
+import android.app.ActivityManager
+import android.content.Context
+import android.os.ParcelFileDescriptor
+import android.os.Process
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+@RunWith(AndroidJUnit4::class)
+class PdfiumRemoteServiceTest {
+
+    private lateinit var context: Context
+    private lateinit var renderer: PdfiumRemotePageRenderer
+    private val tempFiles = mutableListOf<File>()
+
+    @Before
+    fun setup() {
+        context = ApplicationProvider.getApplicationContext()
+        renderer = PdfiumRemotePageRenderer(context)
+    }
+
+    @After
+    fun tearDown() {
+        renderer.close()
+        tempFiles.forEach { it.delete() }
+        tempFiles.clear()
+    }
+
+    private fun copyAssetToTempFile(assetName: String): File {
+        val file = File(context.cacheDir, "remote_test_${System.nanoTime()}_${File(assetName).name}")
+        context.assets.open(assetName).use { input ->
+            FileOutputStream(file).use { output ->
+                input.copyTo(output)
+            }
+        }
+        tempFiles.add(file)
+        return file
+    }
+
+    @Test
+    fun testRemoteRenderService_validDocumentGeometry() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+            assertTrue(renderer.isServiceConnected)
+
+            val pageCount = renderer.getPageCount(handle)
+            assertEquals(2, pageCount)
+
+            val page0 = renderer.getPageInfo(handle, 0)
+            assertEquals(0, page0.index)
+            assertEquals(612f, page0.widthPoints, 1f)
+            assertEquals(792f, page0.heightPoints, 1f)
+
+            val page1 = renderer.getPageInfo(handle, 1)
+            assertEquals(1, page1.index)
+            assertEquals(595f, page1.widthPoints, 1f)
+            assertEquals(842f, page1.heightPoints, 1f)
+
+            val allPages = renderer.getAllPages(handle)
+            assertEquals(2, allPages.size)
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_passwordProtectedDocument() {
+        val file = copyAssetToTempFile("fixtures/password_protected.pdf")
+
+        // Without password
+        assertThrows(PdfPasswordException::class.java) {
+            runBlocking {
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                    renderer.openDocument(pfd)
+                }
+            }
+        }
+
+        // With correct password
+        runBlocking {
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd, password = "secret123")
+            }
+            assertTrue(handle > 0L)
+            assertEquals(1, renderer.getPageCount(handle))
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_corruptDocument() {
+        val file = copyAssetToTempFile("fixtures/corrupt.pdf")
+        assertThrows(PdfCorruptException::class.java) {
+            runBlocking {
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                    renderer.openDocument(pfd)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_invalidPageIndex_throwsTypedException() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            runBlocking { renderer.openDocument(pfd) }
+        }
+        try {
+            // Negative page index
+            assertThrows(PdfPageNotFoundException::class.java) {
+                runBlocking {
+                    renderer.getPageInfo(handle, -1)
+                }
+            }
+
+            // Out-of-bounds page index (valid_2pages.pdf has 2 pages: 0 and 1)
+            assertThrows(PdfPageNotFoundException::class.java) {
+                runBlocking {
+                    renderer.getPageInfo(handle, 999)
+                }
+            }
+
+            // Ensure :render did not crash and is still connected and operational
+            assertTrue(renderer.isServiceConnected)
+            val pageCount = runBlocking { renderer.getPageCount(handle) }
+            assertEquals(2, pageCount)
+        } finally {
+            runBlocking { renderer.closeDocument(handle) }
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_unknownHandle_throwsTypedException() {
+        // Unknown handle passed to getPageCount
+        assertThrows(PdfInvalidHandleException::class.java) {
+            runBlocking {
+                renderer.getPageCount(888_888_888L)
+            }
+        }
+
+        // Unknown handle passed to getPageInfo
+        assertThrows(PdfInvalidHandleException::class.java) {
+            runBlocking {
+                renderer.getPageInfo(888_888_888L, 0)
+            }
+        }
+
+        // Ensure :render did not crash and is still operational for valid documents
+        assertTrue(renderer.isServiceConnected)
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            runBlocking { renderer.openDocument(pfd) }
+        }
+        try {
+            val count = runBlocking { renderer.getPageCount(handle) }
+            assertEquals(2, count)
+        } finally {
+            runBlocking { renderer.closeDocument(handle) }
+        }
+    }
+
+    @Test
+    fun testRemoteRenderService_processKillAndRecovery() {
+        val deathCount = AtomicInteger(0)
+        val deathLatch = CountDownLatch(1)
+        val testRenderer = PdfiumRemotePageRenderer(context) {
+            deathCount.incrementAndGet()
+            deathLatch.countDown()
+        }
+
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val oldHandle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(oldHandle > 0L)
+            assertTrue(testRenderer.isServiceConnected)
+
+            // Locate the :render process pid
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+            assertNotNull("Render process must be running", renderProcess)
+            val renderPid = renderProcess!!.pid
+
+            // Kill the :render process
+            Process.killProcess(renderPid)
+
+            // Assert that death callback fires
+            val died = deathLatch.await(5, TimeUnit.SECONDS)
+            assertTrue("Death callback must fire within timeout", died)
+
+            // Give a short moment and assert death callback only fired once
+            Thread.sleep(200)
+            assertEquals("Death callback must fire exactly once", 1, deathCount.get())
+
+            // Trigger rebind to spawn and connect to a fresh :render process
+            testRenderer.rebind()
+
+            // Assert that the old handle fails cleanly with a typed exception
+            assertThrows(PdfInvalidHandleException::class.java) {
+                runBlocking {
+                    testRenderer.getPageCount(oldHandle)
+                }
+            }
+
+            // Assert that a new open works after the rebind
+            val file2 = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val newHandle = ParcelFileDescriptor.open(file2, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue("New handle must be valid and positive", newHandle > 0L)
+            assertTrue("New handle must not match old stale handle", newHandle != oldHandle)
+            val pageCount = runBlocking { testRenderer.getPageCount(newHandle) }
+            assertEquals(2, pageCount)
+            runBlocking { testRenderer.closeDocument(newHandle) }
+        } finally {
+            testRenderer.close()
+        }
+    }
+}
