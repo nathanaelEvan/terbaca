@@ -60,7 +60,14 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 const val MAX_TILES_SWAPPED_PER_FRAME = 4
-const val TILE_CROSSFADE_DURATION_MS = 120L
+const val TILE_CROSSFADE_DURATION_MS = 150L // F-REN-3: 100-150 ms
+
+/** Longest a loaded tile waits for the rest of the visible set before it is revealed anyway. */
+const val TILE_REVEAL_TIMEOUT_MS = 300L
+
+/** Fade-start marker for a tile that is loaded but not revealed yet (draws at alpha 0). */
+const val TILE_UNREVEALED = Long.MAX_VALUE
+private const val NO_PENDING_REVEAL = -1L
 private const val RENDER_SCHEDULER_CONCURRENCY = 2
 
 /** Drawn where a page has no content yet, so a fast fling shows page shapes, not a void. */
@@ -118,6 +125,7 @@ fun DocumentSurface(
     val lastSize = remember { IntSizeRef() }
     // Per page: the last level that fully covered its visible part (kept under the next level).
     val underlayLevels = remember { HashMap<Int, PyramidLevel>() }
+    val revealPendingSince = remember { LongArray(1) { NO_PENDING_REVEAL } }
     val viewportGeneration = remember { AtomicLong(0L) }
 
     val sizeModifier = Modifier.onSizeChanged { size ->
@@ -167,22 +175,39 @@ fun DocumentSurface(
             val now = System.currentTimeMillis()
 
             drainEvictedBitmaps(evictedPrevFrame, evictedThisFrame)
-            swapPendingTiles(pendingTileArrivals, tileCache, tileFadeStartTimes, now)
+            swapPendingTiles(pendingTileArrivals, tileCache, tileFadeStartTimes) { key ->
+                // A tile stays "in flight" until it is in the cache; releasing it at arrival let
+                // every frame between arrival and swap request it again.
+                inFlightTiles.remove(key)
+            }
 
             var hasActiveFade = false
             if (state.viewportWidth > 0f && state.viewportHeight > 0f) {
                 val layout = state.layout
                 val visibleRect = state.getVisibleRectPoints()
-                for (index in layout.pagesIn(visibleRect)) {
-                    val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: continue
-                    val pageRect = layout.pageRect(index)
+                val pages = layout.pagesIn(visibleRect).mapNotNull { index ->
+                    val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: return@mapNotNull null
+                    val page = layout.pages[index]
+                    val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
+                    val level = TilePyramid.selectLevel(levels, scale)
+                    PageFrame(index, pageVisible, level, TilePyramid.getVisibleTiles(page, level, pageVisible))
+                }
+                // One reveal batch across every visible page, so the whole screen sharpens at once.
+                revealPendingSince[0] = revealTiles(
+                    pages.flatMap { it.tiles },
+                    { tileCache.get(it) != null },
+                    tileFadeStartTimes,
+                    revealPendingSince[0].takeIf { it != NO_PENDING_REVEAL },
+                    now
+                ) ?: NO_PENDING_REVEAL
+                for (frame in pages) {
+                    val pageRect = layout.pageRect(frame.index)
                     hasActiveFade = drawTilePyramid(
-                        page = layout.pages[index],
-                        pageVisible = pageVisible,
+                        page = layout.pages[frame.index],
+                        frame = frame,
                         tileCache = tileCache,
                         tileFadeStartTimes = tileFadeStartTimes,
                         underlayLevels = underlayLevels,
-                        state = state,
                         now = now,
                         scale = scale,
                         offsetX = offsetX + pageRect.left * scale,
@@ -190,6 +215,8 @@ fun DocumentSurface(
                     ) || hasActiveFade
                 }
             }
+            // Keep drawing while a batch waits, so its timeout fires without a new arrival.
+            if (revealPendingSince[0] != NO_PENDING_REVEAL) hasActiveFade = true
 
             if (hasActiveFade || pendingTileArrivals.isNotEmpty()) {
                 frameClock.longValue = now
@@ -416,6 +443,7 @@ private class TileRequester(
         val deferred = scheduler.enqueue(bounds, priority)
         coroutineScope.launch {
             var bmp: Bitmap? = null
+            var queued = false
             try {
                 bmp = deferred.await()
                 if (viewportGeneration.get() != currentGen) {
@@ -423,6 +451,7 @@ private class TileRequester(
                     return@launch
                 }
                 pendingTileArrivals.add(bounds.key to bmp)
+                queued = true // released by swapPendingTiles
                 tileArrivals.intValue++
             } catch (e: Throwable) {
                 if (e is CancellationException) {
@@ -430,7 +459,7 @@ private class TileRequester(
                 }
                 // Retried on next viewport update
             } finally {
-                inFlightTiles.remove(bounds.key)
+                if (!queued) inFlightTiles.remove(bounds.key)
             }
         }
     }
@@ -537,13 +566,14 @@ private fun swapPendingTiles(
     pending: ArrayDeque<Pair<TileKey, Bitmap>>,
     cache: TileCache,
     fadeTimes: HashMap<TileKey, Long>,
-    now: Long
+    onSwapped: (TileKey) -> Unit
 ) {
     var swapped = 0
     while (swapped < MAX_TILES_SWAPPED_PER_FRAME && pending.isNotEmpty()) {
         val (key, bmp) = pending.removeFirst()
         cache.put(key, bmp)
-        fadeTimes[key] = now
+        fadeTimes[key] = TILE_UNREVEALED
+        onSwapped(key)
         swapped++
     }
 }
@@ -574,27 +604,34 @@ private fun DrawScope.drawBaseLayer(
     }
 }
 
+/** A visible page this frame: its visible part in page points, its level, and its visible tiles. */
+private class PageFrame(
+    val index: Int,
+    val pageVisible: ViewportRect,
+    val level: PyramidLevel,
+    val tiles: List<TileBounds>
+)
+
 /**
  * Draws one page: base layer (or placeholder), the previous level as underlay until the current
- * level covers [pageVisible], then the current level's tiles. [offsetX]/[offsetY] are the page's
- * screen origin. Returns true while any tile is still crossfading.
+ * level is revealed over the visible part, then the current level's tiles. [offsetX]/[offsetY] are
+ * the page's screen origin. Returns true while any tile is still crossfading.
  */
 @Suppress("LongParameterList")
 private fun DrawScope.drawTilePyramid(
     page: PageInfo,
-    pageVisible: ViewportRect,
+    frame: PageFrame,
     tileCache: TileCache,
     tileFadeStartTimes: HashMap<TileKey, Long>,
     underlayLevels: HashMap<Int, PyramidLevel>,
-    state: DocumentTransformState,
     now: Long,
     scale: Float,
     offsetX: Float,
     offsetY: Float
 ): Boolean {
-    val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
-    val currentLevel = TilePyramid.selectLevel(levels, scale)
-    val visibleTiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
+    val currentLevel = frame.level
+    val visibleTiles = frame.tiles
+    val pageVisible = frame.pageVisible
 
     // Skip the full-page base layer when opaque detail tiles cover the visible page: on a
     // full-screen page it is a whole extra screen of GPU fill per frame (ADR 0004).
@@ -602,8 +639,11 @@ private fun DrawScope.drawTilePyramid(
         drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
     }
 
-    val allCurrentLoaded = visibleTiles.all { tileCache.get(it.key) != null }
-    if (allCurrentLoaded) {
+    // Unrevealed tiles draw at alpha 0, so they don't count as covering yet.
+    val allCurrentShown = visibleTiles.all {
+        tileCache.get(it.key) != null && tileFadeStartTimes[it.key] != TILE_UNREVEALED
+    }
+    if (allCurrentShown) {
         underlayLevels[page.index] = currentLevel
     } else {
         val prevLevel = underlayLevels[page.index]
@@ -614,6 +654,37 @@ private fun DrawScope.drawTilePyramid(
     }
 
     return drawTileBoundsList(visibleTiles, tileCache, tileFadeStartTimes, offsetX, offsetY, scale, now, alphaOverride = null)
+}
+
+/**
+ * Batched reveal, so the view sharpens in one fade instead of a checkerboard of squares:
+ * tiles that arrive while visible stay hidden ([TILE_UNREVEALED]) until every visible tile is
+ * loaded, or the batch has waited [TILE_REVEAL_TIMEOUT_MS]; then they all start fading together.
+ * Tiles that arrived off-screen (prefetch) are marked fully faded, so they scroll in already sharp.
+ * Returns when the current batch started waiting, or null when nothing is waiting.
+ */
+internal fun revealTiles(
+    visibleTiles: List<TileBounds>,
+    isLoaded: (TileKey) -> Boolean,
+    fadeStartTimes: MutableMap<TileKey, Long>,
+    pendingSince: Long?,
+    now: Long
+): Long? {
+    val visibleKeys = visibleTiles.mapTo(HashSet()) { it.key }
+    var waiting = false
+    for (entry in fadeStartTimes.entries) {
+        if (entry.value != TILE_UNREVEALED) continue
+        if (entry.key in visibleKeys) waiting = true else entry.setValue(now - TILE_CROSSFADE_DURATION_MS)
+    }
+    if (!waiting) return null
+    val since = pendingSince ?: now
+    if (visibleTiles.all { isLoaded(it.key) } || now - since >= TILE_REVEAL_TIMEOUT_MS) {
+        for (tile in visibleTiles) {
+            if (fadeStartTimes[tile.key] == TILE_UNREVEALED) fadeStartTimes[tile.key] = now
+        }
+        return null
+    }
+    return since
 }
 
 /** True when every visible detail tile is loaded and has finished its crossfade. */
@@ -658,7 +729,7 @@ private fun DrawScope.drawTileBoundsList(
             val tileDstW = rightPx - leftPx
             val tileDstH = bottomPx - topPx
 
-            if (tileDstW > 0 && tileDstH > 0) {
+            if (tileDstW > 0 && tileDstH > 0 && alpha > 0f) {
                 drawImage(
                     image = bmp.asImageBitmap(),
                     dstOffset = IntOffset(leftPx, topPx),
