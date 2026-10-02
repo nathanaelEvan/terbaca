@@ -54,7 +54,8 @@ class PdfiumRemotePageRenderer(
         private const val TAG = "PdfiumRemoteRenderer"
         private const val MAX_RENDER_RETRIES = 1
         private const val MAX_CONSECUTIVE_CRASHES = 5
-        private const val MAX_SESSION_CRASHES = 3
+        private const val MAX_SESSION_CRASHES = 5
+        private const val MAX_PAGE_CRASHES = 3
         private const val CRASH_WINDOW_MS = 10_000L
     }
 
@@ -65,7 +66,8 @@ class PdfiumRemotePageRenderer(
         @Volatile var remoteHandle: Long,
         @Volatile var failed: Boolean = false,
         @Volatile var consecutiveCrashes: Int = 0,
-        @Volatile var lastCrashTimeMs: Long = 0L
+        @Volatile var lastCrashTimeMs: Long = 0L,
+        val pageCrashes: ConcurrentHashMap<Int, Int> = ConcurrentHashMap()
     )
 
     private val appContext = context.applicationContext
@@ -100,6 +102,10 @@ class PdfiumRemotePageRenderer(
     internal fun getSessionCrashCount(docHandle: Long): Int =
         openSessions[docHandle]?.consecutiveCrashes ?: -1
 
+    @androidx.annotation.VisibleForTesting
+    internal fun getPageCrashCount(docHandle: Long, pageIndex: Int): Int =
+        openSessions[docHandle]?.pageCrashes?.get(pageIndex) ?: 0
+
     private val deathRecipient = IBinder.DeathRecipient {
         handleProcessDeath()
     }
@@ -116,11 +122,17 @@ class PdfiumRemotePageRenderer(
         return { recoveryListeners.remove(listener) }
     }
 
-    private fun checkSessionActiveOrThrow(docHandle: Long) {
-        val session = openSessions[docHandle]
-        if (session != null && session.failed) {
+    private fun checkSessionActiveOrThrow(docHandle: Long, pageIndex: Int? = null) {
+        val session = openSessions[docHandle] ?: return
+        if (session.failed) {
             throw PdfiumException(
                 "Document $docHandle is in a failed state due to repeated crashes",
+                PdfiumException.ERROR_UNKNOWN
+            )
+        }
+        if (pageIndex != null && (session.pageCrashes[pageIndex] ?: 0) >= MAX_PAGE_CRASHES) {
+            throw PdfiumException(
+                "Page $pageIndex of document $docHandle is in a failed state due to repeated crashes",
                 PdfiumException.ERROR_UNKNOWN
             )
         }
@@ -269,15 +281,15 @@ class PdfiumRemotePageRenderer(
         }
         isDeadNotified.set(false)
         isRecovering.set(false)
-        consecutiveCrashes.set(0)
 
         onProcessRecovered?.invoke()
         recoveryListeners.forEach { runCatching { it.invoke() } }
     }
 
     private fun restoreSession(proxy: IPdfiumRenderService, session: DocumentSession) {
+        var dupPfd: ParcelFileDescriptor? = null
         try {
-            val dupPfd = session.savedPfd.dup()
+            dupPfd = session.savedPfd.dup()
             val result = proxy.openDocument(dupPfd, session.password)
             if (result.errorCode == PdfiumException.ERROR_SUCCESS) {
                 session.remoteHandle = result.handle
@@ -285,9 +297,12 @@ class PdfiumRemotePageRenderer(
                 Log.w(TAG, "Failed to restore session ${session.clientHandle}: ${result.errorMessage}")
                 session.failed = true
             }
+        } catch (e: RemoteException) {
+            Log.w(TAG, "RemoteException restoring session ${session.clientHandle}, will retry on reconnect", e)
         } catch (t: Throwable) {
             Log.w(TAG, "Exception restoring session ${session.clientHandle}", t)
-            session.failed = true
+        } finally {
+            dupPfd?.let { runCatching { it.close() } }
         }
     }
 
@@ -345,15 +360,15 @@ class PdfiumRemotePageRenderer(
                 while (true) {
                     attempts++
                     val service = getService()
+                    val pfdToSend = if (attempts == 1) {
+                        pfd
+                    } else {
+                        savedPfd?.dup() ?: throw PdfiumException(
+                            "ParcelFileDescriptor exhausted on retry",
+                            PdfiumException.ERROR_FILE
+                        )
+                    }
                     try {
-                        val pfdToSend = if (attempts == 1) {
-                            pfd
-                        } else {
-                            savedPfd?.dup() ?: throw PdfiumException(
-                                "ParcelFileDescriptor exhausted on retry",
-                                PdfiumException.ERROR_FILE
-                            )
-                        }
                         val result = service.openDocument(pfdToSend, password).unwrap()
                         val remoteHandle = result.handle
                         return@withContext if (autoRecover && savedPfd != null) {
@@ -379,6 +394,10 @@ class PdfiumRemotePageRenderer(
                             PdfiumException.ERROR_UNKNOWN,
                             e
                         )
+                    } finally {
+                        if (attempts > 1) {
+                            runCatching { pfdToSend.close() }
+                        }
                     }
                 }
             } catch (t: Throwable) {
@@ -419,7 +438,7 @@ class PdfiumRemotePageRenderer(
 
     override suspend fun getPageInfo(docHandle: Long, pageIndex: Int): PageInfo =
         withContext(Dispatchers.IO) {
-            checkSessionActiveOrThrow(docHandle)
+            checkSessionActiveOrThrow(docHandle, pageIndex)
             executeWithRetry { service ->
                 val remoteHandle = getRemoteHandle(docHandle)
                 val result = service.getPageSize(remoteHandle, pageIndex).unwrap()
@@ -538,7 +557,7 @@ class PdfiumRemotePageRenderer(
         forceFallback: Boolean,
         cancellationToken: CancellationToken? = null
     ): Bitmap = withContext(Dispatchers.IO) {
-        checkSessionActiveOrThrow(docHandle)
+        checkSessionActiveOrThrow(docHandle, pageIndex)
         if (cancellationToken?.isCancelled() == true) {
             cancelTile(renderId)
             throw CancellationException("Render cancelled before dispatch: renderId=$renderId")
@@ -596,7 +615,11 @@ class PdfiumRemotePageRenderer(
                     }
                 }
                 bitmap = unpackRenderResult(result)
-                openSessions[docHandle]?.let { session -> session.consecutiveCrashes = 0 }
+                consecutiveCrashes.set(0)
+                openSessions[docHandle]?.let { session ->
+                    session.consecutiveCrashes = 0
+                    session.pageCrashes.remove(pageIndex)
+                }
                 rawResult = null
                 return@withContext bitmap
             } catch (t: Throwable) {
@@ -607,6 +630,16 @@ class PdfiumRemotePageRenderer(
                 }
                 if (t is RemoteException) {
                     handleProcessDeath(service.asBinder())
+                    val session = openSessions[docHandle]
+                    val crashes = session?.pageCrashes?.merge(pageIndex, 1, Int::plus) ?: 1
+                    if (crashes >= MAX_PAGE_CRASHES) {
+                        Log.e(TAG, "Page $pageIndex of document $docHandle marked as failed after $crashes crashes")
+                        throw PdfiumException(
+                            "Page $pageIndex of document $docHandle is in a failed state due to repeated crashes",
+                            PdfiumException.ERROR_UNKNOWN,
+                            t
+                        )
+                    }
                     if (autoRecover && !isClosed.get() && attempts <= MAX_RENDER_RETRIES) {
                         continue
                     }

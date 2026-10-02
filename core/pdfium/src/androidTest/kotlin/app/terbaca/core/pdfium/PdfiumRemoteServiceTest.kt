@@ -1141,5 +1141,107 @@ class PdfiumRemoteServiceTest {
             renderer.closeDocument(handle)
         }
     }
+
+    @Test
+    fun testRemoteRenderService_pageCrashLoop_haltsRecoveryAndMarksPageFailed() {
+        val testRenderer = PdfiumRemotePageRenderer(context = context, autoRecover = true)
+        try {
+            val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                runBlocking { testRenderer.openDocument(pfd) }
+            }
+            assertTrue(handle > 0L)
+
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+
+            // Kill the :render process whenever a render starts on page 0 until MAX_PAGE_CRASHES is reached
+            testRenderer.onRenderStarted = {
+                val renderProcess = activityManager.runningAppProcesses?.find { it.processName.endsWith(":render") }
+                if (renderProcess != null) {
+                    Process.killProcess(renderProcess.pid)
+                }
+            }
+
+            // Call 1: attempts 1 and 2 are killed, throwing exception and recording 2 page crashes
+            assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertEquals(2, testRenderer.getPageCrashCount(handle, 0))
+
+            // Call 2: attempt 1 is killed, hitting MAX_PAGE_CRASHES (3) and failing without retry
+            assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertEquals(3, testRenderer.getPageCrashCount(handle, 0))
+
+            // Remove kill hook so subsequent renders can run normally
+            testRenderer.onRenderStarted = null
+
+            // Subsequent attempts to render page 0 fail immediately due to repeated crashes
+            val ex = assertThrows(PdfiumException::class.java) {
+                runBlocking {
+                    testRenderer.renderTile(
+                        docHandle = handle,
+                        pageIndex = 0,
+                        fullWidth = 612,
+                        fullHeight = 792,
+                        startX = 0,
+                        startY = 0,
+                        tileWidth = 256,
+                        tileHeight = 256
+                    )
+                }
+            }
+            assertTrue(
+                "Exception message must indicate failed state: ${ex.message}",
+                ex.message?.contains("failed state due to repeated crashes") == true
+            )
+
+            // Other pages (page 1) are not affected and render successfully
+            val page1Tile = runBlocking {
+                testRenderer.renderTile(
+                    docHandle = handle,
+                    pageIndex = 1,
+                    fullWidth = 612,
+                    fullHeight = 792,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 256,
+                    tileHeight = 256
+                )
+            }
+            assertNotNull("Page 1 must render successfully", page1Tile)
+            assertEquals(256, page1Tile.width)
+
+            // Session crash count was reset by the successful render of page 1
+            assertEquals(0, testRenderer.getSessionCrashCount(handle))
+
+            runBlocking { testRenderer.closeDocument(handle) }
+        } finally {
+            testRenderer.close()
+        }
+    }
 }
 
