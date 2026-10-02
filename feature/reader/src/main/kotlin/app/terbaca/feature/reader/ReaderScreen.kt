@@ -23,5 +23,7 @@ fun ReaderScreen(
             renderer = renderer,
             docHandle = docHandle
         )
+        FastScrollbar(state)
+        PageIndicator(state)
     }
 }
