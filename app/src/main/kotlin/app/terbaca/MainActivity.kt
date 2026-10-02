@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TerbacaTheme {
-                var pageInfo by remember { mutableStateOf<PageInfo?>(null) }
+                var pages by remember { mutableStateOf<List<PageInfo>?>(null) }
                 var docHandle by remember { mutableLongStateOf(0L) }
                 var activeRenderer by remember { mutableStateOf<PdfiumRemotePageRenderer?>(null) }
                 var loadFailed by remember { mutableStateOf(false) }
@@ -78,20 +78,20 @@ class MainActivity : ComponentActivity() {
                             val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
                             r.openDocument(pfd)
                         }
-                        val info = withContext(Dispatchers.IO) {
-                            r.getPageInfo(handle, 0)
+                        val allPages = withContext(Dispatchers.IO) {
+                            r.getAllPages(handle)
                         }
                         docHandle = handle
-                        pageInfo = info
+                        pages = allPages.takeIf { it.isNotEmpty() } ?: error("Document has no pages")
                     } catch (_: Throwable) {
                         loadFailed = true
                     }
                 }
 
-                if (pageInfo != null && activeRenderer != null && docHandle > 0L) {
+                if (pages != null && activeRenderer != null && docHandle > 0L) {
                     ReaderScreen(
                         modifier = Modifier.fillMaxSize(),
-                        pageInfo = pageInfo!!,
+                        pages = pages!!,
                         renderer = activeRenderer,
                         docHandle = docHandle
                     )

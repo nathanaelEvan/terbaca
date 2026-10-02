@@ -11,7 +11,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.pyramid.TilePyramid
 import app.terbaca.core.render.pyramid.ViewportRect
 import kotlinx.coroutines.coroutineScope
@@ -20,14 +19,15 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * State holder for document pan, zoom, pinch focal anchoring, and fling gestures.
+ * State holder for document pan, zoom, pinch focal anchoring, and fling gestures, over the
+ * whole [layout] (all pages, in document points).
  *
  * To guarantee zero recompositions during gestures (PRD §4.6), [scale], [offsetX], and [offsetY]
  * must be read strictly within the draw/layout phase (e.g. `Modifier.graphicsLayer { }` or `Canvas`).
  */
 @Stable
 class DocumentTransformState(
-    val pageInfo: PageInfo,
+    val layout: DocumentLayout,
     initialViewportWidth: Float = 0f,
     initialViewportHeight: Float = 0f
 ) {
@@ -77,8 +77,9 @@ class DocumentTransformState(
         viewportWidth = width
         viewportHeight = height
 
-        val wPoints = max(1f, pageInfo.widthPoints)
-        val hPoints = max(1f, pageInfo.heightPoints)
+        // Fit page uses the tallest page, so at minimum zoom any page fits on screen.
+        val wPoints = max(1f, layout.width)
+        val hPoints = max(1f, layout.maxPageHeight)
 
         fitWidthScale = width / wPoints
         val fitHeightScale = height / hPoints
@@ -131,8 +132,8 @@ class DocumentTransformState(
      * Clamps offsets so content never pans beyond bounds or is centered if smaller than viewport.
      */
     fun clampOffsets() {
-        val contentW = pageInfo.widthPoints * scale
-        val contentH = pageInfo.heightPoints * scale
+        val contentW = layout.width * scale
+        val contentH = layout.height * scale
 
         offsetX = if (contentW <= viewportWidth) {
             (viewportWidth - contentW) / 2f
@@ -175,15 +176,15 @@ class DocumentTransformState(
     }
 
     /**
-     * Returns the current visible rectangle in PDF point coordinates.
+     * Returns the current visible rectangle in document point coordinates.
      */
     fun getVisibleRectPoints(): ViewportRect {
-        if (scale <= 0f) return ViewportRect(0f, 0f, pageInfo.widthPoints, pageInfo.heightPoints)
+        if (scale <= 0f) return ViewportRect(0f, 0f, layout.width, layout.height)
 
-        val left = (-offsetX / scale).coerceIn(0f, pageInfo.widthPoints)
-        val top = (-offsetY / scale).coerceIn(0f, pageInfo.heightPoints)
-        val right = ((-offsetX + viewportWidth) / scale).coerceIn(0f, pageInfo.widthPoints)
-        val bottom = ((-offsetY + viewportHeight) / scale).coerceIn(0f, pageInfo.heightPoints)
+        val left = (-offsetX / scale).coerceIn(0f, layout.width)
+        val top = (-offsetY / scale).coerceIn(0f, layout.height)
+        val right = ((-offsetX + viewportWidth) / scale).coerceIn(0f, layout.width)
+        val bottom = ((-offsetY + viewportHeight) / scale).coerceIn(0f, layout.height)
 
         return ViewportRect(left = left, top = top, right = right, bottom = bottom)
     }
@@ -191,9 +192,9 @@ class DocumentTransformState(
 
 @Composable
 fun rememberDocumentTransformState(
-    pageInfo: PageInfo
+    layout: DocumentLayout
 ): DocumentTransformState {
-    return remember(pageInfo) {
-        DocumentTransformState(pageInfo)
+    return remember(layout) {
+        DocumentTransformState(layout)
     }
 }

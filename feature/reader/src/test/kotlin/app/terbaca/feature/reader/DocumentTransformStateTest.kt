@@ -23,7 +23,7 @@ class DocumentTransformStateTest {
 
     @Test
     fun testUpdateViewport_calculatesCorrectScalesAndCenters() {
-        val state = DocumentTransformState(letterPage)
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
         // Viewport: 1224 x 1584 px (exactly 2.0x page dimensions)
         state.updateViewport(1224f, 1584f)
 
@@ -40,7 +40,7 @@ class DocumentTransformStateTest {
 
     @Test
     fun testViewportTallerThanPage_centersVertically() {
-        val state = DocumentTransformState(letterPage)
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
         // Viewport width = 612 (scale 1.0), height = 1000 (taller than 792)
         state.updateViewport(612f, 1000f)
 
@@ -52,7 +52,7 @@ class DocumentTransformStateTest {
 
     @Test
     fun testPan_clampsToBounds() {
-        val state = DocumentTransformState(letterPage)
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
         state.updateViewport(612f, 792f)
         // Zoom in 2x: content width = 1224, content height = 1584
         state.onPinch(2f, Offset(306f, 396f))
@@ -70,7 +70,7 @@ class DocumentTransformStateTest {
 
     @Test
     fun testPinch_anchorsFocalPointAccurately() {
-        val state = DocumentTransformState(letterPage)
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
         state.updateViewport(612f, 792f)
 
         val focal = Offset(200f, 300f)
@@ -94,7 +94,7 @@ class DocumentTransformStateTest {
 
     @Test
     fun testVisibleRectPoints_reflectsCurrentViewportAndScale() {
-        val state = DocumentTransformState(letterPage)
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
         state.updateViewport(612f, 792f)
         state.onPinch(2f, Offset(0f, 0f))
         // Pan left by 100px (moving viewport right by 100px)
@@ -114,7 +114,7 @@ class DocumentTransformStateTest {
     @Test
     fun testFling_updatesOffsetsWithDecay() = runTest {
         withContext(AutoAdvanceFrameClock()) {
-            val state = DocumentTransformState(letterPage)
+            val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
             state.updateViewport(612f, 792f)
             state.onPinch(3f, Offset(306f, 396f))
 
