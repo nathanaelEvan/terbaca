@@ -343,6 +343,48 @@ class PdfiumNativeExecutionTest {
     }
 
     @Test
+    fun testNativeRenderTile_cancelledMidRender_stopsEarly() {
+        val file = copyAssetToTempFile("fixtures/many_objects.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val buffer = ByteBuffer.allocateDirect(1024 * 1024 * 4)
+                fun render(signal: java.util.concurrent.atomic.AtomicBoolean?) = doc.renderTileToDirectBuffer(
+                    pageIndex = 0,
+                    directBuffer = buffer,
+                    fullWidth = 2448,
+                    fullHeight = 3168,
+                    startX = 0,
+                    startY = 0,
+                    tileWidth = 1024,
+                    tileHeight = 1024,
+                    cancellationSignal = signal
+                )
+
+                render(null) // warm-up
+                val fullStart = System.nanoTime()
+                assertEquals(PdfiumDocument.STATUS_SUCCESS, render(null))
+                val fullMs = (System.nanoTime() - fullStart) / 1_000_000
+
+                val signal = java.util.concurrent.atomic.AtomicBoolean(false)
+                val cancelAfterMs = fullMs / 4
+                val canceller = Thread {
+                    Thread.sleep(cancelAfterMs)
+                    signal.set(true)
+                }
+                val start = System.nanoTime()
+                canceller.start()
+                val status = render(signal)
+                val cancelledMs = (System.nanoTime() - start) / 1_000_000
+                canceller.join()
+
+                val details = "fullMs=$fullMs, cancelAfterMs=$cancelAfterMs, cancelledMs=$cancelledMs, status=$status"
+                assertEquals("Render must report cancellation ($details)", PdfiumDocument.STATUS_ERR_CANCELLED, status)
+                assertTrue("Render must stop well before finishing ($details)", cancelledMs < fullMs * 3 / 4)
+            }
+        }
+    }
+
+    @Test
     fun testNativeRenderTileToHardwareBuffer_withCancellationSignal_returnsCancelledStatus() {
         val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
