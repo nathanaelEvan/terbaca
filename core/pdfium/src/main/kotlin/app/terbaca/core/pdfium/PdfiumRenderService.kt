@@ -57,11 +57,13 @@ class PdfiumRenderService : Service() {
     private val pendingBufferCleanup = ThreadLocal<HardwareBuffer?>()
     private val pendingSharedMemCleanup = ThreadLocal<SharedMemory?>()
 
-    // Dedicated single render thread as required by PRD §4.2
+    // Dedicated single render thread as required by PRD §4.2. Background priority so tile
+    // rendering (including prefetch) never competes with the UI process's frame threads for CPU.
     private val renderExecutor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "PdfiumRenderThread").apply {
-            priority = Thread.NORM_PRIORITY + 1
-        }
+        Thread({
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            runnable.run()
+        }, "PdfiumRenderThread")
     }
 
     private fun allocateHandle(): Long {
