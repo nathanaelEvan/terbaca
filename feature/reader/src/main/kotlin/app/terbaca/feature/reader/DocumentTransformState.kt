@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -61,6 +62,29 @@ class DocumentTransformState(
 
     var offsetY by mutableFloatStateOf(0f)
         internal set
+
+    /**
+     * True while fingers are pinching. The tile level stays frozen at the pinch start
+     * ([levelScale]), so the existing tiles just scale with the fingers: swapping levels mid-pinch
+     * made text shimmer as tiles rendered for in-between zooms faded in under the moving fingers.
+     */
+    var isZooming by mutableStateOf(false)
+        private set
+
+    private var zoomStartScale = 1f
+
+    /** Scale used to pick the tile level: the pinch-start scale while [isZooming], else [scale]. */
+    val levelScale: Float get() = if (isZooming) zoomStartScale else scale
+
+    fun beginZoom() {
+        if (isZooming) return
+        zoomStartScale = scale
+        isZooming = true
+    }
+
+    fun endZoom() {
+        isZooming = false
+    }
 
     private val animOffsetX = Animatable(0f)
     private val animOffsetY = Animatable(0f)

@@ -128,4 +128,21 @@ class DocumentTransformStateTest {
             assertTrue("Fling must shift offsetY upwards", state.offsetY < initialY)
         }
     }
+
+    @Test
+    fun levelScale_staysAtPinchStartUntilZoomEnds() {
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
+        state.updateViewport(612f, 792f)
+        assertEquals(1f, state.levelScale, 0.001f)
+
+        state.beginZoom()
+        state.onPinch(1.5f, Offset(306f, 396f))
+        state.beginZoom() // later pinch events don't move the frozen scale
+        state.onPinch(2f, Offset(306f, 396f))
+        assertEquals(3f, state.scale, 0.001f)
+        assertEquals(1f, state.levelScale, 0.001f)
+
+        state.endZoom()
+        assertEquals(3f, state.levelScale, 0.001f)
+    }
 }
