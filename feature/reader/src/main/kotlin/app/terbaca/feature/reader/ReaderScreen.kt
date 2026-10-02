@@ -2,19 +2,24 @@ package app.terbaca.feature.reader
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.terbaca.core.model.PageInfo
+import app.terbaca.core.render.PageRenderer
 
 @Composable
 fun ReaderScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pageInfo: PageInfo = PageInfo(0, 612f, 792f),
+    renderer: PageRenderer? = null,
+    docHandle: Long = 0L
 ) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Terbaca Reader Placeholder")
+    val state = rememberDocumentTransformState(pageInfo)
+    Box(modifier = modifier.fillMaxSize()) {
+        DocumentSurface(
+            state = state,
+            renderer = renderer,
+            docHandle = docHandle
+        )
     }
 }
