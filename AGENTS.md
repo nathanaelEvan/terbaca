@@ -63,3 +63,15 @@ Keep it short. Use this format only at the end of a milestone, or when you stop 
 2. **Waiting:** PRs open for review, and why.
 3. **Not verified:** anything that wasn't run, and why.
 4. **Risks / follow-ups:** a short list.
+
+## 7. Development style (Ponytail)
+
+**Applies to:** Gemini only (`Claude` is exempt and can bypass this).
+
+When Gemini executes coding tasks, it must write code with the `ponytail` skill active (`full` mode):
+- **The ladder:** Question need (YAGNI) → reuse existing codebase utils/patterns → stdlib first → native platform features → already-installed dependencies → one line → minimum working code.
+- **Root cause over symptom:** Always trace full call paths before editing; fix where callers route through.
+- **Zero bloat:** No unrequested abstractions, no single-implementation interfaces, no speculative scaffolding, deletion over addition, fewest files possible, boring over clever.
+- **Never cut:** Native memory safety, bounds checks, trust-boundary validation, data-loss error handling, and runnable tests (§4).
+- **Concise output:** Code first; minimal prose; no unrequested design essays.
+
