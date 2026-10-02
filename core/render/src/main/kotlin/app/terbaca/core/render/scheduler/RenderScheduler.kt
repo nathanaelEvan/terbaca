@@ -45,7 +45,9 @@ class RenderScheduler<T>(
     fun enqueue(bounds: TileBounds, priority: TilePriority): Deferred<T> {
         val requestToStart = synchronized(lock) {
             inFlightRequests[bounds.key]?.let { inFlight ->
-                return inFlight.deferred
+                if (!inFlight.isCancelled) {
+                    return inFlight.deferred
+                }
             }
 
             queuedRequests[bounds.key]?.let { existing ->
@@ -76,8 +78,10 @@ class RenderScheduler<T>(
             for ((bounds, priority) in requests) {
                 val key = bounds.key
                 inFlightRequests[key]?.let { inFlight ->
-                    resultMap[key] = inFlight.deferred
-                    return@let
+                    if (!inFlight.isCancelled) {
+                        resultMap[key] = inFlight.deferred
+                        return@let
+                    }
                 }
 
                 queuedRequests[key]?.let { existing ->

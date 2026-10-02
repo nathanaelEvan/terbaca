@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -256,5 +257,49 @@ class RenderSchedulerTest {
 
         assertTrue("Worker must detect cancellation token", cancellationDetected)
         assertTrue(deferred.isCancelled)
+    }
+
+    @Test
+    fun testReEnqueueCancelledInFlight_createsNewDeferred() = runTest {
+        val startedGate = CompletableDeferred<Unit>()
+        val completeGate = CompletableDeferred<Unit>()
+        var renderCount = 0
+
+        val scheduler = RenderScheduler<String>(
+            scope = this,
+            maxConcurrentRenders = 1
+        ) { _, token ->
+            renderCount++
+            if (renderCount == 1) {
+                startedGate.complete(Unit)
+                while (!token.isCancelled()) {
+                    delay(10)
+                }
+                throw CancellationException("Cancelled")
+            } else {
+                completeGate.await()
+                "success_re-enqueued"
+            }
+        }
+
+        val tile = createBounds(0, 0)
+        val deferred1 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_BASE))
+
+        testScheduler.runCurrent()
+        startedGate.await()
+
+        scheduler.cancel(tile.key)
+        assertTrue(deferred1.isCancelled)
+
+        val deferred2 = scheduler.enqueue(tile, TilePriority(TileLayerType.VISIBLE_DETAIL))
+        assertFalse(deferred2.isCancelled)
+        assertNotSame(deferred1, deferred2)
+
+        testScheduler.runCurrent()
+        completeGate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("success_re-enqueued", deferred2.await())
+        assertEquals(2, renderCount)
     }
 }

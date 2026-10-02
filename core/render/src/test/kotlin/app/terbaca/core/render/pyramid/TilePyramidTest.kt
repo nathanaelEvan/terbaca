@@ -150,12 +150,14 @@ class TilePyramidTest {
     @Test
     fun testThumbnailAndBaseBounds() {
         val thumb = TilePyramid.computeThumbnailBounds(letterPage, targetWidthPx = 400)
+        assertEquals(-1, thumb.key.level)
         assertEquals(400, thumb.pixelWidth)
         val expectedHeight = (792f / 612f * 400f).toInt()
         assertTrue(abs(thumb.pixelHeight - expectedHeight) <= 1)
 
         val fitWidthScale = 1000f / letterPage.widthPoints
         val base = TilePyramid.computeBaseLevelBounds(letterPage, fitWidthScale)
+        assertEquals(-2, base.key.level)
         assertEquals(1000, base.pixelWidth)
         assertTrue(base.pixelHeight > 1000)
     }

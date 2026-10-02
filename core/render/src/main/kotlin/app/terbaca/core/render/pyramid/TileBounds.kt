@@ -11,5 +11,9 @@ data class TileBounds(
     val pageRect: ViewportRect,
     // Exact pixel dimensions for the rendered tile buffer (edge tiles may be smaller than tileSize)
     val pixelWidth: Int,
-    val pixelHeight: Int
+    val pixelHeight: Int,
+    val fullWidth: Int = 0,
+    val fullHeight: Int = 0,
+    val startX: Int = 0,
+    val startY: Int = 0
 )

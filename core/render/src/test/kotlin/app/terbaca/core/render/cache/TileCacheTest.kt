@@ -370,4 +370,13 @@ class TileCacheTest {
         assertNull("page 0 thumbnail evicted", cache.getThumbnail(0))
         assertEquals(listOf(b1), recycled)
     }
+
+    @Test
+    fun testBaseLayerKey_matchesTilePyramidBaseBoundsKey() {
+        val pageInfo = app.terbaca.core.model.PageInfo(index = 5, widthPoints = 612f, heightPoints = 792f)
+        val baseBounds = app.terbaca.core.render.pyramid.TilePyramid.computeBaseLevelBounds(pageInfo, 1.5f)
+        val cacheKey = TileCache.baseLayerKey(5)
+        assertEquals(cacheKey, baseBounds.key)
+        assertEquals(-2, baseBounds.key.level)
+    }
 }
