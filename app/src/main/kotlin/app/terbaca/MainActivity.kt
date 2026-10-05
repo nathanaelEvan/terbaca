@@ -200,7 +200,7 @@ class MainActivity : ComponentActivity() {
             throw e
         } catch (e: Exception) {
             handle?.let { runCatching { renderer().closeDocument(it) } }
-            Log.w(TAG, "Failed to open corpus asset $asset", it)
+            Log.w(TAG, "Failed to open corpus asset $asset", e)
             null
         }
     }
