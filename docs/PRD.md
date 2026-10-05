@@ -392,21 +392,21 @@ Each task = one PR (or a short sequence of `a/b/c` PRs). Order within a mileston
 - **M2-03** Continuous vertical mode with fast-scroll and page indicator.
 - **M2-04** Slide mode pager with snap, overshoot and haptics; auto mode detection.
 - **M2-05** Thumbnails pipeline + disk cache.
-- **M2-06** Adaptive scaffold + sidebar (Thumbnails, Outline).
-- **M2-07** Internal link navigation + back chip.
+- **M2-06** Adaptive scaffold + Thumbnails sidebar.
 - **M2-08** Per-document state restore.
 - **M2-09** Keyboard navigation (F-NAV-7).
 
-**Exit criteria:** all P0 items in §3.1, §3.3 and F-MODE-1/3/5 working; §7 budgets still met.
+**Exit criteria:** all P0 items in §3.1, §3.3 (with Outline sidebar and internal link navigation deferred to M3 following extraction in M3-01) and F-MODE-1/3/5 working; §7 budgets still met.
 
 ### M3 — Paper features (target: 3 weeks)
 
 - **M3-01** Text/link/outline/image-bounds extraction APIs in render process.
-- **M3-02** Column detection + fixtures + unit tests.
-- **M3-03** Column-aware double-tap zoom (F-ACAD-1), then F-ACAD-2.
-- **M3-04** Citation/reference peek card (F-ACAD-3).
-- **M3-05** Progressive search with sidebar results, scrollbar markers, highlights.
-- **M3-06** Text selection and copy.
+- **M3-02** Outline sidebar + internal link navigation + back chip (F-NAV-4, F-NAV-5, F-NAV-6).
+- **M3-03** Column detection + fixtures + unit tests.
+- **M3-04** Column-aware double-tap zoom (F-ACAD-1), then F-ACAD-2.
+- **M3-05** Citation/reference peek card (F-ACAD-3).
+- **M3-06** Progressive search with sidebar results, scrollbar markers, highlights.
+- **M3-07** Text selection and copy.
 
 **Exit criteria:** F-ACAD-1, 3, 5 work on corpus docs 1 and 2; P1 items done or explicitly deferred in a PRD PR.
 
