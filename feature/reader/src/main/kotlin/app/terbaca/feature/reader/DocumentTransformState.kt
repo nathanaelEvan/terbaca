@@ -245,6 +245,47 @@ class DocumentTransformState(
 
         return ViewportRect(left = left, top = top, right = right, bottom = bottom)
     }
+
+    /** Scrolls vertically by [deltaYPx] pixels (positive scrolls down). */
+    fun scrollBy(deltaYPx: Float) {
+        onPan(0f, -deltaYPx)
+    }
+
+    /** Scrolls vertically by a viewport page fraction (e.g. 0.9 for PageUp/PageDown). */
+    fun scrollPage(down: Boolean, fraction: Float = 0.9f) {
+        val delta = viewportHeight * fraction
+        onPan(0f, if (down) -delta else delta)
+    }
+
+    /** Scrolls to top of document (Home key). */
+    fun scrollToTop() {
+        scrollToFraction(0f)
+    }
+
+    /** Scrolls to bottom of document (End key). */
+    fun scrollToBottom() {
+        scrollToFraction(1f)
+    }
+
+    /** Zooms in anchored at the viewport center (Ctrl + '+'). */
+    fun zoomIn(factor: Float = 1.25f) {
+        val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
+        onPinch(factor, center)
+    }
+
+    /** Zooms out anchored at the viewport center (Ctrl + '-'). */
+    fun zoomOut(factor: Float = 1.25f) {
+        val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
+        onPinch(1f / factor, center)
+    }
+
+    /** Resets zoom to fit-width scale (Ctrl + '0'). */
+    fun resetZoom() {
+        val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
+        if (scale > 0f) {
+            onPinch(fitWidthScale / scale, center)
+        }
+    }
 }
 
 private const val MIN_SCALE = 1e-3f

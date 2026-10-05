@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -28,12 +29,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -67,7 +72,8 @@ fun SlidesScreen(
     initialPage: Int = 0,
     onPageSettled: ((Int) -> Unit)? = null,
     onHapticFeedback: (() -> Unit)? = null,
-    onModeToggle: (() -> Unit)? = null
+    onModeToggle: (() -> Unit)? = null,
+    onSearchRequested: (() -> Unit)? = null
 ) {
     if (pages.isEmpty()) {
         Box(
@@ -80,6 +86,12 @@ fun SlidesScreen(
 
     val safeInitialPage = initialPage.coerceIn(0, pages.lastIndex)
     val pagerState = rememberPagerState(initialPage = safeInitialPage, pageCount = { pages.size })
+    val focusRequester = remember { FocusRequester() }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     val snapAnimationSpec = remember {
         spring<Float>(
@@ -117,6 +129,11 @@ fun SlidesScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                handleSlideKeyEvent(event, pagerState, pages.size, coroutineScope, onSearch = onSearchRequested)
+            }
             .background(TerbacaDarkBackground)
     ) {
         HorizontalPager(
