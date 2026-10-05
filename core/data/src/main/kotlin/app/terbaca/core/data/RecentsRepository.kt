@@ -51,17 +51,17 @@ class RecentsRepository(
     }
 
     suspend fun recordOpened(uri: Uri, displayName: String, contentHash: String, pageCount: Int) {
-        val existing = dao.get(contentHash)
-        if (existing != null && existing.uri != uri.toString()) {
-            releasePermission(Uri.parse(existing.uri))
-        }
+        val uriString = uri.toString()
+        val existingByUri = dao.getByUri(uriString)
+        val existingByHash = dao.getByContentHash(contentHash)
+        val lastPage = existingByUri?.lastPage ?: existingByHash?.lastPage ?: 0
         dao.upsert(
             RecentDocument(
+                uri = uriString,
                 contentHash = contentHash,
-                uri = uri.toString(),
                 displayName = displayName,
                 pageCount = pageCount,
-                lastPage = existing?.lastPage ?: 0,
+                lastPage = lastPage,
                 lastOpenedAtMillis = now()
             )
         )
@@ -69,8 +69,10 @@ class RecentsRepository(
     }
 
     suspend fun remove(document: RecentDocument) {
-        dao.delete(document.contentHash)
-        releasePermission(Uri.parse(document.uri))
+        dao.delete(document.uri)
+        if (dao.countByUri(document.uri) == 0) {
+            releasePermission(Uri.parse(document.uri))
+        }
     }
 
     // Android caps persisted URI grants per app; keep the list (and grants) bounded.

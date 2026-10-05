@@ -30,8 +30,8 @@ class RecentsDatabaseTest {
     @After
     fun tearDown() = db.close()
 
-    private fun doc(hash: String, openedAt: Long, lastPage: Int = 0) =
-        RecentDocument(hash, "content://test/$hash", "$hash.pdf", pageCount = 10, lastPage, openedAt)
+    private fun doc(hash: String, openedAt: Long, lastPage: Int = 0, uri: String = "content://test/$hash") =
+        RecentDocument(uri, hash, "$hash.pdf", pageCount = 10, lastPage, openedAt)
 
     @Test
     fun observeAll_newestFirst() = runTest {
@@ -42,20 +42,24 @@ class RecentsDatabaseTest {
     }
 
     @Test
-    fun upsert_sameHash_replacesEntry() = runTest {
-        dao.upsert(doc("a", openedAt = 1, lastPage = 4))
-        dao.upsert(doc("a", openedAt = 5, lastPage = 4).copy(uri = "content://moved/a"))
+    fun upsert_sameUri_editInPlace_replacesEntry() = runTest {
+        dao.upsert(doc("hash1", openedAt = 1, lastPage = 2, uri = "content://test/doc"))
+        dao.upsert(doc("hash2", openedAt = 5, lastPage = 2, uri = "content://test/doc").copy(pageCount = 15))
         val all = dao.observeAll().first()
         assertEquals(1, all.size)
-        assertEquals("content://moved/a", all[0].uri)
+        assertEquals("content://test/doc", all[0].uri)
+        assertEquals("hash2", all[0].contentHash)
+        assertEquals(15, all[0].pageCount)
         assertEquals(5L, all[0].lastOpenedAtMillis)
     }
 
     @Test
     fun delete_removesEntry() = runTest {
-        dao.upsert(doc("a", openedAt = 1))
-        dao.delete("a")
-        assertNull(dao.get("a"))
+        val d = doc("a", openedAt = 1)
+        dao.upsert(d)
+        dao.delete(d.uri)
+        assertNull(dao.getByUri(d.uri))
+        assertEquals(0, dao.countByUri(d.uri))
     }
 
     @Test

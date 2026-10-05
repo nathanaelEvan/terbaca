@@ -73,7 +73,7 @@ fun LibraryScreen(
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    items(recents, key = { it.document.contentHash }) { entry ->
+                    items(recents, key = { it.document.uri }) { entry ->
                         RecentCard(entry, onRecentClick, onRemove)
                     }
                 }
