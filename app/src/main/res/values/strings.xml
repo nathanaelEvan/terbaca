@@ -1,4 +1,14 @@
 <resources>
     <string name="app_name">Terbaca</string>
     <string name="open_failed">Couldn\'t open this PDF.</string>
+    <string name="error_encrypted_title">Password-protected PDF</string>
+    <string name="error_encrypted_message">This PDF is encrypted or password-protected. Password protection is not yet supported.</string>
+    <string name="error_corrupt_title">Corrupted PDF</string>
+    <string name="error_corrupt_message">This file cannot be read because it is corrupted or not a valid PDF.</string>
+    <string name="error_unavailable_title">File unavailable</string>
+    <string name="error_unavailable_message">This file could not be opened. It may have been moved, deleted, or access was revoked.</string>
+    <string name="error_generic_title">Couldn\'t open PDF</string>
+    <string name="error_generic_message">An unexpected error occurred while opening this document.</string>
+    <string name="error_back_to_library">Back to Library</string>
+    <string name="error_open_other">Open PDF</string>
 </resources>

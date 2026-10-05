@@ -1,0 +1,108 @@
+package app.terbaca
+
+import android.content.Intent
+import app.terbaca.core.pdfium.PdfCorruptException
+import app.terbaca.core.pdfium.PdfFileException
+import app.terbaca.core.pdfium.PdfPasswordException
+import app.terbaca.core.pdfium.PdfSecurityException
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.FileNotFoundException
+import java.io.IOException
+
+class IntentHandlingTest {
+
+    @Test
+    fun extractPdfUri_nullIntent_returnsNull() {
+        assertNull(extractPdfUri(null))
+    }
+
+    @Test
+    fun toDocumentError_passwordException_mapsToEncrypted() {
+        val err = PdfPasswordException("Password required").toDocumentError()
+        assertTrue(err is DocumentError.Encrypted)
+        assertEquals(R.string.error_encrypted_title, err.titleRes)
+        assertEquals(R.string.error_encrypted_message, err.messageRes)
+    }
+
+    @Test
+    fun toDocumentError_securityException_mapsToEncrypted() {
+        val err = PdfSecurityException("Unsupported encryption").toDocumentError()
+        assertTrue(err is DocumentError.Encrypted)
+    }
+
+    @Test
+    fun toDocumentError_corruptException_mapsToCorrupt() {
+        val err = PdfCorruptException("Corrupt PDF syntax").toDocumentError()
+        assertTrue(err is DocumentError.Corrupt)
+        assertEquals(R.string.error_corrupt_title, err.titleRes)
+        assertEquals(R.string.error_corrupt_message, err.messageRes)
+    }
+
+    @Test
+    fun toDocumentError_fileNotFound_mapsToUnavailable() {
+        val err = FileNotFoundException("File missing").toDocumentError()
+        assertTrue(err is DocumentError.Unavailable)
+        assertEquals(R.string.error_unavailable_title, err.titleRes)
+        assertEquals(R.string.error_unavailable_message, err.messageRes)
+    }
+
+    @Test
+    fun toDocumentError_securityException_mapsToUnavailable() {
+        val err = SecurityException("Permission denied").toDocumentError()
+        assertTrue(err is DocumentError.Unavailable)
+    }
+
+    @Test
+    fun toDocumentError_pdfFileException_mapsToUnavailable() {
+        val err = PdfFileException("Could not open file").toDocumentError()
+        assertTrue(err is DocumentError.Unavailable)
+    }
+
+    @Test
+    fun toDocumentError_ioException_mapsToUnavailable() {
+        val err = IOException("Disk read error").toDocumentError()
+        assertTrue(err is DocumentError.Unavailable)
+    }
+
+    @Test
+    fun toDocumentError_unknownException_mapsToGeneric() {
+        val err = IllegalStateException("Something broke").toDocumentError()
+        assertTrue(err is DocumentError.Generic)
+        assertEquals(R.string.error_generic_title, err.titleRes)
+        assertEquals(R.string.error_generic_message, err.messageRes)
+    }
+
+    @Test
+    fun shouldRecordInRecents_actionSend_persistFailed_returnsFalse() {
+        val result = shouldRecordInRecents(Intent.ACTION_SEND, isPermissionPersisted = false)
+        assertFalse(result)
+    }
+
+    @Test
+    fun shouldRecordInRecents_actionSend_persistSucceeded_returnsTrue() {
+        val result = shouldRecordInRecents(Intent.ACTION_SEND, isPermissionPersisted = true)
+        assertTrue(result)
+    }
+
+    @Test
+    fun shouldRecordInRecents_actionView_persistFailed_returnsTrue() {
+        val result = shouldRecordInRecents(Intent.ACTION_VIEW, isPermissionPersisted = false)
+        assertTrue(result)
+    }
+
+    @Test
+    fun shouldRecordInRecents_actionView_persistSucceeded_returnsTrue() {
+        val result = shouldRecordInRecents(Intent.ACTION_VIEW, isPermissionPersisted = true)
+        assertTrue(result)
+    }
+
+    @Test
+    fun shouldRecordInRecents_otherAction_returnsTrue() {
+        val result = shouldRecordInRecents(Intent.ACTION_MAIN, isPermissionPersisted = false)
+        assertTrue(result)
+    }
+}

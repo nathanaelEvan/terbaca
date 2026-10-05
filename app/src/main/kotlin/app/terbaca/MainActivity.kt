@@ -1,10 +1,10 @@
 package app.terbaca
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -42,10 +42,25 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
     private class OpenedDocument(val handle: Long, val pages: List<PageInfo>)
+
+    private sealed interface OpenResult {
+        data class Success(val doc: OpenedDocument) : OpenResult
+        data class Failure(val error: DocumentError) : OpenResult
+    }
+
+    private val incomingIntent = mutableStateOf<Intent?>(null)
+
+    @get:androidx.annotation.VisibleForTesting
+    internal var lastRequestedOpenUri: String? = null
+        private set
+
+    @androidx.annotation.VisibleForTesting
+    internal var openRecentHandler: ((RecentDocument) -> Unit)? = null
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -54,10 +69,20 @@ class MainActivity : ComponentActivity() {
     private fun renderer(): PdfiumRemotePageRenderer =
         renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingIntent.value = intent
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestHighestRefreshRate()
+
+        if (savedInstanceState == null) {
+            incomingIntent.value = intent
+        }
 
         // Benchmarks and baseline-profile generation open a bundled corpus file directly.
         val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE)
@@ -65,14 +90,21 @@ class MainActivity : ComponentActivity() {
         setContent {
             TerbacaTheme {
                 var opened by remember { mutableStateOf<OpenedDocument?>(null) }
+                var documentError by remember { mutableStateOf<DocumentError?>(null) }
                 var openUriString by rememberSaveable { mutableStateOf<String?>(null) }
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
-                var loading by remember { mutableStateOf(corpusAsset != null || openUriString != null) }
+                val intentToProcess by incomingIntent
+                val initialUri = remember(intentToProcess) { extractPdfUri(intentToProcess) }
+                var loading by remember {
+                    mutableStateOf(corpusAsset != null || openUriString != null || initialUri != null)
+                }
+                var recordInRecents by remember { mutableStateOf(true) }
                 val scope = rememberCoroutineScope()
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
                         recents.persistReadPermission(uri)
+                        recordInRecents = true
                         openUriString = uri.toString()
                     }
                 }
@@ -80,14 +112,35 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(corpusAsset) {
                     if (corpusAsset != null) {
                         loading = true
-                        opened = openCorpusAsset(corpusAsset)
+                        documentError = null
+                        when (val result = openCorpusAsset(corpusAsset)) {
+                            is OpenResult.Success -> {
+                                opened = result.doc
+                                documentError = null
+                            }
+                            is OpenResult.Failure -> {
+                                opened = null
+                                documentError = result.error
+                            }
+                        }
                         loading = false
+                    }
+                }
+
+                LaunchedEffect(intentToProcess) {
+                    val currentIntent = intentToProcess ?: return@LaunchedEffect
+                    val uri = extractPdfUri(currentIntent)
+                    if (uri != null) {
+                        val persisted = recents.persistReadPermission(uri)
+                        recordInRecents = shouldRecordInRecents(currentIntent.action, persisted)
+                        openUriString = uri.toString()
                     }
                 }
 
                 LaunchedEffect(openUriString) {
                     val uriStr = openUriString ?: return@LaunchedEffect
                     if (corpusAsset != null) return@LaunchedEffect
+                    lastRequestedOpenUri = uriStr
                     if (opened != null) {
                         val oldDoc = opened
                         opened = null
@@ -96,20 +149,28 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     loading = true
+                    documentError = null
                     try {
                         Log.d(TAG, "Opening document: $uriStr")
-                        val result = openFromUri(Uri.parse(uriStr))
+                        val result = openFromUri(Uri.parse(uriStr), recordInRecents = recordInRecents)
                         if (openUriString == uriStr) {
-                            opened = result
-                            if (result == null) {
-                                openUriString = null
+                            when (result) {
+                                is OpenResult.Success -> {
+                                    opened = result.doc
+                                    documentError = null
+                                }
+                                is OpenResult.Failure -> {
+                                    opened = null
+                                    openUriString = null
+                                    documentError = result.error
+                                }
                             }
                             loading = false
                         } else {
                             Log.d(TAG, "Discarding opened document for $uriStr because target changed to $openUriString")
-                            result?.let { doc ->
+                            if (result is OpenResult.Success) {
                                 withContext(NonCancellable) {
-                                    renderer().closeDocument(doc.handle)
+                                    renderer().closeDocument(result.doc.handle)
                                 }
                             }
                         }
@@ -119,7 +180,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                BackHandler(enabled = opened != null || openUriString != null || loading) {
+                BackHandler(enabled = opened != null || documentError != null || openUriString != null || loading) {
                     opened?.let { doc ->
                         lifecycleScope.launch {
                             withContext(NonCancellable) {
@@ -128,12 +189,14 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     opened = null
+                    documentError = null
                     openUriString = null
                     userModeOverride = null
                     loading = false
                 }
 
                 val doc = opened
+                val err = documentError
                 when {
                     doc != null -> {
                         val currentMode = userModeOverride ?: remember(doc.pages) {
@@ -161,17 +224,34 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                    err != null -> {
+                        DocumentErrorScreen(
+                            error = err,
+                            onDismiss = {
+                                documentError = null
+                                openUriString = null
+                            },
+                            onOpenOther = {
+                                documentError = null
+                                openUriString = null
+                                picker.launch(arrayOf(PDF_MIME_TYPE))
+                            }
+                        )
+                    }
                     loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                     else -> {
                         val entries by recents.recents.collectAsState(initial = emptyList())
+                        val onRecentClickLambda: (RecentDocument) -> Unit = { recent: RecentDocument ->
+                            recordInRecents = true
+                            openUriString = recent.uri
+                        }
+                        openRecentHandler = onRecentClickLambda
                         LibraryScreen(
                             recents = entries,
                             onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
-                            onRecentClick = { recent: RecentDocument ->
-                                openUriString = recent.uri
-                            },
+                            onRecentClick = onRecentClickLambda,
                             onRemove = { recent -> scope.launch { recents.remove(recent) } }
                         )
                     }
@@ -180,12 +260,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Opens a SAF/content URI, records it in recents, and returns null (with a message) on failure. */
-    private suspend fun openFromUri(uri: Uri): OpenedDocument? = withContext(Dispatchers.IO) {
+    /** Opens a SAF/content URI, records it in recents if requested, and returns an OpenResult. */
+    private suspend fun openFromUri(uri: Uri, recordInRecents: Boolean = true): OpenResult = withContext(Dispatchers.IO) {
         var handle: Long? = null
         try {
             val pfd = contentResolver.openFileDescriptor(uri, "r")
-                ?: error("Provider returned no file descriptor for $uri")
+                ?: throw FileNotFoundException("Provider returned no file descriptor for $uri")
             // Positional reads: hashing doesn't move the offset PDFium will read from.
             val hash = try {
                 computeContentHash(pfd)
@@ -195,8 +275,10 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
-            opened
+            if (recordInRecents) {
+                recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            }
+            OpenResult.Success(opened)
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
@@ -206,16 +288,12 @@ class MainActivity : ComponentActivity() {
             withContext(NonCancellable) {
                 handle?.let { runCatching { renderer().closeDocument(it) } }
             }
-            // M2-02 adds dedicated error states (encrypted, corrupt, unavailable).
             Log.w(TAG, "Failed to open $uri", e)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(this@MainActivity, R.string.open_failed, Toast.LENGTH_LONG).show()
-            }
-            null
+            OpenResult.Failure(e.toDocumentError())
         }
     }
 
-    private suspend fun openCorpusAsset(asset: String): OpenedDocument? = withContext(Dispatchers.IO) {
+    private suspend fun openCorpusAsset(asset: String): OpenResult = withContext(Dispatchers.IO) {
         var handle: Long? = null
         try {
             val tempFile = File(cacheDir, "corpus_current.pdf")
@@ -223,7 +301,7 @@ class MainActivity : ComponentActivity() {
             val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
             val opened = openPfd(pfd)
             handle = opened.handle
-            opened
+            OpenResult.Success(opened)
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
@@ -234,14 +312,12 @@ class MainActivity : ComponentActivity() {
                 handle?.let { runCatching { renderer().closeDocument(it) } }
             }
             Log.w(TAG, "Failed to open corpus asset $asset", e)
-            null
+            OpenResult.Failure(e.toDocumentError())
         }
     }
 
     private suspend fun openPfd(pfd: ParcelFileDescriptor): OpenedDocument {
         val r = renderer()
-        openDocumentCallCount++
-        Log.d(TAG, "openPfd: opening document (callCount=$openDocumentCallCount)")
         val handle = r.openDocument(pfd)
         try {
             val pages = r.getAllPages(handle)
@@ -270,6 +346,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        openRecentHandler = null
         renderer?.close()
         renderer = null
     }
@@ -278,9 +355,5 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
         private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
-
-        @get:androidx.annotation.VisibleForTesting
-        @set:androidx.annotation.VisibleForTesting
-        internal var openDocumentCallCount = 0
     }
 }
