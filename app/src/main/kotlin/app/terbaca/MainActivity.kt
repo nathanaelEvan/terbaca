@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,10 +29,14 @@ import androidx.lifecycle.lifecycleScope
 import app.terbaca.core.data.RecentDocument
 import app.terbaca.core.data.computeContentHash
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.ReadingMode
+import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
+import app.terbaca.feature.slides.SlidesScreen
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,7 +44,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
-    private class OpenedDocument(val handle: Long, val pageInfo: PageInfo)
+    private class OpenedDocument(val handle: Long, val pages: List<PageInfo>)
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -59,38 +64,76 @@ class MainActivity : ComponentActivity() {
         setContent {
             TerbacaTheme {
                 var opened by remember { mutableStateOf<OpenedDocument?>(null) }
-                var loading by remember { mutableStateOf(corpusAsset != null) }
+                var openUriString by rememberSaveable { mutableStateOf<String?>(null) }
+                var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
+                var loading by remember { mutableStateOf(corpusAsset != null || openUriString != null) }
                 val scope = rememberCoroutineScope()
 
                 fun open(load: suspend () -> OpenedDocument?) {
                     loading = true
                     scope.launch {
-                        opened = load()
+                        val result = load()
+                        if (result == null) {
+                            openUriString = null
+                        }
+                        opened = result
                         loading = false
                     }
                 }
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    if (uri != null) open { openFromUri(uri, persist = true) }
+                    if (uri != null) {
+                        openUriString = uri.toString()
+                        open { openFromUri(uri, persist = true) }
+                    }
                 }
 
                 LaunchedEffect(corpusAsset) {
                     if (corpusAsset != null) open { openCorpusAsset(corpusAsset) }
                 }
 
-                BackHandler(enabled = opened != null) {
+                LaunchedEffect(openUriString) {
+                    val uriStr = openUriString
+                    if (uriStr != null && opened == null && corpusAsset == null) {
+                        open { openFromUri(Uri.parse(uriStr), persist = false) }
+                    }
+                }
+
+                BackHandler(enabled = opened != null || openUriString != null) {
                     opened?.let { doc -> lifecycleScope.launch { renderer?.closeDocument(doc.handle) } }
                     opened = null
+                    openUriString = null
+                    userModeOverride = null
                 }
 
                 val doc = opened
                 when {
-                    doc != null -> ReaderScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        pageInfo = doc.pageInfo,
-                        renderer = renderer,
-                        docHandle = doc.handle
-                    )
+                    doc != null -> {
+                        val currentMode = userModeOverride ?: remember(doc.pages) {
+                            autoDetectReadingMode(doc.pages)
+                        }
+                        if (currentMode == ReadingMode.SLIDE) {
+                            SlidesScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                pages = doc.pages,
+                                renderer = renderer(),
+                                docHandle = doc.handle,
+                                onModeToggle = {
+                                    userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
+                                }
+                            )
+                        } else {
+                            ReaderScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                pages = doc.pages,
+                                renderer = renderer(),
+                                docHandle = doc.handle,
+                                onModeToggle = {
+                                    userModeOverride = ReadingMode.SLIDE
+                                }
+                            )
+                        }
+                    }
                     loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
@@ -100,6 +143,7 @@ class MainActivity : ComponentActivity() {
                             recents = entries,
                             onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
                             onRecentClick = { recent: RecentDocument ->
+                                openUriString = recent.uri
                                 open { openFromUri(Uri.parse(recent.uri), persist = false) }
                             },
                             onRemove = { recent -> scope.launch { recents.remove(recent) } }
@@ -113,21 +157,26 @@ class MainActivity : ComponentActivity() {
     /** Opens a SAF/content URI, records it in recents, and returns null (with a message) on failure. */
     private suspend fun openFromUri(uri: Uri, persist: Boolean): OpenedDocument? = withContext(Dispatchers.IO) {
         if (persist) recents.persistReadPermission(uri)
+        var handle: Long? = null
         try {
             val pfd = contentResolver.openFileDescriptor(uri, "r")
                 ?: error("Provider returned no file descriptor for $uri")
             // Positional reads: hashing doesn't move the offset PDFium will read from.
             val hash = try {
                 computeContentHash(pfd)
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 pfd.close()
-                throw e
+                throw t
             }
             val opened = openPfd(pfd) // takes ownership of pfd
-            val pageCount = renderer().getPageCount(opened.handle)
-            recents.recordOpened(uri, recents.displayName(uri), hash, pageCount)
+            handle = opened.handle
+            recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
             opened
+        } catch (e: CancellationException) {
+            handle?.let { renderer().closeDocument(it) }
+            throw e
         } catch (e: Exception) {
+            handle?.let { runCatching { renderer().closeDocument(it) } }
             // M2-02 adds dedicated error states (encrypted, corrupt, unavailable).
             Log.w(TAG, "Failed to open $uri", e)
             withContext(Dispatchers.Main) {
@@ -138,17 +187,35 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun openCorpusAsset(asset: String): OpenedDocument? = withContext(Dispatchers.IO) {
-        runCatching {
+        var handle: Long? = null
+        try {
             val tempFile = File(cacheDir, "corpus_current.pdf")
             assets.open(asset).use { input -> FileOutputStream(tempFile).use { input.copyTo(it) } }
-            openPfd(ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY))
-        }.onFailure { Log.w(TAG, "Failed to open corpus asset $asset", it) }.getOrNull()
+            val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
+            val opened = openPfd(pfd)
+            handle = opened.handle
+            opened
+        } catch (e: CancellationException) {
+            handle?.let { renderer().closeDocument(it) }
+            throw e
+        } catch (e: Exception) {
+            handle?.let { runCatching { renderer().closeDocument(it) } }
+            Log.w(TAG, "Failed to open corpus asset $asset", it)
+            null
+        }
     }
 
     private suspend fun openPfd(pfd: ParcelFileDescriptor): OpenedDocument {
         val r = renderer()
         val handle = r.openDocument(pfd)
-        return OpenedDocument(handle, r.getPageInfo(handle, 0))
+        try {
+            val pages = r.getAllPages(handle)
+            require(pages.isNotEmpty()) { "Document has no pages" }
+            return OpenedDocument(handle, pages)
+        } catch (t: Throwable) {
+            r.closeDocument(handle)
+            throw t
+        }
     }
 
     /**
