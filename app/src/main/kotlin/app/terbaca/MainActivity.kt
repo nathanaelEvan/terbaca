@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.ReadingMode
+import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
 import app.terbaca.core.ui.theme.TerbacaDarkBackground
 import app.terbaca.core.ui.theme.TerbacaDarkBorder
@@ -40,6 +42,7 @@ import app.terbaca.core.ui.theme.TerbacaDarkTextPrimary
 import app.terbaca.core.ui.theme.TerbacaDarkTextSecondary
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.reader.ReaderScreen
+import app.terbaca.feature.slides.SlidesScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -61,6 +64,7 @@ class MainActivity : ComponentActivity() {
                 var docHandle by remember { mutableLongStateOf(0L) }
                 var activeRenderer by remember { mutableStateOf<PdfiumRemotePageRenderer?>(null) }
                 var loadFailed by remember { mutableStateOf(false) }
+                var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
 
                 LaunchedEffect(corpusAsset) {
                     try {
@@ -88,13 +92,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (pages != null && activeRenderer != null && docHandle > 0L) {
-                    ReaderScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        pages = pages!!,
-                        renderer = activeRenderer,
-                        docHandle = docHandle
-                    )
+                val currentPages = pages
+                val r = activeRenderer
+                if (currentPages != null && r != null && docHandle > 0L) {
+                    val currentMode = userModeOverride ?: remember(currentPages) {
+                        autoDetectReadingMode(currentPages)
+                    }
+                    if (currentMode == ReadingMode.SLIDE) {
+                        SlidesScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            pages = currentPages,
+                            renderer = r,
+                            docHandle = docHandle,
+                            onModeToggle = {
+                                userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
+                            }
+                        )
+                    } else {
+                        ReaderScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            pages = currentPages,
+                            renderer = r,
+                            docHandle = docHandle,
+                            onModeToggle = {
+                                userModeOverride = ReadingMode.SLIDE
+                            }
+                        )
+                    }
                 } else if (loadFailed) {
                     PlaceholderScreen()
                 } else {
