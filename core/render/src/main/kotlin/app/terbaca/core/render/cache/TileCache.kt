@@ -150,6 +150,15 @@ class TileCache(
         released.forEach(bitmapReleaser)
     }
 
+    /** Releases every cached thumbnail bitmap. */
+    fun clearThumbnails() {
+        val released = mutableListOf<Bitmap>()
+        synchronized(lock) {
+            thumbnails.clearInto(released)
+        }
+        released.forEach(bitmapReleaser)
+    }
+
     /** Releases every cached bitmap in all tiers. */
     fun clear() {
         val released = mutableListOf<Bitmap>()

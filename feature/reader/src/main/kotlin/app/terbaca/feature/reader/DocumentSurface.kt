@@ -609,11 +609,20 @@ private fun DrawScope.drawBaseLayer(
             dstSize = IntSize(contentW, contentH)
         )
     } else {
-        drawRect(
-            color = PAGE_PLACEHOLDER_COLOR,
-            topLeft = Offset(offsetX.roundToInt().toFloat(), offsetY.roundToInt().toFloat()),
-            size = Size(contentW.toFloat(), contentH.toFloat())
-        )
+        val thumb = cache.getThumbnail(pageInfo.index)
+        if (thumb != null && !thumb.isRecycled) {
+            drawImage(
+                image = thumb.asImageBitmap(),
+                dstOffset = IntOffset(offsetX.roundToInt(), offsetY.roundToInt()),
+                dstSize = IntSize(contentW, contentH)
+            )
+        } else {
+            drawRect(
+                color = PAGE_PLACEHOLDER_COLOR,
+                topLeft = Offset(offsetX.roundToInt().toFloat(), offsetY.roundToInt().toFloat()),
+                size = Size(contentW.toFloat(), contentH.toFloat())
+            )
+        }
     }
 }
 
