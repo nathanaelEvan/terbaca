@@ -10,7 +10,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Macrobenchmark measuring cold and warm startup times against §7 budget (Cold start <= 500 ms).
+ * Cold start → library visible (PRD §7: <= 500 ms). Launches without a document, so it measures
+ * the library screen.
  */
 @RunWith(AndroidJUnit4::class)
 class StartupBenchmark {

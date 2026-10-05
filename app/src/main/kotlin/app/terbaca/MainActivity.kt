@@ -1,141 +1,263 @@
 package app.terbaca
 
+import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import app.terbaca.core.data.RecentDocument
+import app.terbaca.core.data.computeContentHash
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.ReadingMode
 import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
-import app.terbaca.core.ui.theme.TerbacaDarkBackground
-import app.terbaca.core.ui.theme.TerbacaDarkBorder
-import app.terbaca.core.ui.theme.TerbacaDarkSurface
-import app.terbaca.core.ui.theme.TerbacaDarkTextPrimary
-import app.terbaca.core.ui.theme.TerbacaDarkTextSecondary
 import app.terbaca.core.ui.theme.TerbacaTheme
+import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
 import app.terbaca.feature.slides.SlidesScreen
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
+    private class OpenedDocument(val handle: Long, val pages: List<PageInfo>)
+
+    // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
+    private val recents by lazy { (application as TerbacaApp).recentsRepository }
+
+    private fun renderer(): PdfiumRemotePageRenderer =
+        renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestHighestRefreshRate()
 
-        val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE) ?: DEFAULT_CORPUS_ASSET
+        // Benchmarks and baseline-profile generation open a bundled corpus file directly.
+        val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE)
 
         setContent {
             TerbacaTheme {
-                var pages by remember { mutableStateOf<List<PageInfo>?>(null) }
-                var docHandle by remember { mutableLongStateOf(0L) }
-                var activeRenderer by remember { mutableStateOf<PdfiumRemotePageRenderer?>(null) }
-                var loadFailed by remember { mutableStateOf(false) }
+                var opened by remember { mutableStateOf<OpenedDocument?>(null) }
+                var openUriString by rememberSaveable { mutableStateOf<String?>(null) }
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
+                var loading by remember { mutableStateOf(corpusAsset != null || openUriString != null) }
+                val scope = rememberCoroutineScope()
 
-                LaunchedEffect(corpusAsset) {
-                    try {
-                        val r = PdfiumRemotePageRenderer(applicationContext)
-                        renderer = r
-                        activeRenderer = r
-
-                        val handle = withContext(Dispatchers.IO) {
-                            val tempFile = File(cacheDir, "corpus_current.pdf")
-                            assets.open(corpusAsset).use { input ->
-                                FileOutputStream(tempFile).use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                            val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
-                            r.openDocument(pfd)
-                        }
-                        val allPages = withContext(Dispatchers.IO) {
-                            r.getAllPages(handle)
-                        }
-                        docHandle = handle
-                        pages = allPages.takeIf { it.isNotEmpty() } ?: error("Document has no pages")
-                    } catch (_: Throwable) {
-                        loadFailed = true
+                val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                    if (uri != null) {
+                        recents.persistReadPermission(uri)
+                        openUriString = uri.toString()
                     }
                 }
 
-                val currentPages = pages
-                val r = activeRenderer
-                if (currentPages != null && r != null && docHandle > 0L) {
-                    val currentMode = userModeOverride ?: remember(currentPages) {
-                        autoDetectReadingMode(currentPages)
+                LaunchedEffect(corpusAsset) {
+                    if (corpusAsset != null) {
+                        loading = true
+                        opened = openCorpusAsset(corpusAsset)
+                        loading = false
                     }
-                    if (currentMode == ReadingMode.SLIDE) {
-                        SlidesScreen(
-                            modifier = Modifier.fillMaxSize(),
-                            pages = currentPages,
-                            renderer = r,
-                            docHandle = docHandle,
-                            onModeToggle = {
-                                userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
-                            }
-                        )
-                    } else {
-                        ReaderScreen(
-                            modifier = Modifier.fillMaxSize(),
-                            pages = currentPages,
-                            renderer = r,
-                            docHandle = docHandle,
-                            onModeToggle = {
-                                userModeOverride = ReadingMode.SLIDE
-                            }
-                        )
+                }
+
+                LaunchedEffect(openUriString) {
+                    val uriStr = openUriString ?: return@LaunchedEffect
+                    if (corpusAsset != null) return@LaunchedEffect
+                    if (opened != null) {
+                        val oldDoc = opened
+                        opened = null
+                        withContext(NonCancellable) {
+                            oldDoc?.let { renderer().closeDocument(it.handle) }
+                        }
                     }
-                } else if (loadFailed) {
-                    PlaceholderScreen()
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    loading = true
+                    try {
+                        Log.d(TAG, "Opening document: $uriStr")
+                        val result = openFromUri(Uri.parse(uriStr))
+                        if (openUriString == uriStr) {
+                            opened = result
+                            if (result == null) {
+                                openUriString = null
+                            }
+                            loading = false
+                        } else {
+                            Log.d(TAG, "Discarding opened document for $uriStr because target changed to $openUriString")
+                            result?.let { doc ->
+                                withContext(NonCancellable) {
+                                    renderer().closeDocument(doc.handle)
+                                }
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        Log.d(TAG, "Open cancelled for $uriStr")
+                        throw e
+                    }
+                }
+
+                BackHandler(enabled = opened != null || openUriString != null || loading) {
+                    opened?.let { doc ->
+                        lifecycleScope.launch {
+                            withContext(NonCancellable) {
+                                renderer?.closeDocument(doc.handle)
+                            }
+                        }
+                    }
+                    opened = null
+                    openUriString = null
+                    userModeOverride = null
+                    loading = false
+                }
+
+                val doc = opened
+                when {
+                    doc != null -> {
+                        val currentMode = userModeOverride ?: remember(doc.pages) {
+                            autoDetectReadingMode(doc.pages)
+                        }
+                        if (currentMode == ReadingMode.SLIDE) {
+                            SlidesScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                pages = doc.pages,
+                                renderer = renderer(),
+                                docHandle = doc.handle,
+                                onModeToggle = {
+                                    userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
+                                }
+                            )
+                        } else {
+                            ReaderScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                pages = doc.pages,
+                                renderer = renderer(),
+                                docHandle = doc.handle,
+                                onModeToggle = {
+                                    userModeOverride = ReadingMode.SLIDE
+                                }
+                            )
+                        }
+                    }
+                    loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                    else -> {
+                        val entries by recents.recents.collectAsState(initial = emptyList())
+                        LibraryScreen(
+                            recents = entries,
+                            onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
+                            onRecentClick = { recent: RecentDocument ->
+                                openUriString = recent.uri
+                            },
+                            onRemove = { recent -> scope.launch { recents.remove(recent) } }
+                        )
                     }
                 }
             }
         }
     }
 
+    /** Opens a SAF/content URI, records it in recents, and returns null (with a message) on failure. */
+    private suspend fun openFromUri(uri: Uri): OpenedDocument? = withContext(Dispatchers.IO) {
+        var handle: Long? = null
+        try {
+            val pfd = contentResolver.openFileDescriptor(uri, "r")
+                ?: error("Provider returned no file descriptor for $uri")
+            // Positional reads: hashing doesn't move the offset PDFium will read from.
+            val hash = try {
+                computeContentHash(pfd)
+            } catch (t: Throwable) {
+                pfd.close()
+                throw t
+            }
+            val opened = openPfd(pfd) // takes ownership of pfd
+            handle = opened.handle
+            recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            opened
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                handle?.let { renderer().closeDocument(it) }
+            }
+            throw e
+        } catch (e: Exception) {
+            withContext(NonCancellable) {
+                handle?.let { runCatching { renderer().closeDocument(it) } }
+            }
+            // M2-02 adds dedicated error states (encrypted, corrupt, unavailable).
+            Log.w(TAG, "Failed to open $uri", e)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, R.string.open_failed, Toast.LENGTH_LONG).show()
+            }
+            null
+        }
+    }
+
+    private suspend fun openCorpusAsset(asset: String): OpenedDocument? = withContext(Dispatchers.IO) {
+        var handle: Long? = null
+        try {
+            val tempFile = File(cacheDir, "corpus_current.pdf")
+            assets.open(asset).use { input -> FileOutputStream(tempFile).use { input.copyTo(it) } }
+            val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
+            val opened = openPfd(pfd)
+            handle = opened.handle
+            opened
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                handle?.let { renderer().closeDocument(it) }
+            }
+            throw e
+        } catch (e: Exception) {
+            withContext(NonCancellable) {
+                handle?.let { runCatching { renderer().closeDocument(it) } }
+            }
+            Log.w(TAG, "Failed to open corpus asset $asset", e)
+            null
+        }
+    }
+
+    private suspend fun openPfd(pfd: ParcelFileDescriptor): OpenedDocument {
+        val r = renderer()
+        openDocumentCallCount++
+        Log.d(TAG, "openPfd: opening document (callCount=$openDocumentCallCount)")
+        val handle = r.openDocument(pfd)
+        try {
+            val pages = r.getAllPages(handle)
+            require(pages.isNotEmpty()) { "Document has no pages" }
+            return OpenedDocument(handle, pages)
+        } catch (t: Throwable) {
+            withContext(NonCancellable) {
+                r.closeDocument(handle)
+            }
+            throw t
+        }
+    }
+
     /**
      * PRD §4.6: ask for the display's highest refresh rate (144 Hz on Pad 7) at the current
-     * resolution. HyperOS may still cap it; ADR 0004 records what the device actually runs at.
+     * resolution. HyperOS caps apps at 120 Hz (ADR 0004); the request stays in case that changes.
      */
     private fun requestHighestRefreshRate() {
         val display = display ?: return
@@ -153,60 +275,12 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val TAG = "MainActivity"
+        private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
-        const val DEFAULT_CORPUS_ASSET = "corpus/paper_two_column.pdf"
-    }
-}
 
-@Composable
-fun PlaceholderScreen() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = TerbacaDarkBackground
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                fontSize = 38.sp,
-                fontWeight = FontWeight.Bold,
-                color = TerbacaDarkTextPrimary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.placeholder_tagline),
-                fontSize = 16.sp,
-                color = TerbacaDarkTextSecondary
-            )
-            Spacer(modifier = Modifier.height(28.dp))
-            Surface(
-                color = TerbacaDarkSurface,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, TerbacaDarkBorder)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.placeholder_status),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.placeholder_ready),
-                        fontSize = 12.sp,
-                        color = TerbacaDarkTextSecondary
-                    )
-                }
-            }
-        }
+        @get:androidx.annotation.VisibleForTesting
+        @set:androidx.annotation.VisibleForTesting
+        internal var openDocumentCallCount = 0
     }
 }
