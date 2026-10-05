@@ -38,6 +38,7 @@ import app.terbaca.feature.reader.ReaderScreen
 import app.terbaca.feature.slides.SlidesScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -69,41 +70,67 @@ class MainActivity : ComponentActivity() {
                 var loading by remember { mutableStateOf(corpusAsset != null || openUriString != null) }
                 val scope = rememberCoroutineScope()
 
-                fun open(load: suspend () -> OpenedDocument?) {
-                    loading = true
-                    scope.launch {
-                        val result = load()
-                        if (result == null) {
-                            openUriString = null
-                        }
-                        opened = result
-                        loading = false
-                    }
-                }
-
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
+                        recents.persistReadPermission(uri)
                         openUriString = uri.toString()
-                        open { openFromUri(uri, persist = true) }
                     }
                 }
 
                 LaunchedEffect(corpusAsset) {
-                    if (corpusAsset != null) open { openCorpusAsset(corpusAsset) }
-                }
-
-                LaunchedEffect(openUriString) {
-                    val uriStr = openUriString
-                    if (uriStr != null && opened == null && corpusAsset == null) {
-                        open { openFromUri(Uri.parse(uriStr), persist = false) }
+                    if (corpusAsset != null) {
+                        loading = true
+                        opened = openCorpusAsset(corpusAsset)
+                        loading = false
                     }
                 }
 
-                BackHandler(enabled = opened != null || openUriString != null) {
-                    opened?.let { doc -> lifecycleScope.launch { renderer?.closeDocument(doc.handle) } }
+                LaunchedEffect(openUriString) {
+                    val uriStr = openUriString ?: return@LaunchedEffect
+                    if (corpusAsset != null) return@LaunchedEffect
+                    if (opened != null) {
+                        val oldDoc = opened
+                        opened = null
+                        withContext(NonCancellable) {
+                            oldDoc?.let { renderer().closeDocument(it.handle) }
+                        }
+                    }
+                    loading = true
+                    try {
+                        Log.d(TAG, "Opening document: $uriStr")
+                        val result = openFromUri(Uri.parse(uriStr))
+                        if (openUriString == uriStr) {
+                            opened = result
+                            if (result == null) {
+                                openUriString = null
+                            }
+                            loading = false
+                        } else {
+                            Log.d(TAG, "Discarding opened document for $uriStr because target changed to $openUriString")
+                            result?.let { doc ->
+                                withContext(NonCancellable) {
+                                    renderer().closeDocument(doc.handle)
+                                }
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        Log.d(TAG, "Open cancelled for $uriStr")
+                        throw e
+                    }
+                }
+
+                BackHandler(enabled = opened != null || openUriString != null || loading) {
+                    opened?.let { doc ->
+                        lifecycleScope.launch {
+                            withContext(NonCancellable) {
+                                renderer?.closeDocument(doc.handle)
+                            }
+                        }
+                    }
                     opened = null
                     openUriString = null
                     userModeOverride = null
+                    loading = false
                 }
 
                 val doc = opened
@@ -144,7 +171,6 @@ class MainActivity : ComponentActivity() {
                             onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
                             onRecentClick = { recent: RecentDocument ->
                                 openUriString = recent.uri
-                                open { openFromUri(Uri.parse(recent.uri), persist = false) }
                             },
                             onRemove = { recent -> scope.launch { recents.remove(recent) } }
                         )
@@ -155,8 +181,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Opens a SAF/content URI, records it in recents, and returns null (with a message) on failure. */
-    private suspend fun openFromUri(uri: Uri, persist: Boolean): OpenedDocument? = withContext(Dispatchers.IO) {
-        if (persist) recents.persistReadPermission(uri)
+    private suspend fun openFromUri(uri: Uri): OpenedDocument? = withContext(Dispatchers.IO) {
         var handle: Long? = null
         try {
             val pfd = contentResolver.openFileDescriptor(uri, "r")
@@ -173,10 +198,14 @@ class MainActivity : ComponentActivity() {
             recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
             opened
         } catch (e: CancellationException) {
-            handle?.let { renderer().closeDocument(it) }
+            withContext(NonCancellable) {
+                handle?.let { renderer().closeDocument(it) }
+            }
             throw e
         } catch (e: Exception) {
-            handle?.let { runCatching { renderer().closeDocument(it) } }
+            withContext(NonCancellable) {
+                handle?.let { runCatching { renderer().closeDocument(it) } }
+            }
             // M2-02 adds dedicated error states (encrypted, corrupt, unavailable).
             Log.w(TAG, "Failed to open $uri", e)
             withContext(Dispatchers.Main) {
@@ -196,10 +225,14 @@ class MainActivity : ComponentActivity() {
             handle = opened.handle
             opened
         } catch (e: CancellationException) {
-            handle?.let { renderer().closeDocument(it) }
+            withContext(NonCancellable) {
+                handle?.let { renderer().closeDocument(it) }
+            }
             throw e
         } catch (e: Exception) {
-            handle?.let { runCatching { renderer().closeDocument(it) } }
+            withContext(NonCancellable) {
+                handle?.let { runCatching { renderer().closeDocument(it) } }
+            }
             Log.w(TAG, "Failed to open corpus asset $asset", e)
             null
         }
@@ -207,13 +240,17 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun openPfd(pfd: ParcelFileDescriptor): OpenedDocument {
         val r = renderer()
+        openDocumentCallCount++
+        Log.d(TAG, "openPfd: opening document (callCount=$openDocumentCallCount)")
         val handle = r.openDocument(pfd)
         try {
             val pages = r.getAllPages(handle)
             require(pages.isNotEmpty()) { "Document has no pages" }
             return OpenedDocument(handle, pages)
         } catch (t: Throwable) {
-            r.closeDocument(handle)
+            withContext(NonCancellable) {
+                r.closeDocument(handle)
+            }
             throw t
         }
     }
@@ -241,5 +278,9 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
         private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
+
+        @get:androidx.annotation.VisibleForTesting
+        @set:androidx.annotation.VisibleForTesting
+        internal var openDocumentCallCount = 0
     }
 }
