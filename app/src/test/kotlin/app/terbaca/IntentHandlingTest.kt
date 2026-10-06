@@ -77,15 +77,25 @@ class IntentHandlingTest {
     }
 
     @Test
-    fun shouldRecordInRecents_whenPermissionNotPersisted_returnsFalse() {
-        val result = shouldRecordInRecents(isPermissionPersisted = false)
-        assertFalse(result)
-    }
+    fun documentError_keys_and_fromKey_roundTrip() {
+        val encrypted = DocumentError.Encrypted()
+        assertEquals(DocumentError.KEY_ENCRYPTED, encrypted.key)
+        assertTrue(DocumentError.fromKey(encrypted.key) is DocumentError.Encrypted)
 
-    @Test
-    fun shouldRecordInRecents_whenPermissionPersisted_returnsTrue() {
-        val result = shouldRecordInRecents(isPermissionPersisted = true)
-        assertTrue(result)
+        val corrupt = DocumentError.Corrupt()
+        assertEquals(DocumentError.KEY_CORRUPT, corrupt.key)
+        assertTrue(DocumentError.fromKey(corrupt.key) is DocumentError.Corrupt)
+
+        val unavailable = DocumentError.Unavailable()
+        assertEquals(DocumentError.KEY_UNAVAILABLE, unavailable.key)
+        assertTrue(DocumentError.fromKey(unavailable.key) is DocumentError.Unavailable)
+
+        val generic = DocumentError.Generic()
+        assertEquals(DocumentError.KEY_GENERIC, generic.key)
+        assertTrue(DocumentError.fromKey(generic.key) is DocumentError.Generic)
+
+        assertNull(DocumentError.fromKey("unknown"))
+        assertNull(DocumentError.fromKey(null))
     }
 
     @Test

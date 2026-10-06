@@ -28,6 +28,10 @@ class RecentsRepository(
         .map { documents -> documents.map { RecentEntry(it, isAvailable(Uri.parse(it.uri))) } }
         .flowOn(Dispatchers.IO)
 
+    /** Returns true if read access to [uri] is already held among persisted permissions. */
+    fun isPermissionPersisted(uri: Uri): Boolean =
+        resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
+
     /**
      * Keeps read access to [uri] across restarts. Returns false when the provider doesn't offer a
      * persistable grant (e.g. some share-sheet URIs); the document then works for this session only.
@@ -115,8 +119,7 @@ class RecentsRepository(
     }
 
     private fun isAvailable(uri: Uri): Boolean {
-        val granted = resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
-        if (!granted) return false
+        if (!isPermissionPersisted(uri)) return false
         // A moved or deleted file no longer resolves at its provider.
         return runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { it.moveToFirst() }

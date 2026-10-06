@@ -36,26 +36,46 @@ sealed interface DocumentError {
     val titleRes: Int
     @get:StringRes
     val messageRes: Int
+    val key: String
 
     data class Encrypted(
         override val titleRes: Int = R.string.error_encrypted_title,
-        override val messageRes: Int = R.string.error_encrypted_message
+        override val messageRes: Int = R.string.error_encrypted_message,
+        override val key: String = KEY_ENCRYPTED
     ) : DocumentError
 
     data class Corrupt(
         override val titleRes: Int = R.string.error_corrupt_title,
-        override val messageRes: Int = R.string.error_corrupt_message
+        override val messageRes: Int = R.string.error_corrupt_message,
+        override val key: String = KEY_CORRUPT
     ) : DocumentError
 
     data class Unavailable(
         override val titleRes: Int = R.string.error_unavailable_title,
-        override val messageRes: Int = R.string.error_unavailable_message
+        override val messageRes: Int = R.string.error_unavailable_message,
+        override val key: String = KEY_UNAVAILABLE
     ) : DocumentError
 
     data class Generic(
         override val titleRes: Int = R.string.error_generic_title,
-        override val messageRes: Int = R.string.error_generic_message
+        override val messageRes: Int = R.string.error_generic_message,
+        override val key: String = KEY_GENERIC
     ) : DocumentError
+
+    companion object {
+        const val KEY_ENCRYPTED = "encrypted"
+        const val KEY_CORRUPT = "corrupt"
+        const val KEY_UNAVAILABLE = "unavailable"
+        const val KEY_GENERIC = "generic"
+
+        fun fromKey(key: String?): DocumentError? = when (key) {
+            KEY_ENCRYPTED -> Encrypted()
+            KEY_CORRUPT -> Corrupt()
+            KEY_UNAVAILABLE -> Unavailable()
+            KEY_GENERIC -> Generic()
+            else -> null
+        }
+    }
 }
 
 fun Throwable.toDocumentError(): DocumentError = when (this) {
@@ -85,13 +105,6 @@ fun extractPdfUri(intent: Intent?): Uri? {
         else -> null
     }
 }
-
-/**
- * Decides whether to record an opened document into recents (F-OPEN-4).
- * When persistReadPermission fails, the document must NOT be saved to recents as it will become a dead, unclickable entry.
- */
-fun shouldRecordInRecents(isPermissionPersisted: Boolean): Boolean =
-    isPermissionPersisted
 
 /** Friendly error screen for encrypted, corrupt, and unavailable PDF documents (F-OPEN-5). */
 @Composable

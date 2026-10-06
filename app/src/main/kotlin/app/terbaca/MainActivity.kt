@@ -70,6 +70,8 @@ class MainActivity : ComponentActivity() {
         private set
     internal var openRequestCount by mutableStateOf(0)
         private set
+    internal var loading by mutableStateOf(false)
+        private set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -89,6 +91,7 @@ class MainActivity : ComponentActivity() {
     private fun closeCurrentDocument() {
         val doc = opened
         opened = null
+        loading = false
         if (doc != null) {
             lifecycleScope.launch(NonCancellable) {
                 renderer?.closeDocument(doc.handle)
@@ -103,6 +106,7 @@ class MainActivity : ComponentActivity() {
                 if (!isAllowedPdfScheme(uri.scheme)) {
                     closeCurrentDocument()
                     openUriString = null
+                    loading = false
                     currentDocumentError = DocumentError.Unavailable()
                     return
                 }
@@ -130,7 +134,7 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_OPEN_URI, openUriString)
         outState.putBoolean(KEY_RECORD_IN_RECENTS, recordInRecents)
-        outState.putString(KEY_DOCUMENT_ERROR, currentDocumentError?.javaClass?.simpleName)
+        outState.putString(KEY_DOCUMENT_ERROR, currentDocumentError?.key)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -141,26 +145,18 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState != null) {
             openUriString = savedInstanceState.getString(KEY_OPEN_URI)
             recordInRecents = savedInstanceState.getBoolean(KEY_RECORD_IN_RECENTS, true)
-            currentDocumentError = when (savedInstanceState.getString(KEY_DOCUMENT_ERROR)) {
-                "Encrypted" -> DocumentError.Encrypted()
-                "Corrupt" -> DocumentError.Corrupt()
-                "Unavailable" -> DocumentError.Unavailable()
-                "Generic" -> DocumentError.Generic()
-                else -> null
-            }
+            currentDocumentError = DocumentError.fromKey(savedInstanceState.getString(KEY_DOCUMENT_ERROR))
         } else {
             handleIncomingIntent(intent)
         }
 
         // Benchmarks and baseline-profile generation open a bundled corpus file directly.
         val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE)
+        loading = corpusAsset != null || (openUriString != null && currentDocumentError == null)
 
         setContent {
             TerbacaTheme {
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
-                var loading by remember {
-                    mutableStateOf(corpusAsset != null || openUriString != null)
-                }
                 val scope = rememberCoroutineScope()
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -312,10 +308,12 @@ class MainActivity : ComponentActivity() {
                             onDismiss = {
                                 currentDocumentError = null
                                 openUriString = null
+                                loading = false
                             },
                             onOpenOther = {
                                 currentDocumentError = null
                                 openUriString = null
+                                loading = false
                                 picker.launch(arrayOf(PDF_MIME_TYPE))
                             }
                         )
@@ -348,47 +346,44 @@ class MainActivity : ComponentActivity() {
             Log.w(TAG, "Rejected non-content URI: $uri")
             return@withContext OpenResult.Failure(DocumentError.Unavailable())
         }
-        var persisted = false
-        if (recordInRecents) {
-            persisted = recents.persistReadPermission(uri)
-        }
         var handle: Long? = null
         try {
-            val pfd = contentResolver.openFileDescriptor(uri, "r")
-                ?: throw FileNotFoundException("Provider returned no file descriptor for $uri")
-            // Positional reads: hashing doesn't move the offset PDFium will read from.
-            val hash = try {
-                computeContentHash(pfd)
-            } catch (t: Throwable) {
-                pfd.close()
-                throw t
+            withPersistedPermission(
+                recordInRecents = recordInRecents,
+                isAlreadyPersisted = { recents.isPermissionPersisted(uri) },
+                persistPermission = { recents.persistReadPermission(uri) },
+                releasePermission = { recents.releasePersistablePermission(uri) }
+            ) { persisted ->
+                val pfd = contentResolver.openFileDescriptor(uri, "r")
+                    ?: throw FileNotFoundException("Provider returned no file descriptor for $uri")
+                // Positional reads: hashing doesn't move the offset PDFium will read from.
+                val hash = try {
+                    computeContentHash(pfd)
+                } catch (t: Throwable) {
+                    pfd.close()
+                    throw t
+                }
+                val opened = openPfd(pfd) // takes ownership of pfd
+                handle = opened.handle
+                val record = if (persisted) {
+                    val r = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+                    generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
+                    r
+                } else {
+                    null
+                }
+                val initialPage = record?.lastPage ?: 0
+                val savedMode = record?.readingMode?.let {
+                    runCatching { ReadingMode.valueOf(it) }.getOrNull()
+                }
+                OpenResult.Success(OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash))
             }
-            val opened = openPfd(pfd) // takes ownership of pfd
-            handle = opened.handle
-            val record = if (persisted) {
-                val r = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
-                generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
-                r
-            } else {
-                null
-            }
-            val initialPage = record?.lastPage ?: 0
-            val savedMode = record?.readingMode?.let {
-                runCatching { ReadingMode.valueOf(it) }.getOrNull()
-            }
-            OpenResult.Success(OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash))
         } catch (e: CancellationException) {
-            if (persisted) {
-                recents.releasePersistablePermission(uri)
-            }
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
             }
             throw e
         } catch (e: Exception) {
-            if (persisted) {
-                recents.releasePersistablePermission(uri)
-            }
             withContext(NonCancellable) {
                 handle?.let { runCatching { renderer().closeDocument(it) } }
             }
@@ -475,3 +470,37 @@ class MainActivity : ComponentActivity() {
         private const val KEY_DOCUMENT_ERROR = "document_error"
     }
 }
+
+/**
+ * Executes [block] with read permission management.
+ *
+ * Persists read permission if [recordInRecents] is true and it is not already persisted.
+ * Releases newly persisted permissions if [block] throws an [Exception].
+ * Never releases permissions that were already persisted, or on [CancellationException].
+ */
+internal suspend fun <T> withPersistedPermission(
+    recordInRecents: Boolean,
+    isAlreadyPersisted: () -> Boolean,
+    persistPermission: () -> Boolean,
+    releasePermission: () -> Unit,
+    block: suspend (isPersisted: Boolean) -> T
+): T {
+    val alreadyPersisted = isAlreadyPersisted()
+    val newlyPersisted = if (recordInRecents && !alreadyPersisted) {
+        persistPermission()
+    } else {
+        false
+    }
+    val persisted = alreadyPersisted || newlyPersisted
+    return try {
+        block(persisted)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (newlyPersisted) {
+            releasePermission()
+        }
+        throw e
+    }
+}
+

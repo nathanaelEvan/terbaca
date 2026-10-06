@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.terbaca.core.data.RecentDocument
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -172,6 +173,27 @@ class IntentHandlingInstrumentedTest {
                 activity.openRecent(recentDoc)
                 assertEquals(recentDoc.uri, activity.openUriString)
                 assertEquals(prevCount + 1, activity.openRequestCount)
+            }
+        }
+    }
+
+    @Test
+    fun schemeRejection_clearsLoadingState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val initialUri = Uri.parse("content://app.terbaca.test/first.pdf")
+        val intent1 = Intent(Intent.ACTION_VIEW, initialUri).apply {
+            setClass(context, MainActivity::class.java)
+        }
+        ActivityScenario.launch<MainActivity>(intent1).use { scenario ->
+            scenario.onActivity { activity ->
+                val invalidUri = Uri.parse("file:///data/data/app.terbaca/test.pdf")
+                val intent2 = Intent(Intent.ACTION_VIEW, invalidUri).apply {
+                    setClass(context, MainActivity::class.java)
+                }
+                activity.onNewIntent(intent2)
+                assertTrue(activity.currentDocumentError is DocumentError.Unavailable)
+                assertFalse("Scheme rejection must clear loading state", activity.loading)
+                activity.intent = intent1
             }
         }
     }
