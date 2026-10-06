@@ -15,11 +15,13 @@ import kotlinx.coroutines.flow.map
 data class RecentEntry(val document: RecentDocument, val isAvailable: Boolean)
 
 /**
- * Recents list (F-LIB-1) backed by Room, with persisted SAF read permissions (F-OPEN-4).
+ * Recents list (F-LIB-1) backed by Room, with persisted SAF read permissions (F-OPEN-4), and
+ * per-document reading state keyed by content hash (F-LIB-2).
  */
 class RecentsRepository(
     context: Context,
     private val dao: RecentDocumentDao,
+    private val stateDao: DocumentStateDao,
     private val now: () -> Long = System::currentTimeMillis
 ) {
     private val resolver = context.applicationContext.contentResolver
@@ -70,19 +72,21 @@ class RecentsRepository(
     fun resolveTitle(metadataTitle: String?, fallbackDisplayName: String): String =
         app.terbaca.core.data.resolveTitle(metadataTitle, fallbackDisplayName)
 
+    /**
+     * Records [uri] in the library. [lastPage] and [readingMode] come from [loadState], which must
+     * run first: this replaces the URI's entry, and with it the previous hash of a file edited in
+     * place.
+     */
     suspend fun recordOpened(
         uri: Uri,
         displayName: String,
         contentHash: String,
-        pageCount: Int
+        pageCount: Int,
+        lastPage: Int = 0,
+        readingMode: String? = null
     ): RecentDocument {
-        val uriString = uri.toString()
-        val existingByUri = dao.getByUri(uriString)
-        val existingByHash = dao.getByContentHash(contentHash)
-        val lastPage = existingByUri?.lastPage ?: existingByHash?.lastPage ?: 0
-        val readingMode = existingByUri?.readingMode ?: existingByHash?.readingMode
         val doc = RecentDocument(
-            uri = uriString,
+            uri = uri.toString(),
             contentHash = contentHash,
             displayName = displayName,
             pageCount = pageCount,
@@ -95,17 +99,23 @@ class RecentsRepository(
         return doc
     }
 
-    suspend fun getExisting(uri: Uri, contentHash: String? = null): RecentDocument? {
-        val uriString = uri.toString()
-        return dao.getByUri(uriString) ?: contentHash?.let { dao.getByContentHash(it) }
+    /**
+     * The saved state of the document with [contentHash] (F-LIB-2), from any URI it was read at.
+     *
+     * Without one, falls back to the page and mode of a library entry: [uri]'s entry (a file
+     * edited in place has a new hash), else the newest entry with [contentHash] (saved before
+     * `document_state` existed). The viewport isn't carried over, as the layout may have changed.
+     */
+    suspend fun loadState(uri: Uri, contentHash: String): DocumentState? {
+        stateDao.get(contentHash)?.let { return it }
+        val entry = dao.getByUri(uri.toString()) ?: dao.getByContentHash(contentHash) ?: return null
+        return DocumentState(contentHash, page = entry.lastPage, readingMode = entry.readingMode)
     }
 
-    suspend fun updateLastPage(uri: Uri, lastPage: Int) {
-        dao.updateLastPage(uri.toString(), lastPage)
-    }
-
-    suspend fun updateReadingMode(uri: Uri, readingMode: String?) {
-        dao.updateReadingMode(uri.toString(), readingMode)
+    /** Saves [state] and mirrors its page and mode onto the library entries of that content. */
+    suspend fun saveState(state: DocumentState) {
+        stateDao.upsert(state)
+        dao.updateStateByContentHash(state.contentHash, state.page, state.readingMode)
     }
 
     suspend fun remove(document: RecentDocument) {
@@ -137,8 +147,10 @@ class RecentsRepository(
         private const val TAG = "RecentsRepository"
         const val MAX_RECENTS = 100
 
-        fun create(context: Context) =
-            RecentsRepository(context, RecentsDatabase.create(context).recentDocumentDao())
+        fun create(context: Context): RecentsRepository {
+            val db = RecentsDatabase.create(context)
+            return RecentsRepository(context, db.recentDocumentDao(), db.documentStateDao())
+        }
     }
 }
 

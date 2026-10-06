@@ -63,21 +63,32 @@ class RecentsDatabaseTest {
     }
 
     @Test
-    fun updateLastPage_updatesPosition() = runTest {
-        val d = doc("hash1", openedAt = 1, lastPage = 0, uri = "content://test/doc")
-        dao.upsert(d)
-        dao.updateLastPage("content://test/doc", 7)
-        val updated = dao.getByUri("content://test/doc")
-        assertEquals(7, updated?.lastPage)
+    fun getByContentHash_returnsMostRecentlyOpened() = runTest {
+        dao.upsert(doc("same", openedAt = 1, lastPage = 1, uri = "content://test/old"))
+        dao.upsert(doc("same", openedAt = 9, lastPage = 9, uri = "content://test/new"))
+        dao.upsert(doc("same", openedAt = 5, lastPage = 5, uri = "content://test/mid"))
+        assertEquals("content://test/new", dao.getByContentHash("same")?.uri)
     }
 
     @Test
-    fun updateReadingMode_updatesMode() = runTest {
-        val d = doc("hash1", openedAt = 1, lastPage = 0, uri = "content://test/doc")
-        dao.upsert(d)
-        dao.updateReadingMode("content://test/doc", "SLIDE")
-        val updated = dao.getByUri("content://test/doc")
-        assertEquals("SLIDE", updated?.readingMode)
+    fun updateStateByContentHash_updatesEveryEntryOfThatContent() = runTest {
+        dao.upsert(doc("same", openedAt = 1, uri = "content://test/a"))
+        dao.upsert(doc("same", openedAt = 2, uri = "content://test/b"))
+        dao.upsert(doc("other", openedAt = 3))
+        dao.updateStateByContentHash("same", lastPage = 7, readingMode = "SLIDE")
+        assertEquals(7, dao.getByUri("content://test/a")?.lastPage)
+        assertEquals("SLIDE", dao.getByUri("content://test/b")?.readingMode)
+        assertEquals(0, dao.getByContentHash("other")?.lastPage)
+        assertNull(dao.getByContentHash("other")?.readingMode)
+    }
+
+    @Test
+    fun documentState_upsertReplacesByHash() = runTest {
+        val stateDao = db.documentStateDao()
+        stateDao.upsert(DocumentState("h", page = 2, readingMode = null, zoom = 1.5f, offsetX = 10f, offsetY = 900f))
+        stateDao.upsert(DocumentState("h", page = 3, readingMode = "SLIDE"))
+        assertEquals(DocumentState("h", page = 3, readingMode = "SLIDE"), stateDao.get("h"))
+        assertNull(stateDao.get("missing"))
     }
 
     @Test
