@@ -17,7 +17,6 @@ class PersistedPermissionTest {
         var releaseCalled = false
 
         val result = withPersistedPermission(
-            recordInRecents = true,
             isAlreadyPersisted = { true },
             persistPermission = {
                 persistCalled = true
@@ -40,7 +39,6 @@ class PersistedPermissionTest {
 
         try {
             withPersistedPermission(
-                recordInRecents = true,
                 isAlreadyPersisted = { true },
                 persistPermission = { true },
                 releasePermission = { releaseCalled = true }
@@ -61,7 +59,6 @@ class PersistedPermissionTest {
 
         try {
             withPersistedPermission(
-                recordInRecents = true,
                 isAlreadyPersisted = { true },
                 persistPermission = { true },
                 releasePermission = { releaseCalled = true }
@@ -82,7 +79,6 @@ class PersistedPermissionTest {
         var releaseCalled = false
 
         val result = withPersistedPermission(
-            recordInRecents = true,
             isAlreadyPersisted = { false },
             persistPermission = {
                 persistCalled = true
@@ -106,7 +102,6 @@ class PersistedPermissionTest {
 
         try {
             withPersistedPermission(
-                recordInRecents = true,
                 isAlreadyPersisted = { false },
                 persistPermission = {
                     persistCalled = true
@@ -126,13 +121,12 @@ class PersistedPermissionTest {
     }
 
     @Test
-    fun newlyPersisted_onCancellation_leavesPermissionInPlace() = runTest {
+    fun newlyPersisted_onCancellation_releasesPermission() = runTest {
         var persistCalled = false
         var releaseCalled = false
 
         try {
             withPersistedPermission(
-                recordInRecents = true,
                 isAlreadyPersisted = { false },
                 persistPermission = {
                     persistCalled = true
@@ -148,34 +142,7 @@ class PersistedPermissionTest {
         }
 
         assertTrue(persistCalled)
-        assertFalse("Newly persisted permission must NOT be released on cancellation", releaseCalled)
-    }
-
-    @Test
-    fun recordInRecentsFalse_onException_doesNotPersistOrRelease() = runTest {
-        var persistCalled = false
-        var releaseCalled = false
-
-        try {
-            withPersistedPermission(
-                recordInRecents = false,
-                isAlreadyPersisted = { false },
-                persistPermission = {
-                    persistCalled = true
-                    true
-                },
-                releasePermission = { releaseCalled = true }
-            ) { persisted ->
-                assertFalse(persisted)
-                throw IOException("Failed")
-            }
-            fail("Expected IOException")
-        } catch (e: IOException) {
-            assertEquals("Failed", e.message)
-        }
-
-        assertFalse(persistCalled)
-        assertFalse(releaseCalled)
+        assertTrue("A grant this open took must not outlive a cancelled open", releaseCalled)
     }
 
     @Test
@@ -184,7 +151,6 @@ class PersistedPermissionTest {
 
         try {
             withPersistedPermission(
-                recordInRecents = true,
                 isAlreadyPersisted = { false },
                 persistPermission = { false },
                 releasePermission = { releaseCalled = true }

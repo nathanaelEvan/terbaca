@@ -190,6 +190,8 @@ class IntentHandlingInstrumentedTest {
                 val intent2 = Intent(Intent.ACTION_VIEW, invalidUri).apply {
                     setClass(context, MainActivity::class.java)
                 }
+                // The first open may already have failed and cleared it, so force the precondition.
+                activity.loading = true
                 activity.onNewIntent(intent2)
                 assertTrue(activity.currentDocumentError is DocumentError.Unavailable)
                 assertFalse("Scheme rejection must clear loading state", activity.loading)
