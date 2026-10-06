@@ -188,7 +188,6 @@ class MainActivity : ComponentActivity() {
                                 }
                                 is OpenResult.Failure -> {
                                     opened = null
-                                    openUriString = null
                                     documentError = result.error
                                 }
                             }
