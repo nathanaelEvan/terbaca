@@ -145,4 +145,20 @@ class DocumentTransformStateTest {
         state.endZoom()
         assertEquals(3f, state.levelScale, 0.001f)
     }
+
+    @Test
+    fun testInitialPage_restoresReadingPosition() {
+        val pages = listOf(
+            PageInfo(index = 0, widthPoints = 612f, heightPoints = 792f),
+            PageInfo(index = 1, widthPoints = 612f, heightPoints = 792f),
+            PageInfo(index = 2, widthPoints = 612f, heightPoints = 792f)
+        )
+        val layout = DocumentLayout(pages)
+        val state = DocumentTransformState(layout, initialPage = 1)
+        state.updateViewport(612f, 792f)
+
+        val expectedOffsetY = -layout.pageRect(1).top * state.scale
+        assertEquals(expectedOffsetY, state.offsetY, 0.001f)
+        assertEquals(1, state.currentPage)
+    }
 }
