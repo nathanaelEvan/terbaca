@@ -1,19 +1,13 @@
 package app.terbaca.feature.slides
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SlideCacheTest {
 
-    private class TestItem(val id: Int) {
-        var isDisposed = false
-        fun dispose() {
-            isDisposed = true
-        }
-    }
+    private data class TestItem(val id: Int)
 
     @Test
     fun overshootDampingRatioIsUnderCriticalDamping() {
@@ -69,11 +63,7 @@ class SlideCacheTest {
 
     @Test
     fun slideCacheStoresAndRetrievesItems() {
-        val cache = SlideCache<TestItem>(
-            maxEntries = 3,
-            isDisposed = { it.isDisposed },
-            disposer = { it.dispose() }
-        )
+        val cache = SlideCache<Int, TestItem>(maxEntries = 3)
         val item0 = TestItem(0)
         cache.put(0, item0)
 
@@ -83,22 +73,15 @@ class SlideCacheTest {
 
     @Test
     fun slideCacheEvictsOldestWhenCapacityExceeded() {
-        val cache = SlideCache<TestItem>(
-            maxEntries = 2,
-            isDisposed = { it.isDisposed },
-            disposer = { it.dispose() }
-        )
+        val cache = SlideCache<Int, TestItem>(maxEntries = 2)
         val item0 = TestItem(0)
         val item1 = TestItem(1)
         val item2 = TestItem(2)
 
         cache.put(0, item0)
         cache.put(1, item1)
-        assertFalse(item0.isDisposed)
-        assertFalse(item1.isDisposed)
-
         cache.put(2, item2) // Should evict item0
-        assertTrue(item0.isDisposed)
+
         assertNull(cache.get(0))
         assertEquals(item1, cache.get(1))
         assertEquals(item2, cache.get(2))
@@ -106,11 +89,7 @@ class SlideCacheTest {
 
     @Test
     fun slideCacheMaintainsAccessOrderOnGet() {
-        val cache = SlideCache<TestItem>(
-            maxEntries = 2,
-            isDisposed = { it.isDisposed },
-            disposer = { it.dispose() }
-        )
+        val cache = SlideCache<Int, TestItem>(maxEntries = 2)
         val item0 = TestItem(0)
         val item1 = TestItem(1)
         val item2 = TestItem(2)
@@ -122,27 +101,36 @@ class SlideCacheTest {
         assertEquals(item0, cache.get(0))
 
         cache.put(2, item2) // Should evict item1, keeping 0 and 2
-        assertTrue(item1.isDisposed)
-        assertFalse(item0.isDisposed)
+        assertNull(cache.get(1))
         assertEquals(item0, cache.get(0))
         assertEquals(item2, cache.get(2))
     }
 
     @Test
-    fun slideCacheDisposesAllOnClear() {
-        val cache = SlideCache<TestItem>(
-            maxEntries = 3,
-            isDisposed = { it.isDisposed },
-            disposer = { it.dispose() }
-        )
-        val item0 = TestItem(0)
-        val item1 = TestItem(1)
-        cache.put(0, item0)
-        cache.put(1, item1)
+    fun slideCacheCapacityCoversComposedPagerWindow() {
+        // The current slide plus SLIDE_BEYOND_VIEWPORT_PAGES on each side are composed at once.
+        assertTrue(SLIDE_CACHE_ENTRIES >= 2 * SLIDE_BEYOND_VIEWPORT_PAGES + 1)
+    }
+
+    @Test
+    fun slideCacheMissesWhenRenderSizeChanges() {
+        val cache = SlideCache<SlideKey, TestItem>()
+        val beforeRotation = TestItem(0)
+        cache.put(SlideKey(pageIndex = 0, widthPx = 1600, heightPx = 900), beforeRotation)
+
+        // After a rotation or resize the same page needs a new render, not an upscaled bitmap.
+        assertNull(cache.get(SlideKey(pageIndex = 0, widthPx = 2560, heightPx = 1440)))
+        assertEquals(beforeRotation, cache.get(SlideKey(pageIndex = 0, widthPx = 1600, heightPx = 900)))
+    }
+
+    @Test
+    fun slideCacheClearDropsAllEntries() {
+        val cache = SlideCache<Int, TestItem>(maxEntries = 3)
+        cache.put(0, TestItem(0))
+        cache.put(1, TestItem(1))
 
         cache.clear()
-        assertTrue(item0.isDisposed)
-        assertTrue(item1.isDisposed)
+        assertNull(cache.get(0))
         assertEquals(0, cache.size())
     }
 
@@ -152,6 +140,7 @@ class SlideCacheTest {
         var settledPage = -1
 
         val detector = SlideSettleDetector(
+            initialPage = 0,
             onPageSettled = { settledPage = it },
             onHapticTick = { hapticCount++ }
         )
@@ -180,5 +169,30 @@ class SlideCacheTest {
         detector.onScrollStateChanged(scrolling = false, settledPage = 1)
         assertEquals(1, hapticCount)
         assertEquals(1, settledPage)
+    }
+
+    @Test
+    fun slideSettleDetectorIgnoresDragThatSnapsBackToSamePage() {
+        var hapticCount = 0
+        val settled = mutableListOf<Int>()
+        val detector = SlideSettleDetector(
+            initialPage = 4,
+            onPageSettled = { settled += it },
+            onHapticTick = { hapticCount++ }
+        )
+
+        // A drag on slide 4 that snaps back to slide 4 fires nothing
+        detector.onScrollStateChanged(scrolling = true, settledPage = 4)
+        detector.onScrollStateChanged(scrolling = false, settledPage = 4)
+        assertEquals(0, hapticCount)
+        assertTrue(settled.isEmpty())
+
+        // A real flip to 5 still ticks, and a later snap-back on 5 doesn't
+        detector.onScrollStateChanged(scrolling = true, settledPage = 4)
+        detector.onScrollStateChanged(scrolling = false, settledPage = 5)
+        detector.onScrollStateChanged(scrolling = true, settledPage = 5)
+        detector.onScrollStateChanged(scrolling = false, settledPage = 5)
+        assertEquals(1, hapticCount)
+        assertEquals(listOf(5), settled)
     }
 }

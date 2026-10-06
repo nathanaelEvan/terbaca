@@ -252,14 +252,17 @@ class MainActivity : ComponentActivity() {
                         val currentMode = userModeOverride ?: doc.savedMode ?: remember(doc.pages) {
                             autoDetectReadingMode(doc.pages)
                         }
+                        // Keyed by the opened document, so a newly opened file starts at its own page.
+                        val position = remember(doc) { ReadingPosition(doc.initialPage) }
                         if (currentMode == ReadingMode.SLIDE) {
                             SlidesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
-                                initialPage = doc.initialPage,
+                                initialPage = position.entryPage,
                                 onPageSettled = { page ->
+                                    position.onPageChanged(page)
                                     scope.launch {
                                         openUriString?.let { uriStr ->
                                             recents.updateLastPage(Uri.parse(uriStr), page)
@@ -268,6 +271,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onModeToggle = {
                                     val newMode = ReadingMode.CONTINUOUS_VERTICAL
+                                    position.onModeSwitch()
                                     userModeOverride = newMode
                                     scope.launch {
                                         openUriString?.let { uriStr ->
@@ -282,10 +286,11 @@ class MainActivity : ComponentActivity() {
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
-                                initialPage = doc.initialPage,
+                                initialPage = position.entryPage,
                                 contentHash = doc.contentHash,
                                 thumbnailPipeline = thumbnailPipeline,
                                 onPageChange = { page ->
+                                    position.onPageChanged(page)
                                     scope.launch {
                                         openUriString?.let { uriStr ->
                                             recents.updateLastPage(Uri.parse(uriStr), page)
@@ -294,6 +299,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onModeToggle = {
                                     val newMode = ReadingMode.SLIDE
+                                    position.onModeSwitch()
                                     userModeOverride = newMode
                                     scope.launch {
                                         openUriString?.let { uriStr ->

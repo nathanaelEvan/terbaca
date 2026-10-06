@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
@@ -29,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -42,6 +45,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,8 +65,8 @@ import kotlinx.coroutines.withContext
  * Slide mode viewer (F-MODE-3, F-MODE-5, F-DECK-4):
  * - Horizontal paging, one slide per screen.
  * - Snap with slight overshoot via [SLIDE_SNAP_DAMPING_RATIO].
- * - Haptic tick on settle.
- * - Adjacent slides pre-rendered at full screen resolution via beyondViewportPageCount = 1.
+ * - Haptic tick when settling on a new slide.
+ * - Adjacent slides pre-rendered at full screen resolution via [SLIDE_BEYOND_VIEWPORT_PAGES].
  */
 @Composable
 fun SlidesScreen(
@@ -105,9 +110,11 @@ fun SlidesScreen(
     )
 
     val view = LocalView.current
+    val currentOnPageSettled by rememberUpdatedState(onPageSettled)
     val settleDetector = remember {
         SlideSettleDetector(
-            onPageSettled = { page -> onPageSettled?.invoke(page) },
+            initialPage = safeInitialPage,
+            onPageSettled = { page -> currentOnPageSettled?.invoke(page) },
             onHapticTick = {
                 onHapticFeedback?.invoke() ?: view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
@@ -121,7 +128,7 @@ fun SlidesScreen(
             }
     }
 
-    val slideCache = remember(docHandle) { createSlideBitmapCache(maxEntries = 4) }
+    val slideCache = remember(docHandle) { createSlideBitmapCache() }
     DisposableEffect(docHandle) {
         onDispose { slideCache.clear() }
     }
@@ -138,7 +145,7 @@ fun SlidesScreen(
     ) {
         HorizontalPager(
             state = pagerState,
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
             flingBehavior = flingBehavior,
             modifier = Modifier.fillMaxSize()
         ) { pageIndex ->
@@ -164,57 +171,54 @@ private fun SlideItem(
     page: PageInfo,
     renderer: PageRenderer?,
     docHandle: Long,
-    slideCache: SlideCache<Bitmap>,
+    slideCache: SlideCache<SlideKey, Bitmap>,
     modifier: Modifier = Modifier
 ) {
-    var bitmap by remember(page.index, docHandle) {
-        mutableStateOf(slideCache.get(page.index))
-    }
-
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(TerbacaDarkBackground),
         contentAlignment = Alignment.Center
     ) {
-        val maxWidthPx = constraints.maxWidth
-        val maxHeightPx = constraints.maxHeight
+        val (targetW, targetH) = calculateAspectFit(
+            viewportWidth = constraints.maxWidth,
+            viewportHeight = constraints.maxHeight,
+            pageWidthPoints = page.widthPoints,
+            pageHeightPoints = page.heightPoints
+        )
+        val cacheKey = SlideKey(page.index, targetW, targetH)
+        // Not keyed by size: after a resize the old bitmap stays up until the sharp one replaces it.
+        var bitmap by remember(page.index, docHandle) {
+            mutableStateOf(slideCache.get(cacheKey))
+        }
 
-        LaunchedEffect(page.index, docHandle, maxWidthPx, maxHeightPx, renderer) {
-            val cached = slideCache.get(page.index)
+        LaunchedEffect(cacheKey, docHandle, renderer) {
+            val cached = slideCache.get(cacheKey)
             if (cached != null) {
                 bitmap = cached
                 return@LaunchedEffect
             }
 
-            if (renderer != null && docHandle > 0L && maxWidthPx > 0 && maxHeightPx > 0) {
-                val (targetW, targetH) = calculateAspectFit(
-                    viewportWidth = maxWidthPx,
-                    viewportHeight = maxHeightPx,
-                    pageWidthPoints = page.widthPoints,
-                    pageHeightPoints = page.heightPoints
-                )
-                if (targetW > 0 && targetH > 0) {
-                    val rendered = withContext(Dispatchers.IO) {
-                        try {
-                            renderer.renderTile(
-                                docHandle = docHandle,
-                                pageIndex = page.index,
-                                fullWidth = targetW,
-                                fullHeight = targetH,
-                                startX = 0,
-                                startY = 0,
-                                tileWidth = targetW,
-                                tileHeight = targetH
-                            )
-                        } catch (_: Throwable) {
-                            null
-                        }
+            if (renderer != null && docHandle > 0L && targetW > 0 && targetH > 0) {
+                val rendered = withContext(Dispatchers.IO) {
+                    try {
+                        renderer.renderTile(
+                            docHandle = docHandle,
+                            pageIndex = page.index,
+                            fullWidth = targetW,
+                            fullHeight = targetH,
+                            startX = 0,
+                            startY = 0,
+                            tileWidth = targetW,
+                            tileHeight = targetH
+                        )
+                    } catch (_: Throwable) {
+                        null
                     }
-                    if (rendered != null) {
-                        slideCache.put(page.index, rendered)
-                        bitmap = rendered
-                    }
+                }
+                if (rendered != null) {
+                    slideCache.put(cacheKey, rendered)
+                    bitmap = rendered
                 }
             }
         }
@@ -223,17 +227,11 @@ private fun SlideItem(
         if (currentBitmap != null && !currentBitmap.isRecycled) {
             Image(
                 bitmap = currentBitmap.asImageBitmap(),
-                contentDescription = "Slide ${page.index + 1}",
+                contentDescription = stringResource(R.string.slides_slide_description, page.index + 1),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            val (targetW, targetH) = calculateAspectFit(
-                viewportWidth = maxWidthPx,
-                viewportHeight = maxHeightPx,
-                pageWidthPoints = page.widthPoints,
-                pageHeightPoints = page.heightPoints
-            )
             val density = LocalDensity.current.density
             val widthDp = if (density > 0f) (targetW / density).dp else 200.dp
             val heightDp = if (density > 0f) (targetH / density).dp else 150.dp
@@ -261,7 +259,10 @@ private fun SlideOverlay(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                // The ≥48dp mode chip carries its own end padding.
+                .padding(start = 14.dp, end = if (onModeToggle != null) 6.dp else 14.dp)
         ) {
             Text(
                 text = "${currentPage + 1} / $pageCount",
@@ -276,14 +277,21 @@ private fun SlideOverlay(
                     color = TerbacaDarkTextSecondary,
                     fontSize = 12.sp
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Scroll",
-                    color = TerbacaDarkAccent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable { onModeToggle() }
-                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .clickable(role = Role.Button, onClick = onModeToggle)
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.slides_mode_scroll),
+                        color = TerbacaDarkAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

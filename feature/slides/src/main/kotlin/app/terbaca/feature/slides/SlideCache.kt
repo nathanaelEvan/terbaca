@@ -10,6 +10,16 @@ import kotlin.math.roundToInt
 const val SLIDE_SNAP_DAMPING_RATIO = 0.8f
 
 /**
+ * Pages composed on each side of the visible slide (F-DECK-4: neighbours pre-rendered).
+ */
+const val SLIDE_BEYOND_VIEWPORT_PAGES = 1
+
+/**
+ * Cache capacity: the composed window (current + neighbours) plus one page entering during a swipe.
+ */
+const val SLIDE_CACHE_ENTRIES = 2 * SLIDE_BEYOND_VIEWPORT_PAGES + 2
+
+/**
  * Fits a page of [pageWidthPoints] x [pageHeightPoints] inside a viewport of
  * [viewportWidth] x [viewportHeight] device pixels while preserving aspect ratio (F-MODE-3, F-DECK-4).
  *
@@ -31,53 +41,33 @@ fun calculateAspectFit(
 }
 
 /**
- * Generic LRU cache that cleans up disposed items on eviction (F-DECK-4, PRD §5).
+ * A rendered slide is only reusable at the pixel size it was rendered for, so a resize or rotation
+ * misses the cache and renders a sharp bitmap instead of upscaling the old one (PRD §7 slide flip).
  */
-class SlideCache<T : Any>(
-    private val maxEntries: Int = 4,
-    private val isDisposed: (T) -> Boolean = { false },
-    private val disposer: (T) -> Unit = {}
-) {
-    private val cache = object : LinkedHashMap<Int, T>(maxEntries, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<Int, T>?): Boolean {
-            if (size > maxEntries && eldest != null) {
-                if (!isDisposed(eldest.value)) {
-                    disposer(eldest.value)
-                }
-                return true
-            }
-            return false
-        }
+data class SlideKey(val pageIndex: Int, val widthPx: Int, val heightPx: Int)
+
+/**
+ * Small LRU cache for rendered slides (F-DECK-4, PRD §5).
+ *
+ * Evicted values are only dropped, never disposed: a pager page that is still composed may keep
+ * drawing a bitmap the cache has already evicted, so recycling here would crash or blank it.
+ * The GC reclaims bitmap memory once nothing references it.
+ */
+class SlideCache<K : Any, V : Any>(private val maxEntries: Int = SLIDE_CACHE_ENTRIES) {
+    private val cache = object : LinkedHashMap<K, V>(maxEntries, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<K, V>?): Boolean = size > maxEntries
     }
 
     @Synchronized
-    fun get(pageIndex: Int): T? {
-        val item = cache[pageIndex] ?: return null
-        if (isDisposed(item)) {
-            cache.remove(pageIndex)
-            return null
-        }
-        return item
+    fun get(key: K): V? = cache[key]
+
+    @Synchronized
+    fun put(key: K, value: V) {
+        cache[key] = value
     }
 
     @Synchronized
-    fun put(pageIndex: Int, item: T) {
-        if (isDisposed(item)) return
-        val old = cache.put(pageIndex, item)
-        if (old != null && old !== item && !isDisposed(old)) {
-            disposer(old)
-        }
-    }
-
-    @Synchronized
-    fun clear() {
-        for (item in cache.values) {
-            if (!isDisposed(item)) {
-                disposer(item)
-            }
-        }
-        cache.clear()
-    }
+    fun clear() = cache.clear()
 
     @Synchronized
     fun size(): Int = cache.size
@@ -86,29 +76,31 @@ class SlideCache<T : Any>(
 /**
  * Slide bitmap cache for rendered slide pages.
  */
-fun createSlideBitmapCache(maxEntries: Int = 4): SlideCache<Bitmap> =
-    SlideCache(
-        maxEntries = maxEntries,
-        isDisposed = { it.isRecycled },
-        disposer = { it.recycle() }
-    )
+fun createSlideBitmapCache(maxEntries: Int = SLIDE_CACHE_ENTRIES): SlideCache<SlideKey, Bitmap> =
+    SlideCache(maxEntries)
 
 /**
- * Detects when a slide scroll settles and triggers haptic tick and page-change callbacks (F-MODE-3).
+ * Detects when a slide scroll settles on a new page and triggers haptic tick and page-change
+ * callbacks (F-MODE-3). A drag that snaps back to the page it started on fires nothing.
  */
 class SlideSettleDetector(
+    initialPage: Int = 0,
     private val onPageSettled: (Int) -> Unit = {},
     private val onHapticTick: () -> Unit = {}
 ) {
     private var isScrolling = false
+    private var lastSettledPage = initialPage
 
     fun onScrollStateChanged(scrolling: Boolean, settledPage: Int) {
         if (scrolling) {
             isScrolling = true
         } else if (isScrolling) {
             isScrolling = false
-            onHapticTick()
-            onPageSettled(settledPage)
+            if (settledPage != lastSettledPage) {
+                lastSettledPage = settledPage
+                onHapticTick()
+                onPageSettled(settledPage)
+            }
         }
     }
 }
