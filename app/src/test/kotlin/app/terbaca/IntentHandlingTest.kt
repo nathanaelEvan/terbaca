@@ -77,33 +77,15 @@ class IntentHandlingTest {
     }
 
     @Test
-    fun shouldRecordInRecents_actionSend_persistFailed_returnsFalse() {
-        val result = shouldRecordInRecents(Intent.ACTION_SEND, isPermissionPersisted = false)
+    fun shouldRecordInRecents_whenPermissionNotPersisted_returnsFalse() {
+        val result = shouldRecordInRecents(isPermissionPersisted = false)
         assertFalse(result)
     }
 
     @Test
-    fun shouldRecordInRecents_actionSend_persistSucceeded_returnsTrue() {
-        val result = shouldRecordInRecents(Intent.ACTION_SEND, isPermissionPersisted = true)
+    fun shouldRecordInRecents_whenPermissionPersisted_returnsTrue() {
+        val result = shouldRecordInRecents(isPermissionPersisted = true)
         assertTrue(result)
-    }
-
-    @Test
-    fun shouldRecordInRecents_actionView_persistFailed_returnsFalse() {
-        val result = shouldRecordInRecents(Intent.ACTION_VIEW, isPermissionPersisted = false)
-        assertFalse(result)
-    }
-
-    @Test
-    fun shouldRecordInRecents_actionView_persistSucceeded_returnsTrue() {
-        val result = shouldRecordInRecents(Intent.ACTION_VIEW, isPermissionPersisted = true)
-        assertTrue(result)
-    }
-
-    @Test
-    fun shouldRecordInRecents_otherAction_persistFailed_returnsFalse() {
-        val result = shouldRecordInRecents(Intent.ACTION_MAIN, isPermissionPersisted = false)
-        assertFalse(result)
     }
 
     @Test
@@ -119,24 +101,5 @@ class IntentHandlingTest {
         assertFalse(isAllowedPdfScheme("https"))
         assertFalse(isAllowedPdfScheme(""))
         assertFalse(isAllowedPdfScheme(null))
-    }
-
-    @Test
-    fun checkPdfUriScheme_contentScheme_returnsNull() {
-        assertNull(checkPdfUriScheme("content"))
-        assertNull(checkPdfUriScheme("CONTENT"))
-    }
-
-    @Test
-    fun checkPdfUriScheme_nonContentScheme_mapsToUnavailable() {
-        val errFile = checkPdfUriScheme("file")
-        assertTrue(errFile is DocumentError.Unavailable)
-        assertEquals(R.string.error_unavailable_title, errFile?.titleRes)
-
-        val errHttp = checkPdfUriScheme("http")
-        assertTrue(errHttp is DocumentError.Unavailable)
-
-        val errNull = checkPdfUriScheme(null)
-        assertTrue(errNull is DocumentError.Unavailable)
     }
 }

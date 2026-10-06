@@ -40,6 +40,15 @@ class RecentsRepository(
         false
     }
 
+    /**
+     * Releases persisted read permission for [uri] if the document failed to open or was deleted.
+     */
+    fun releasePersistablePermission(uri: Uri) {
+        runCatching {
+            resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
     /** Display name from the provider, falling back to the last path segment. */
     fun displayName(uri: Uri): String {
         val queried = runCatching {

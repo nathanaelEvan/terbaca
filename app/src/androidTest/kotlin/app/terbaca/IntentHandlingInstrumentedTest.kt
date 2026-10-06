@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.terbaca.core.data.RecentDocument
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -70,25 +71,93 @@ class IntentHandlingInstrumentedTest {
         }
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->
-                // File scheme is rejected, openUriString is not opened
                 assertNull(activity.openUriString)
+                assertTrue(
+                    "Rejected non-content scheme must set DocumentError.Unavailable",
+                    activity.currentDocumentError is DocumentError.Unavailable
+                )
             }
         }
     }
 
     @Test
-    fun tapRecent_afterDocumentOpenedFromIntent_opensRecentDocument() {
+    fun documentError_survivesActivityRecreation() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val initialUri = Uri.parse("content://app.terbaca.test/intent_doc.pdf")
-        val intent = Intent(Intent.ACTION_VIEW, initialUri).apply {
+        val fileUri = Uri.parse("file:///data/data/app.terbaca/databases/recents.db")
+        val intent = Intent(Intent.ACTION_VIEW, fileUri).apply {
             setClass(context, MainActivity::class.java)
         }
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->
-                // Initial intent was processed and requested to open
-                assertEquals(initialUri.toString(), activity.openUriString)
+                assertTrue(activity.currentDocumentError is DocumentError.Unavailable)
+            }
+            scenario.recreate()
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Rejected scheme error must survive activity recreation",
+                    activity.currentDocumentError is DocumentError.Unavailable
+                )
+            }
+        }
+    }
 
-                // Simulate user tapping a recent document after returning to library
+    @Test
+    fun onNewIntent_withSecondUri_updatesOpenUriString() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val initialUri = Uri.parse("content://app.terbaca.test/first.pdf")
+        val intent1 = Intent(Intent.ACTION_VIEW, initialUri).apply {
+            setClass(context, MainActivity::class.java)
+        }
+        ActivityScenario.launch<MainActivity>(intent1).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(initialUri.toString(), activity.openUriString)
+            }
+            val secondUri = Uri.parse("content://app.terbaca.test/second.pdf")
+            val intent2 = Intent(Intent.ACTION_VIEW, secondUri)
+            scenario.onActivity { activity ->
+                activity.onNewIntent(intent2)
+            }
+            scenario.onActivity { activity ->
+                assertEquals(secondUri.toString(), activity.openUriString)
+            }
+        }
+    }
+
+    @Test
+    fun resendingSameUri_incrementsRequestCounterToAllowRetry() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val uri = Uri.parse("content://app.terbaca.test/retry_doc.pdf")
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setClass(context, MainActivity::class.java)
+        }
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            var initialCount = 0
+            scenario.onActivity { activity ->
+                assertEquals(uri.toString(), activity.openUriString)
+                initialCount = activity.openRequestCount
+            }
+            val retryIntent = Intent(Intent.ACTION_VIEW, uri)
+            scenario.onActivity { activity ->
+                activity.onNewIntent(retryIntent)
+            }
+            scenario.onActivity { activity ->
+                assertEquals(uri.toString(), activity.openUriString)
+                assertTrue(
+                    "Request count must increment on re-sending same URI",
+                    activity.openRequestCount > initialCount
+                )
+            }
+        }
+    }
+
+    @Test
+    fun openRecent_requestsDocumentOpenAndIncrementsCounter() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            setClass(context, MainActivity::class.java)
+        }
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            scenario.onActivity { activity ->
                 val recentDoc = RecentDocument(
                     uri = "content://app.terbaca.test/recent_doc.pdf",
                     contentHash = "hash123",
@@ -97,10 +166,10 @@ class IntentHandlingInstrumentedTest {
                     lastPage = 0,
                     lastOpenedAtMillis = 1000L
                 )
+                val prevCount = activity.openRequestCount
                 activity.openRecent(recentDoc)
-
-                // Verify the recent document is requested to open despite intentToProcess being non-null
-                assertEquals("content://app.terbaca.test/recent_doc.pdf", activity.openUriString)
+                assertEquals(recentDoc.uri, activity.openUriString)
+                assertEquals(prevCount + 1, activity.openRequestCount)
             }
         }
     }

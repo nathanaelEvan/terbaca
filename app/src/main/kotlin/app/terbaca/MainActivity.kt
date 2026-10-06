@@ -67,6 +67,10 @@ class MainActivity : ComponentActivity() {
         private set
     internal var recordInRecents by mutableStateOf(true)
         private set
+    internal var currentDocumentError by mutableStateOf<DocumentError?>(null)
+        private set
+    internal var openRequestCount by mutableStateOf(0)
+        private set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -86,9 +90,10 @@ class MainActivity : ComponentActivity() {
     internal fun openRecent(recent: RecentDocument) {
         recordInRecents = true
         openUriString = recent.uri
+        openRequestCount++
     }
 
-    override fun onNewIntent(intent: Intent) {
+    public override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
@@ -100,6 +105,7 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_OPEN_URI, openUriString)
         outState.putBoolean(KEY_RECORD_IN_RECENTS, recordInRecents)
+        outState.putString(KEY_DOCUMENT_ERROR, currentDocumentError?.javaClass?.simpleName)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +116,13 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState != null) {
             openUriString = savedInstanceState.getString(KEY_OPEN_URI)
             recordInRecents = savedInstanceState.getBoolean(KEY_RECORD_IN_RECENTS, true)
+            currentDocumentError = when (savedInstanceState.getString(KEY_DOCUMENT_ERROR)) {
+                "Encrypted" -> DocumentError.Encrypted()
+                "Corrupt" -> DocumentError.Corrupt()
+                "Unavailable" -> DocumentError.Unavailable()
+                "Generic" -> DocumentError.Generic()
+                else -> null
+            }
         } else if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
             incomingIntent.value = intent
         }
@@ -120,7 +133,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             TerbacaTheme {
                 var opened by remember { mutableStateOf<OpenedDocument?>(null) }
-                var documentError by remember { mutableStateOf<DocumentError?>(null) }
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
                 val intentToProcess by incomingIntent
                 val initialUri = remember(intentToProcess) { extractPdfUri(intentToProcess) }
@@ -131,23 +143,24 @@ class MainActivity : ComponentActivity() {
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
-                        recordInRecents = recents.persistReadPermission(uri)
+                        recordInRecents = true
                         openUriString = uri.toString()
+                        openRequestCount++
                     }
                 }
 
                 LaunchedEffect(corpusAsset) {
                     if (corpusAsset != null) {
                         loading = true
-                        documentError = null
+                        currentDocumentError = null
                         when (val result = openCorpusAsset(corpusAsset)) {
                             is OpenResult.Success -> {
                                 opened = result.doc
-                                documentError = null
+                                currentDocumentError = null
                             }
                             is OpenResult.Failure -> {
                                 opened = null
-                                documentError = result.error
+                                currentDocumentError = result.error
                             }
                         }
                         loading = false
@@ -159,21 +172,27 @@ class MainActivity : ComponentActivity() {
                     val uri = extractPdfUri(currentIntent)
                     if (uri != null) {
                         if (!isAllowedPdfScheme(uri.scheme)) {
+                            val oldDoc = opened
                             opened = null
                             openUriString = null
-                            documentError = DocumentError.Unavailable()
+                            userModeOverride = null
+                            currentDocumentError = DocumentError.Unavailable()
                             loading = false
+                            withContext(NonCancellable) {
+                                oldDoc?.let { renderer().closeDocument(it.handle) }
+                            }
                             return@LaunchedEffect
                         }
-                        val persisted = recents.persistReadPermission(uri)
-                        recordInRecents = shouldRecordInRecents(currentIntent.action, persisted)
+                        recordInRecents = true
                         openUriString = uri.toString()
+                        openRequestCount++
                     }
                 }
 
-                LaunchedEffect(openUriString) {
+                LaunchedEffect(openUriString, openRequestCount) {
                     val uriStr = openUriString ?: return@LaunchedEffect
                     if (corpusAsset != null) return@LaunchedEffect
+                    userModeOverride = null
                     if (opened != null) {
                         val oldDoc = opened
                         opened = null
@@ -182,19 +201,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     loading = true
-                    documentError = null
+                    currentDocumentError = null
                     try {
-                        Log.d(TAG, "Opening document: $uriStr")
+                        Log.d(TAG, "Opening document: $uriStr (request #$openRequestCount)")
                         val result = openFromUri(Uri.parse(uriStr), recordInRecents = recordInRecents)
                         if (openUriString == uriStr) {
                             when (result) {
                                 is OpenResult.Success -> {
                                     opened = result.doc
-                                    documentError = null
+                                    currentDocumentError = null
                                 }
                                 is OpenResult.Failure -> {
                                     opened = null
-                                    documentError = result.error
+                                    currentDocumentError = result.error
                                 }
                             }
                             loading = false
@@ -212,7 +231,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                BackHandler(enabled = opened != null || documentError != null || openUriString != null || loading) {
+                BackHandler(enabled = opened != null || currentDocumentError != null || openUriString != null || loading) {
                     opened?.let { doc ->
                         lifecycleScope.launch {
                             withContext(NonCancellable) {
@@ -221,14 +240,14 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     opened = null
-                    documentError = null
+                    currentDocumentError = null
                     openUriString = null
                     userModeOverride = null
                     loading = false
                 }
 
                 val doc = opened
-                val err = documentError
+                val err = currentDocumentError
                 when {
                     doc != null -> {
                         val currentMode = userModeOverride ?: doc.savedMode ?: remember(doc.pages) {
@@ -290,11 +309,11 @@ class MainActivity : ComponentActivity() {
                         DocumentErrorScreen(
                             error = err,
                             onDismiss = {
-                                documentError = null
+                                currentDocumentError = null
                                 openUriString = null
                             },
                             onOpenOther = {
-                                documentError = null
+                                currentDocumentError = null
                                 openUriString = null
                                 picker.launch(arrayOf(PDF_MIME_TYPE))
                             }
@@ -328,6 +347,10 @@ class MainActivity : ComponentActivity() {
             Log.w(TAG, "Rejected non-content URI: $uri")
             return@withContext OpenResult.Failure(DocumentError.Unavailable())
         }
+        var persisted = false
+        if (recordInRecents) {
+            persisted = recents.persistReadPermission(uri)
+        }
         var handle: Long? = null
         try {
             val pfd = contentResolver.openFileDescriptor(uri, "r")
@@ -341,7 +364,7 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            val record = if (recordInRecents) {
+            val record = if (persisted) {
                 val r = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
                 generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
                 r
@@ -354,11 +377,17 @@ class MainActivity : ComponentActivity() {
             }
             OpenResult.Success(OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash))
         } catch (e: CancellationException) {
+            if (persisted) {
+                recents.releasePersistablePermission(uri)
+            }
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
             }
             throw e
         } catch (e: Exception) {
+            if (persisted) {
+                recents.releasePersistablePermission(uri)
+            }
             withContext(NonCancellable) {
                 handle?.let { runCatching { renderer().closeDocument(it) } }
             }
@@ -442,5 +471,6 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
         private const val KEY_OPEN_URI = "open_uri"
         private const val KEY_RECORD_IN_RECENTS = "record_in_recents"
+        private const val KEY_DOCUMENT_ERROR = "document_error"
     }
 }
