@@ -431,6 +431,14 @@ class PdfiumRemotePageRenderer(
         }
     }
 
+    override suspend fun getDocumentTitle(docHandle: Long): String? = withContext(Dispatchers.IO) {
+        checkSessionActiveOrThrow(docHandle)
+        executeWithRetry { service ->
+            val remoteHandle = getRemoteHandle(docHandle)
+            service.getDocumentTitle(remoteHandle)?.trim()?.takeIf { it.isNotEmpty() }
+        }
+    }
+
     override suspend fun getPageCount(docHandle: Long): Int = withContext(Dispatchers.IO) {
         checkSessionActiveOrThrow(docHandle)
         executeWithRetry { service ->

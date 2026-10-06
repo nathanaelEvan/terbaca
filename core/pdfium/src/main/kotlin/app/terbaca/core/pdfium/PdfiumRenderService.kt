@@ -407,6 +407,17 @@ class PdfiumRenderService : Service() {
         override fun getOpenDocumentCount(): Int {
             return activeDocuments.size
         }
+
+        override fun getDocumentTitle(docHandle: Long): String? {
+            return try {
+                renderExecutor.submit<String?> {
+                    val doc = activeDocuments[docHandle] ?: return@submit null
+                    doc.getTitle()
+                }.get()
+            } catch (t: Throwable) {
+                null
+            }
+        }
     }
 
 

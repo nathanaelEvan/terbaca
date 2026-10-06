@@ -247,7 +247,9 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            val record = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            val metadataTitle = renderer().getDocumentTitle(opened.handle)
+            val displayName = recents.resolveTitle(metadataTitle, recents.displayName(uri))
+            val record = recents.recordOpened(uri, displayName, hash, opened.pages.size)
             generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
             val savedMode = record.readingMode?.let {
                 runCatching { ReadingMode.valueOf(it) }.getOrNull()

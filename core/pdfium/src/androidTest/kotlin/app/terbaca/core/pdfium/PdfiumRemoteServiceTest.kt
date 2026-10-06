@@ -121,6 +121,23 @@ class PdfiumRemoteServiceTest {
     }
 
     @Test
+    fun testRemoteRenderService_metadataTitle() = runBlocking {
+        val fileWithTitle = copyAssetToTempFile("fixtures/with_title.pdf")
+        val handle1 = ParcelFileDescriptor.open(fileWithTitle, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            renderer.openDocument(pfd)
+        }
+        assertEquals("Terbaca Test Document", renderer.getDocumentTitle(handle1))
+        renderer.closeDocument(handle1)
+
+        val fileWithoutTitle = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        val handle2 = ParcelFileDescriptor.open(fileWithoutTitle, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            renderer.openDocument(pfd)
+        }
+        org.junit.Assert.assertNull(renderer.getDocumentTitle(handle2))
+        renderer.closeDocument(handle2)
+    }
+
+    @Test
     fun testRemoteRenderService_corruptDocument() {
         val file = copyAssetToTempFile("fixtures/corrupt.pdf")
         assertThrows(PdfCorruptException::class.java) {

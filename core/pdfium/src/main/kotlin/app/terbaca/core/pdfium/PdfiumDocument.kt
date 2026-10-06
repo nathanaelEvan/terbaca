@@ -47,6 +47,15 @@ class PdfiumDocument internal constructor(
         (0 until count).map { index -> getPageSize(index) }
     }
 
+    /**
+     * Extracts the metadata title (/Title) from the PDF Document Information Dictionary,
+     * or null if absent or blank (F-LIB-1).
+     */
+    fun getTitle(): String? = synchronized(lock) {
+        checkNotClosed()
+        PdfiumNative.nativeGetDocumentTitle(nativePtr)?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
     companion object {
         const val MAX_TILE_DIMENSION = 4096
         const val MAX_PAGE_DIMENSION = 65536

@@ -50,6 +50,13 @@ class RecentsRepository(
         return queried ?: uri.lastPathSegment?.substringAfterLast('/') ?: uri.toString()
     }
 
+    /**
+     * Resolves display title: prefers PDF metadata title when present and non-blank;
+     * falls back to [fallbackDisplayName] (F-LIB-1).
+     */
+    fun resolveTitle(metadataTitle: String?, fallbackDisplayName: String): String =
+        metadataTitle?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackDisplayName
+
     suspend fun recordOpened(
         uri: Uri,
         displayName: String,
