@@ -23,6 +23,9 @@ object TilePyramid {
 
     /** Long-side cap for a page's base layer, in pixels. */
     const val MAX_BASE_DIMENSION = 2048
+
+    /** Long-side cap for a thumbnail, in pixels. Keeps very tall or wide pages under the renderer's limit. */
+    const val MAX_THUMBNAIL_DIMENSION = 1024
     val ZOOM_STEP_RATIO: Float = sqrt(2.0).toFloat()
 
     /**
@@ -215,12 +218,18 @@ object TilePyramid {
     }
 
     /**
-     * Computes the thumbnail bounds for a page per PRD §4.4 (~400 px wide).
+     * Computes the thumbnail bounds for a page per PRD §4.4 (~400 px wide), with the long side capped
+     * at [MAX_THUMBNAIL_DIMENSION]. Without the cap a page taller than ~10:1 asks for a raster over
+     * the renderer's 4096 px limit, which it rejects.
      */
     fun computeThumbnailBounds(pageInfo: PageInfo, targetWidthPx: Int = 400): TileBounds {
-        val scale = targetWidthPx / pageInfo.widthPoints
-        val pixelWidth = targetWidthPx
-        val pixelHeight = max(1, ceil(pageInfo.heightPoints * scale).toInt())
+        val longSidePx = max(MAX_THUMBNAIL_DIMENSION, targetWidthPx)
+        val scale = min(
+            targetWidthPx / pageInfo.widthPoints,
+            longSidePx / max(pageInfo.widthPoints, pageInfo.heightPoints)
+        )
+        val pixelWidth = ceil(pageInfo.widthPoints * scale).toInt().coerceIn(1, targetWidthPx)
+        val pixelHeight = ceil(pageInfo.heightPoints * scale).toInt().coerceIn(1, longSidePx)
         return TileBounds(
             key = TileKey(pageIndex = pageInfo.index, level = -1, col = 0, row = 0),
             pageRect = ViewportRect(0f, 0f, pageInfo.widthPoints, pageInfo.heightPoints),

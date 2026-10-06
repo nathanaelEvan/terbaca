@@ -4,11 +4,17 @@ import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -33,6 +39,7 @@ class ThumbnailPipelineTest {
     }
 
     private class FakePageRenderer(
+        val beforeRender: suspend (docHandle: Long, tileWidth: Int, tileHeight: Int) -> Unit = { _, _, _ -> },
         val renderBlock: suspend (pageIndex: Int) -> Bitmap
     ) : PageRenderer {
         val renderCallCount = AtomicInteger(0)
@@ -57,6 +64,7 @@ class ThumbnailPipelineTest {
             tileHeight: Int
         ): Bitmap {
             renderCallCount.incrementAndGet()
+            beforeRender(docHandle, tileWidth, tileHeight)
             return renderBlock(pageIndex)
         }
 
@@ -240,5 +248,135 @@ class ThumbnailPipelineTest {
         val res2 = pipeline.getThumbnail(2L, "hashDoc2", page0)
         // Renderer is called again for doc2 instead of returning stale doc1 thumbnail
         assertEquals(2, renderer.renderCallCount.get())
+    }
+
+    private fun memoryCache() = TileCache(
+        budget = TileMemoryBudget(),
+        bitmapSizer = { 100L },
+        bitmapReleaser = {},
+        isBitmapRecycled = { false }
+    )
+
+    private fun diskCache() = ThumbnailDiskCache(
+        directory = testDir,
+        writer = { _, file -> file.writeBytes(ByteArray(50)); true },
+        reader = { null }
+    )
+
+    @Test
+    fun testTallPageRendersWithinRendererLimits() = runTest {
+        val rendered = createFakeBitmap()
+        val renderer = FakePageRenderer(
+            beforeRender = { _, w, h ->
+                // Mirrors the render service, which rejects tiles over 4096 px.
+                require(w in 1..4096 && h in 1..4096) { "Tile too large: $w x $h" }
+            }
+        ) { rendered }
+        val pipeline = ThumbnailPipeline(memoryCache(), diskCache(), renderer)
+
+        val strip = PageInfo(0, 100f, 2000f) // 20:1, 8000 px tall at 400 px wide uncapped
+        assertEquals(rendered, pipeline.getThumbnail(1L, "hash1", strip))
+    }
+
+    @Test
+    fun testRendererFailureReturnsNullAndCachesNothing() = runTest {
+        val memCache = memoryCache()
+        val disk = diskCache()
+        val renderer = FakePageRenderer { throw IllegalArgumentException("render failed") }
+        val pipeline = ThumbnailPipeline(memCache, disk, renderer)
+
+        assertNull(pipeline.getThumbnail(1L, "hash1", PageInfo(0, 600f, 800f)))
+        assertNull(memCache.getThumbnail(0))
+        assertFalse(disk.contains("hash1", 0, 400))
+
+        // The failed render doesn't stay coalesced: the next request renders again.
+        assertNull(pipeline.getThumbnail(1L, "hash1", PageInfo(0, 600f, 800f)))
+        assertEquals(2, renderer.renderCallCount.get())
+    }
+
+    @Test
+    fun testLateRenderForPreviousDocumentDoesNotLandInMemory() = runTest {
+        val memCache = memoryCache()
+        val renderStartedA = CompletableDeferred<Unit>()
+        val releaseA = CompletableDeferred<Unit>()
+        val renderer = FakePageRenderer(
+            beforeRender = { docHandle, _, _ ->
+                if (docHandle == 1L) {
+                    renderStartedA.complete(Unit)
+                    releaseA.await()
+                }
+            }
+        ) { createFakeBitmap() }
+        val pipeline = ThumbnailPipeline(memCache, diskCache(), renderer)
+        val page0 = PageInfo(0, 600f, 800f)
+
+        val pendingA = async { pipeline.getThumbnail(1L, "hashA", page0) }
+        renderStartedA.await()
+        // Document B is opened while A's render is still in flight.
+        val resultB = pipeline.getThumbnail(2L, "hashB", page0)
+        val cachedB = memCache.getThumbnail(0)
+        releaseA.complete(Unit)
+        val resultA = pendingA.await()
+
+        assertNotNull(resultA)
+        assertNotNull(resultB)
+        assertEquals(resultB, cachedB)
+        assertTrue(resultA !== resultB)
+        assertEquals("A's late render must not replace B's thumbnail", resultB, memCache.getThumbnail(0))
+    }
+
+    @Test
+    fun testCancelledFirstCallerDoesNotBlankOtherWaiters() = runTest {
+        val rendered = createFakeBitmap()
+        val renderStarted = CompletableDeferred<Unit>()
+        val gate = CompletableDeferred<Unit>()
+        val renderer = FakePageRenderer(
+            beforeRender = { _, _, _ ->
+                renderStarted.complete(Unit)
+                gate.await()
+            }
+        ) { rendered }
+        val pipeline = ThumbnailPipeline(memoryCache(), diskCache(), renderer)
+        val page = PageInfo(0, 600f, 800f)
+
+        val first = async { pipeline.getThumbnail(1L, "hash1", page) }
+        renderStarted.await()
+        val second = async { pipeline.getThumbnail(1L, "hash1", page) }
+        // Wait (in real time; the disk read hops to Dispatchers.IO) until both callers share the render.
+        withContext(Dispatchers.Default) {
+            while (pipeline.inFlightWaiters < 2) delay(1)
+        }
+
+        first.cancel()
+        gate.complete(Unit)
+
+        assertEquals(rendered, second.await())
+        assertTrue(first.isCancelled)
+        assertEquals(1, renderer.renderCallCount.get())
+    }
+
+    @Test
+    fun testRenderIsCancelledWhenEveryWaiterLeaves() = runTest {
+        val renderStarted = CompletableDeferred<Unit>()
+        val renderCancelled = CompletableDeferred<Unit>()
+        val renderer = FakePageRenderer(
+            beforeRender = { _, _, _ ->
+                renderStarted.complete(Unit)
+                try {
+                    awaitCancellation()
+                } catch (e: CancellationException) {
+                    renderCancelled.complete(Unit)
+                    throw e
+                }
+            }
+        ) { createFakeBitmap() }
+        val pipeline = ThumbnailPipeline(memoryCache(), diskCache(), renderer)
+
+        val only = async { pipeline.getThumbnail(1L, "hash1", PageInfo(0, 600f, 800f)) }
+        renderStarted.await()
+        only.cancel()
+
+        renderCancelled.await()
+        assertEquals(0, pipeline.inFlightWaiters)
     }
 }

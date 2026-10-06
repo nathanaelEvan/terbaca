@@ -174,4 +174,28 @@ class TilePyramidTest {
         assertEquals(base.pixelWidth, base.fullWidth)
         assertEquals(base.pixelHeight, base.fullHeight)
     }
+
+    @Test
+    fun testThumbnailBounds_tallPageFitsLongSide() {
+        // 20:1 strip: at 400 px wide it would be 8000 px tall, which the renderer rejects.
+        val strip = PageInfo(index = 0, widthPoints = 100f, heightPoints = 2000f)
+        val thumb = TilePyramid.computeThumbnailBounds(strip, targetWidthPx = 400)
+        assertEquals(TilePyramid.MAX_THUMBNAIL_DIMENSION, thumb.pixelHeight)
+        assertTrue(abs(thumb.pixelWidth - TilePyramid.MAX_THUMBNAIL_DIMENSION / 20f) <= 1f)
+        assertEquals(thumb.pixelWidth, thumb.fullWidth)
+        assertEquals(thumb.pixelHeight, thumb.fullHeight)
+    }
+
+    @Test
+    fun testThumbnailBounds_extremePagesStayWithinRendererLimits() {
+        val pages = listOf(
+            PageInfo(index = 0, widthPoints = 1f, heightPoints = 14_400f),
+            PageInfo(index = 1, widthPoints = 14_400f, heightPoints = 1f)
+        )
+        for (page in pages) {
+            val thumb = TilePyramid.computeThumbnailBounds(page, targetWidthPx = 400)
+            assertTrue(thumb.pixelWidth in 1..400)
+            assertTrue(thumb.pixelHeight in 1..TilePyramid.MAX_THUMBNAIL_DIMENSION)
+        }
+    }
 }

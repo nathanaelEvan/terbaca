@@ -12,6 +12,9 @@ import org.junit.Test
 import sun.misc.Unsafe
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class ThumbnailDiskCacheTest {
 
@@ -145,5 +148,113 @@ class ThumbnailDiskCacheTest {
         assertFalse(cache.contains("hashFail", 0, 400))
         assertEquals(0L, cache.sizeBytes())
         assertEquals(0, testDir.listFiles()?.size ?: 0)
+    }
+
+    @Test
+    fun testTrimDuringConcurrentWriteKeepsTempFileAndExactSize() {
+        val fakeBitmap = createFakeBitmap()
+        val slowWriteStarted = CountDownLatch(1)
+        val releaseSlowWrite = CountDownLatch(1)
+        // Budget fits one 100-byte entry, so every put trims.
+        val cache = ThumbnailDiskCache(
+            directory = testDir,
+            maxBytes = 150L,
+            writer = { _, file ->
+                file.writeBytes(ByteArray(100))
+                if (file.name.startsWith("slow_")) {
+                    slowWriteStarted.countDown()
+                    releaseSlowWrite.await(5, TimeUnit.SECONDS)
+                }
+                true
+            },
+            reader = { fakeBitmap }
+        )
+
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val slowPut = executor.submit<Boolean> { cache.put("slow", 0, 400, fakeBitmap) }
+            assertTrue(slowWriteStarted.await(5, TimeUnit.SECONDS))
+
+            // These trim while the slow writer's temp file sits, unfinished, in the same directory.
+            assertTrue(cache.put("fast", 0, 400, fakeBitmap))
+            assertTrue(cache.put("fast", 1, 400, fakeBitmap))
+            assertEquals(1, testDir.listFiles { f -> f.name.endsWith(".tmp") }!!.size)
+
+            releaseSlowWrite.countDown()
+            assertTrue("slow writer's temp file must survive the trim", slowPut.get(5, TimeUnit.SECONDS))
+        } finally {
+            releaseSlowWrite.countDown()
+            executor.shutdownNow()
+        }
+
+        val webpBytes = testDir.listFiles { f -> f.name.endsWith(".webp") }!!.sumOf { it.length() }
+        assertEquals(webpBytes, cache.sizeBytes())
+        assertTrue(cache.sizeBytes() <= 150L)
+    }
+
+    @Test
+    fun testConcurrentWritersOfSameKeyUseDistinctTempFiles() {
+        val fakeBitmap = createFakeBitmap()
+        val tempNames = java.util.Collections.synchronizedSet(HashSet<String>())
+        val bothWriting = CountDownLatch(2)
+        val cache = ThumbnailDiskCache(
+            directory = testDir,
+            maxBytes = 10_000L,
+            writer = { _, file ->
+                tempNames += file.name
+                file.writeBytes(ByteArray(100))
+                bothWriting.countDown()
+                bothWriting.await(5, TimeUnit.SECONDS)
+                true
+            },
+            reader = { fakeBitmap }
+        )
+
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            val puts = List(2) { executor.submit<Boolean> { cache.put("same", 0, 400, fakeBitmap) } }
+            puts.forEach { assertTrue(it.get(5, TimeUnit.SECONDS)) }
+        } finally {
+            executor.shutdownNow()
+        }
+
+        assertEquals(2, tempNames.size)
+        assertEquals(100L, cache.sizeBytes())
+        assertEquals(listOf("${cache.key("same", 0, 400)}.webp"), testDir.list()!!.toList())
+    }
+
+    @Test
+    fun testStaleTempFilesAreDeletedAndNotCounted() {
+        File(testDir, "hashA_0_400.123.tmp").writeBytes(ByteArray(500))
+        File(testDir, "hashA_1_400.webp").writeBytes(ByteArray(100))
+
+        val cache = ThumbnailDiskCache(
+            directory = testDir,
+            maxBytes = 10_000L,
+            writer = { _, file -> file.writeBytes(ByteArray(100)); true },
+            reader = { null }
+        )
+
+        assertEquals(100L, cache.sizeBytes())
+        assertEquals(listOf("hashA_1_400.webp"), testDir.list()!!.toList())
+    }
+
+    @Test
+    fun testWritesCountsSuccessfulPutsOnly() {
+        val fakeBitmap = createFakeBitmap()
+        var succeed = true
+        val cache = ThumbnailDiskCache(
+            directory = testDir,
+            maxBytes = 10_000L,
+            writer = { _, file -> file.writeBytes(ByteArray(100)); succeed },
+            reader = { null }
+        )
+
+        assertEquals(0, cache.writes.value)
+        cache.put("hashA", 0, 400, fakeBitmap)
+        assertEquals(1, cache.writes.value)
+        succeed = false
+        cache.put("hashA", 1, 400, fakeBitmap)
+        assertEquals(1, cache.writes.value)
     }
 }
