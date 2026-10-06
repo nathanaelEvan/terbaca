@@ -61,8 +61,7 @@ class MainActivity : ComponentActivity() {
         data class Failure(val error: DocumentError) : OpenResult
     }
 
-    private val incomingIntent = mutableStateOf<Intent?>(null)
-
+    private var opened by mutableStateOf<OpenedDocument?>(null)
     internal var openUriString by mutableStateOf<String?>(null)
         private set
     internal var recordInRecents by mutableStateOf(true)
@@ -87,6 +86,34 @@ class MainActivity : ComponentActivity() {
     private fun renderer(): PdfiumRemotePageRenderer =
         renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
 
+    private fun closeCurrentDocument() {
+        val doc = opened
+        opened = null
+        if (doc != null) {
+            lifecycleScope.launch(NonCancellable) {
+                renderer?.closeDocument(doc.handle)
+            }
+        }
+    }
+
+    private fun handleIncomingIntent(intent: Intent) {
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
+            val uri = extractPdfUri(intent)
+            if (uri != null) {
+                if (!isAllowedPdfScheme(uri.scheme)) {
+                    closeCurrentDocument()
+                    openUriString = null
+                    currentDocumentError = DocumentError.Unavailable()
+                    return
+                }
+                currentDocumentError = null
+                recordInRecents = true
+                openUriString = uri.toString()
+                openRequestCount++
+            }
+        }
+    }
+
     internal fun openRecent(recent: RecentDocument) {
         recordInRecents = true
         openUriString = recent.uri
@@ -96,9 +123,7 @@ class MainActivity : ComponentActivity() {
     public override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
-            incomingIntent.value = intent
-        }
+        handleIncomingIntent(intent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -123,8 +148,8 @@ class MainActivity : ComponentActivity() {
                 "Generic" -> DocumentError.Generic()
                 else -> null
             }
-        } else if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
-            incomingIntent.value = intent
+        } else {
+            handleIncomingIntent(intent)
         }
 
         // Benchmarks and baseline-profile generation open a bundled corpus file directly.
@@ -132,17 +157,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TerbacaTheme {
-                var opened by remember { mutableStateOf<OpenedDocument?>(null) }
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
-                val intentToProcess by incomingIntent
-                val initialUri = remember(intentToProcess) { extractPdfUri(intentToProcess) }
                 var loading by remember {
-                    mutableStateOf(corpusAsset != null || openUriString != null || initialUri != null)
+                    mutableStateOf(corpusAsset != null || openUriString != null)
                 }
                 val scope = rememberCoroutineScope()
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
+                        currentDocumentError = null
                         recordInRecents = true
                         openUriString = uri.toString()
                         openRequestCount++
@@ -164,28 +187,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         loading = false
-                    }
-                }
-
-                LaunchedEffect(intentToProcess) {
-                    val currentIntent = intentToProcess ?: return@LaunchedEffect
-                    val uri = extractPdfUri(currentIntent)
-                    if (uri != null) {
-                        if (!isAllowedPdfScheme(uri.scheme)) {
-                            val oldDoc = opened
-                            opened = null
-                            openUriString = null
-                            userModeOverride = null
-                            currentDocumentError = DocumentError.Unavailable()
-                            loading = false
-                            withContext(NonCancellable) {
-                                oldDoc?.let { renderer().closeDocument(it.handle) }
-                            }
-                            return@LaunchedEffect
-                        }
-                        recordInRecents = true
-                        openUriString = uri.toString()
-                        openRequestCount++
                     }
                 }
 
