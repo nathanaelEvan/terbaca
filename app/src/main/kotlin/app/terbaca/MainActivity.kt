@@ -32,6 +32,9 @@ import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.ReadingMode
 import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
+import app.terbaca.core.render.cache.ThumbnailDiskCache
+import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.render.cache.TileCache
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
@@ -50,6 +53,14 @@ class MainActivity : ComponentActivity() {
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
     private val recents by lazy { (application as TerbacaApp).recentsRepository }
+    private val thumbnailDiskCache by lazy { (application as TerbacaApp).thumbnailDiskCache }
+    private val thumbnailPipeline by lazy {
+        ThumbnailPipeline(
+            memoryCache = TileCache(),
+            diskCache = thumbnailDiskCache,
+            renderer = renderer()
+        )
+    }
 
     private fun renderer(): PdfiumRemotePageRenderer =
         renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
@@ -172,7 +183,12 @@ class MainActivity : ComponentActivity() {
                             onRecentClick = { recent: RecentDocument ->
                                 openUriString = recent.uri
                             },
-                            onRemove = { recent -> scope.launch { recents.remove(recent) } }
+                            onRemove = { recent -> scope.launch { recents.remove(recent) } },
+                            thumbnailLoader = { hash ->
+                                withContext(Dispatchers.IO) {
+                                    thumbnailDiskCache.get(hash, 0, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)
+                                }
+                            }
                         )
                     }
                 }
@@ -196,6 +212,7 @@ class MainActivity : ComponentActivity() {
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
             recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
             opened
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
@@ -252,6 +269,18 @@ class MainActivity : ComponentActivity() {
                 r.closeDocument(handle)
             }
             throw t
+        }
+    }
+
+    private fun generateThumbnailIfMissing(docHandle: Long, contentHash: String, firstPage: PageInfo?) {
+        if (firstPage == null) return
+        if (thumbnailDiskCache.contains(contentHash, firstPage.index, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                thumbnailPipeline.getThumbnail(docHandle, contentHash, firstPage)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to generate thumbnail for $contentHash", e)
+            }
         }
     }
 
