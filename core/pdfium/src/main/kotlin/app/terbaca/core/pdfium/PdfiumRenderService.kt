@@ -407,6 +407,22 @@ class PdfiumRenderService : Service() {
         override fun getOpenDocumentCount(): Int {
             return activeDocuments.size
         }
+
+        override fun getDocumentTitle(docHandle: Long): String? {
+            return try {
+                renderExecutor.submit<String?> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getTitle()
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting document title for handle $docHandle", e)
+                null
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get document title for handle $docHandle", t)
+                null
+            }
+        }
     }
 
 

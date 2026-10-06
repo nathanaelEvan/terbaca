@@ -133,6 +133,11 @@ interface PageRenderer {
     fun cancelAllTiles(docHandle: Long) {}
 
     /**
+     * Extracts the metadata title for [docHandle] if present and non-blank (F-LIB-1).
+     */
+    suspend fun getDocumentTitle(docHandle: Long): String? = null
+
+    /**
      * Closes the document handle and releases native memory and file descriptors.
      */
     suspend fun closeDocument(docHandle: Long)

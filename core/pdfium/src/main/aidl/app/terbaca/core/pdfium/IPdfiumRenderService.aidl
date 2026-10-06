@@ -63,5 +63,10 @@ interface IPdfiumRenderService {
      * Returns total count of active open documents in the render process.
      */
     int getOpenDocumentCount();
+
+    /**
+     * Returns the metadata title of the document, or null if none is specified (F-LIB-1).
+     */
+    String getDocumentTitle(long docHandle);
 }
 

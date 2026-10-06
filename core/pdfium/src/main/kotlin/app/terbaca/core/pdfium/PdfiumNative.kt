@@ -43,6 +43,7 @@ internal object PdfiumNative {
         cancellationSignal: java.util.concurrent.atomic.AtomicBoolean?
     ): Int
     external fun nativeCloseDocument(docPtr: Long)
+    external fun nativeGetDocumentTitle(docPtr: Long): String?
     external fun nativeGetLastError(): Int
 }
 
