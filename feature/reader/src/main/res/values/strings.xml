@@ -7,5 +7,4 @@
     <string name="reader_jump_go">Go</string>
     <string name="reader_jump_cancel">Cancel</string>
     <string name="reader_sidebar_toggle">Thumbnails</string>
-    <string name="reader_sidebar_close">Close sidebar</string>
 </resources>
