@@ -459,7 +459,7 @@ class PdfiumNativeExecutionTest {
     }
 
     @Test
-    fun testExtraction_paperTwoColumn_extractsTextBoxesLinksAndOutline() {
+    fun testExtraction_paperTwoColumn_extractsTextBoxesAndLinks() {
         val file = copyAssetToTempFile("fixtures/paper_two_column.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             PdfiumEngine.openDocument(pfd).use { doc ->
@@ -486,8 +486,28 @@ class PdfiumNativeExecutionTest {
 
                 val outline = doc.getOutline()
                 assertNotNull("Outline should not be null", outline)
-                assertTrue("paper_two_column.pdf should have outline items", outline.isNotEmpty())
-                assertTrue("First outline item should have non-empty title", outline[0].title.isNotEmpty())
+                assertTrue("paper_two_column.pdf has no outline items", outline.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun testExtraction_withOutline_extractsBookmarksHierarchy() {
+        val file = copyAssetToTempFile("fixtures/with_outline.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val outline = doc.getOutline()
+                assertNotNull("Outline should not be null", outline)
+                assertEquals(2, outline.size)
+                assertEquals("Chapter 1: Intro", outline[0].title)
+                assertEquals(0, outline[0].pageIndex)
+                assertEquals(1, outline[0].children.size)
+                assertEquals("Section 1.1: Background", outline[0].children[0].title)
+                assertEquals(0, outline[0].children[0].pageIndex)
+
+                assertEquals("Chapter 2: Methods", outline[1].title)
+                assertEquals(1, outline[1].pageIndex)
+                assertTrue(outline[1].children.isEmpty())
             }
         }
     }
