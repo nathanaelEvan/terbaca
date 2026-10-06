@@ -285,6 +285,8 @@ class MainActivity : ComponentActivity() {
                                 renderer = renderer(),
                                 docHandle = doc.handle,
                                 initialPage = position.entryPage,
+                                contentHash = doc.contentHash,
+                                thumbnailPipeline = thumbnailPipeline,
                                 onPageSettled = { page ->
                                     position.onPageChanged(page)
                                     saveState(doc, position, userModeOverride ?: doc.savedMode)

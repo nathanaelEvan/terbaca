@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="slides_mode_scroll">Scroll</string>
+    <string name="slides_sidebar_toggle">Thumbnails</string>
     <string name="slides_slide_description">Slide %1$d</string>
 </resources>
