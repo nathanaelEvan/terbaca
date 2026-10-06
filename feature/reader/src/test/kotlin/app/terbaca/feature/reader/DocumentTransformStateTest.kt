@@ -3,6 +3,10 @@ package app.terbaca.feature.reader
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.ui.geometry.Offset
 import app.terbaca.core.model.PageInfo
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
@@ -160,5 +164,116 @@ class DocumentTransformStateTest {
         val expectedOffsetY = -layout.pageRect(1).top * state.scale
         assertEquals(expectedOffsetY, state.offsetY, 0.001f)
         assertEquals(1, state.currentPage)
+    }
+
+    @Test
+    fun initialScale_isFitWidth_whenFitWidthBelowOne() {
+        // A large-format page (A1-ish) in a smaller viewport: fit-width is 0.5 px/pt.
+        val poster = PageInfo(index = 0, widthPoints = 2000f, heightPoints = 3000f)
+        val state = DocumentTransformState(DocumentLayout(listOf(poster)))
+        state.updateViewport(1000f, 800f)
+
+        assertEquals(0.5f, state.fitWidthScale, 0.0001f)
+        assertEquals(0.5f, state.scale, 0.0001f)
+    }
+
+    @Test
+    fun resize_atFitWidth_refitsAndKeepsReadingPosition() {
+        val pages = List(5) { PageInfo(index = it, widthPoints = 612f, heightPoints = 792f) }
+        val layout = DocumentLayout(pages)
+        val state = DocumentTransformState(layout)
+        state.updateViewport(1224f, 1000f) // fit-width 2
+        state.onPan(0f, -(layout.pageRect(2).top + 100f) * 2f) // 100 pt into page 3
+        val anchor = -state.offsetY / state.scale
+
+        // Docking the sidebar takes 240 px off the width.
+        state.updateViewport(984f, 1000f)
+
+        assertEquals(984f / 612f, state.scale, 0.0001f)
+        assertEquals("no horizontal crop", 0f, state.offsetX, 0.001f)
+        assertEquals("document point at the top stays", anchor, -state.offsetY / state.scale, 0.01f)
+
+        // And back, as on closing the sidebar.
+        state.updateViewport(1224f, 1000f)
+        assertEquals(2f, state.scale, 0.0001f)
+        assertEquals(anchor, -state.offsetY / state.scale, 0.01f)
+    }
+
+    @Test
+    fun resize_whenZoomedIn_keepsScale() {
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage, letterPage.copy(index = 1))))
+        state.updateViewport(612f, 792f)
+        state.onPinch(2f, Offset(0f, 0f))
+
+        state.updateViewport(500f, 792f)
+
+        assertEquals(2f, state.scale, 0.0001f)
+    }
+
+    @Test
+    fun currentPage_shortPages_reachesFirstAndLast() {
+        // 20 pages of 100 pt in a 792 pt viewport: the centre never reaches page 1 or 20.
+        val pages = List(20) { PageInfo(index = it, widthPoints = 612f, heightPoints = 100f) }
+        val state = DocumentTransformState(DocumentLayout(pages))
+        state.updateViewport(612f, 792f)
+
+        assertEquals(0, state.currentPage)
+        state.scrollToBottom()
+        assertEquals(19, state.currentPage)
+        state.scrollToTop()
+        assertEquals(0, state.currentPage)
+    }
+
+    @Test
+    fun currentPage_midScroll_isPageWithLargestVisibleShare() {
+        // Page slots: 0 [0,800) 1 [808,858) 2 [866,1666) 3 [1674,2474); heights 800, 50, 800, 800.
+        val pages = listOf(800f, 50f, 800f, 800f).mapIndexed { i, h ->
+            PageInfo(index = i, widthPoints = 612f, heightPoints = h)
+        }
+        val state = DocumentTransformState(DocumentLayout(pages))
+        state.updateViewport(612f, 600f)
+
+        // View [500, 1100): page 0 shows 300 pt, page 1 50 pt, page 2 234 pt.
+        state.onPan(0f, -500f)
+        assertEquals(0, state.currentPage)
+
+        // View [700, 1300): page 0 100 pt, page 1 50 pt, page 2 434 pt; the centre (1000) agrees.
+        state.onPan(0f, -200f)
+        assertEquals(2, state.currentPage)
+
+        // View [1300, 1900): page 2 366 pt, page 3 226 pt.
+        state.onPan(0f, -600f)
+        assertEquals(2, state.currentPage)
+
+        // View [1500, 2100): page 2 166 pt, page 3 426 pt.
+        state.onPan(0f, -200f)
+        assertEquals(3, state.currentPage)
+    }
+
+    @Test
+    fun keyboardAction_cancelsRunningFling() = runTest {
+        val pages = List(10) { PageInfo(index = it, widthPoints = 612f, heightPoints = 792f) }
+        val state = DocumentTransformState(DocumentLayout(pages))
+        state.updateViewport(612f, 792f)
+
+        val flingJob = launch(DelayFrameClock()) { state.fling(0f, -20_000f) }
+        advanceTimeBy(100)
+        assertTrue("fling is moving the document", state.offsetY < 0f)
+
+        state.scrollToTop()
+        advanceUntilIdle()
+
+        assertTrue(flingJob.isCancelled)
+        assertEquals("the fling must not overwrite Home", 0f, state.offsetY, 0.001f)
+    }
+
+    /** A frame every 16 ms of virtual time, so a fling stays in flight between test steps. */
+    private class DelayFrameClock : MonotonicFrameClock {
+        private var time = 0L
+        override suspend fun <R> withFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R {
+            delay(16)
+            time += 16_000_000L
+            return onFrame(time)
+        }
     }
 }

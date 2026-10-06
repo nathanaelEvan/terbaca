@@ -509,9 +509,12 @@ private fun DocumentTileCollector(
         var lastOffsetX = state.offsetX
         var lastOffsetY = state.offsetY
 
+        // The viewport size is part of the key: a resize clears the tile cache, and when it leaves
+        // scale and offsets unchanged nothing was requested until the next touch (blank page).
         snapshotFlow {
             SurfaceViewportSnapshot(
-                state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue, state.isZooming
+                state.scale, state.offsetX, state.offsetY, reloadTrigger.intValue, state.isZooming,
+                state.viewportWidth, state.viewportHeight
             )
         }.collectLatest { (scale, offsetX, offsetY, _, zooming) ->
             if (state.viewportWidth <= 0f || state.viewportHeight <= 0f) return@collectLatest
@@ -523,6 +526,12 @@ private fun DocumentTileCollector(
 
             val visibleRect = state.getVisibleRectPoints()
             val visiblePages = layout.pagesIn(visibleRect)
+            // Forget underlays of pages scrolled well away: coming back, a stale level would be
+            // drawn and pinned under the current one for nothing.
+            if (!visiblePages.isEmpty()) {
+                val kept = visiblePages.first - ADJACENT_BASE_PAGES..visiblePages.last + ADJACENT_BASE_PAGES
+                underlayLevels.keys.retainAll { it in kept }
+            }
             val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
 
             val activeKeys = HashSet<TileKey>()
@@ -796,5 +805,7 @@ private data class SurfaceViewportSnapshot(
     val offsetX: Float,
     val offsetY: Float,
     val reloadTrigger: Int,
-    val isZooming: Boolean
+    val isZooming: Boolean,
+    val viewportWidth: Float,
+    val viewportHeight: Float
 )

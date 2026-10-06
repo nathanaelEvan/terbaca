@@ -10,9 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,110 +90,106 @@ fun ReaderScreen(
         BackHandler { isSidebarOpen = false }
     }
 
-    @Composable
-    fun DocumentSurfaceContent(surfaceModifier: Modifier) {
-        Box(modifier = surfaceModifier) {
-            DocumentSurface(
-                state = state,
-                renderer = renderer,
-                docHandle = docHandle
-            )
-            FastScrollbar(state)
-            PageIndicator(state)
+    // Only changes when the page does; reading state.currentPage here recomposed every scroll frame.
+    val currentPage by remember(state) { derivedStateOf { state.currentPage } }
 
-            if (!isSidebarOpen) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .statusBarsPadding()
-                        .padding(top = 16.dp, start = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                    tonalElevation = 2.dp
-                ) {
-                    Text(
-                        text = stringResource(R.string.reader_sidebar_toggle),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .clickable { isSidebarOpen = true }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
-            }
-
-            if (onModeToggle != null) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .navigationBarsPadding()
-                        .padding(bottom = 16.dp, end = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                    tonalElevation = 2.dp
-                ) {
-                    Text(
-                        text = "Slides",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .clickable { onModeToggle() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
-            }
-        }
-    }
-
+    // System bars inset the whole reader, like the library screen, so pages never draw under them.
     Box(
         modifier = modifier
             .fillMaxSize()
+            .safeDrawingPadding()
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
                 handleReaderKeyEvent(event, state, onSearch = onSearchRequested)
             }
     ) {
-        if (isLandscape) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (isSidebarOpen) {
-                    ThumbnailsSidebar(
-                        pages = pages,
-                        currentPage = state.currentPage,
-                        onPageClick = { page -> scope.launch { state.scrollToPage(page) } },
-                        onClose = { isSidebarOpen = false },
-                        thumbnailLoader = thumbnailLoader,
-                        modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
-                    )
-                }
-                DocumentSurfaceContent(Modifier.weight(1f).fillMaxHeight())
-            }
-        } else {
-            DocumentSurfaceContent(Modifier.fillMaxSize())
-            if (isSidebarOpen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = SCRIM_ALPHA))
-                        .clickable { isSidebarOpen = false }
-                )
+        // One layout for both orientations, so the document surface keeps its composition position
+        // (and its tile cache) on rotation: docked sidebar in this Row, portrait overlay below.
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (isLandscape && isSidebarOpen) {
                 ThumbnailsSidebar(
                     pages = pages,
-                    currentPage = state.currentPage,
-                    onPageClick = { page ->
-                        isSidebarOpen = false
-                        scope.launch { state.scrollToPage(page) }
-                    },
+                    currentPage = currentPage,
+                    onPageClick = { page -> scope.launch { state.scrollToPage(page) } },
                     onClose = { isSidebarOpen = false },
                     thumbnailLoader = thumbnailLoader,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .width(SIDEBAR_WIDTH)
-                        .fillMaxHeight()
+                    modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DocumentSurface(
+                    state = state,
+                    renderer = renderer,
+                    docHandle = docHandle
+                )
+                FastScrollbar(state)
+                PageIndicator(state)
+
+                if (!isSidebarOpen) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 16.dp, start = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_sidebar_toggle),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable { isSidebarOpen = true }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (onModeToggle != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 16.dp, end = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = "Slides",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable { onModeToggle() }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+        if (!isLandscape && isSidebarOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = SCRIM_ALPHA))
+                    .clickable { isSidebarOpen = false }
+            )
+            ThumbnailsSidebar(
+                pages = pages,
+                currentPage = currentPage,
+                onPageClick = { page ->
+                    isSidebarOpen = false
+                    scope.launch { state.scrollToPage(page) }
+                },
+                onClose = { isSidebarOpen = false },
+                thumbnailLoader = thumbnailLoader,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(SIDEBAR_WIDTH)
+                    .fillMaxHeight()
+            )
         }
     }
 }
