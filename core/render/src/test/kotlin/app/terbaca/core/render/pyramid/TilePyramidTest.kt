@@ -161,4 +161,17 @@ class TilePyramidTest {
         assertEquals(1000, base.pixelWidth)
         assertTrue(base.pixelHeight > 1000)
     }
+
+    @Test
+    fun testBaseBounds_cappedOnLargeScreens() {
+        // A4 portrait at fit-width on a 3200 px wide tablet would be ~4528 px tall, over the
+        // renderer's 4096 px limit.
+        val a4 = PageInfo(index = 0, widthPoints = 595f, heightPoints = 842f)
+        val base = TilePyramid.computeBaseLevelBounds(a4, fitWidthScale = 3200f / 595f)
+        assertEquals(TilePyramid.MAX_BASE_DIMENSION, base.pixelHeight)
+        val expectedWidth = 595f / 842f * TilePyramid.MAX_BASE_DIMENSION
+        assertTrue(abs(base.pixelWidth - expectedWidth) <= 1f)
+        assertEquals(base.pixelWidth, base.fullWidth)
+        assertEquals(base.pixelHeight, base.fullHeight)
+    }
 }

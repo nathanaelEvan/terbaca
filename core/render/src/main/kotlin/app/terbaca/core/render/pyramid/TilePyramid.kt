@@ -20,6 +20,9 @@ object TilePyramid {
 
     const val DEFAULT_TILE_SIZE = 512
     const val DEFAULT_MAX_ZOOM_MULTIPLIER = 8f
+
+    /** Long-side cap for a page's base layer, in pixels. */
+    const val MAX_BASE_DIMENSION = 2048
     val ZOOM_STEP_RATIO: Float = sqrt(2.0).toFloat()
 
     /**
@@ -231,11 +234,16 @@ object TilePyramid {
     }
 
     /**
-     * Computes the base layer bounds for a page at fit-width scale per PRD §4.4.
+     * Computes the base layer bounds for a page at fit-width scale per PRD §4.4, capped at
+     * [MAX_BASE_DIMENSION] on the long side. The base is the blurry fallback under detail tiles; at
+     * full fit-width a portrait page on a 3200 px wide tablet is ~4500 px tall, which the renderer
+     * rejects (4096 px limit), leaving the page blank until its tiles arrive.
      */
     fun computeBaseLevelBounds(pageInfo: PageInfo, fitWidthScale: Float): TileBounds {
-        val pixelWidth = ceil(pageInfo.widthPoints * fitWidthScale).toInt()
-        val pixelHeight = ceil(pageInfo.heightPoints * fitWidthScale).toInt()
+        val longSide = max(pageInfo.widthPoints, pageInfo.heightPoints)
+        val scale = min(fitWidthScale, MAX_BASE_DIMENSION / longSide)
+        val pixelWidth = min(MAX_BASE_DIMENSION, ceil(pageInfo.widthPoints * scale).toInt())
+        val pixelHeight = min(MAX_BASE_DIMENSION, ceil(pageInfo.heightPoints * scale).toInt())
         return TileBounds(
             key = TileKey(pageIndex = pageInfo.index, level = -2, col = 0, row = 0),
             pageRect = ViewportRect(0f, 0f, pageInfo.widthPoints, pageInfo.heightPoints),
