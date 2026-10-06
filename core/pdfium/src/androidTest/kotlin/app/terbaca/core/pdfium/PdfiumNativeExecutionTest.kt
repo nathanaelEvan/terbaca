@@ -496,18 +496,32 @@ class PdfiumNativeExecutionTest {
         val file = copyAssetToTempFile("fixtures/with_outline.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             PdfiumEngine.openDocument(pfd).use { doc ->
-                val outline = doc.getOutline()
-                assertNotNull("Outline should not be null", outline)
-                assertEquals(2, outline.size)
-                assertEquals("Chapter 1: Intro", outline[0].title)
-                assertEquals(0, outline[0].pageIndex)
-                assertEquals(1, outline[0].children.size)
-                assertEquals("Section 1.1: Background", outline[0].children[0].title)
-                assertEquals(0, outline[0].children[0].pageIndex)
+                val outlineParcels = doc.getOutline()
+                assertNotNull("Outline parcels should not be null", outlineParcels)
+                assertEquals(3, outlineParcels.size)
+                assertEquals("Chapter 1: Intro", outlineParcels[0].title)
+                assertEquals(0, outlineParcels[0].pageIndex)
+                assertEquals(0, outlineParcels[0].depth)
 
-                assertEquals("Chapter 2: Methods", outline[1].title)
-                assertEquals(1, outline[1].pageIndex)
-                assertTrue(outline[1].children.isEmpty())
+                assertEquals("Section 1.1: Background", outlineParcels[1].title)
+                assertEquals(0, outlineParcels[1].pageIndex)
+                assertEquals(1, outlineParcels[1].depth)
+
+                assertEquals("Chapter 2: Methods", outlineParcels[2].title)
+                assertEquals(1, outlineParcels[2].pageIndex)
+                assertEquals(0, outlineParcels[2].depth)
+
+                val tree = buildOutlineTree(outlineParcels)
+                assertEquals(2, tree.size)
+                assertEquals("Chapter 1: Intro", tree[0].title)
+                assertEquals(0, tree[0].pageIndex)
+                assertEquals(1, tree[0].children.size)
+                assertEquals("Section 1.1: Background", tree[0].children[0].title)
+                assertEquals(0, tree[0].children[0].pageIndex)
+
+                assertEquals("Chapter 2: Methods", tree[1].title)
+                assertEquals(1, tree[1].pageIndex)
+                assertTrue(tree[1].children.isEmpty())
             }
         }
     }
