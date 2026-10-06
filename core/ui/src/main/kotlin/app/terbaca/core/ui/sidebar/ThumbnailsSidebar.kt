@@ -1,4 +1,4 @@
-package app.terbaca.feature.reader
+package app.terbaca.core.ui.sidebar
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.ui.R
 
 private const val THUMBNAIL_WIDTH_FRACTION = 0.85f
 

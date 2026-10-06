@@ -6,8 +6,6 @@
     <string name="reader_jump_label">Page (1–%1$d)</string>
     <string name="reader_jump_go">Go</string>
     <string name="reader_jump_cancel">Cancel</string>
-    <string name="reader_tab_thumbnails">Thumbnails</string>
     <string name="reader_sidebar_toggle">Thumbnails</string>
     <string name="reader_sidebar_close">Close sidebar</string>
-    <string name="reader_thumbnail_page">Page %1$d</string>
 </resources>

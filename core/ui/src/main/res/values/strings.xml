@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Thumbnails sidebar, shared by the reader and slide modes (F-NAV-4). Names kept from :feature:reader. -->
+    <string name="reader_tab_thumbnails">Thumbnails</string>
+    <string name="reader_thumbnail_page">Page %1$d</string>
+</resources>
