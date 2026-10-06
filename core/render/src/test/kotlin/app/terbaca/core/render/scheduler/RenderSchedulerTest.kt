@@ -72,11 +72,11 @@ class RenderSchedulerTest {
         val remainingOrder = executedKeys.drop(1)
         assertEquals(
             listOf(
+                tileBase.key,      // VISIBLE_BASE
                 tileNear.key,      // VISIBLE_DETAIL (closest to center)
                 tileFar.key,       // VISIBLE_DETAIL (further from center)
-                tileBase.key,      // VISIBLE_BASE
-                tilePrefetch.key,  // PREFETCH_DETAIL
-                tileAdjacent.key   // ADJACENT_BASE
+                tileAdjacent.key,  // ADJACENT_BASE
+                tilePrefetch.key   // PREFETCH_DETAIL
             ),
             remainingOrder
         )

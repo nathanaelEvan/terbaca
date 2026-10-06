@@ -228,7 +228,7 @@ Fallback if (2) proves unreliable on the device's driver: render into `SharedMem
 - **Tile size:** 512×512 device pixels (tunable constant; benchmark 256 and 1024 in M1 and record in ADR).
 - **Layers per page, drawn back to front:**
   1. **Thumbnail** (~400 px wide), resident for all pages once generated.
-  2. **Base level:** whole page at fit-width scale, for visible and adjacent pages.
+  2. **Base level:** whole page at fit-width scale, capped at 2048 px on the long side (the renderer rejects bitmaps over 4096 px; full fit-width on a 3200 px wide tablet exceeds that), for visible and adjacent pages.
   3. **Detail tiles:** above base zoom only.
 - Keep the previous level's tiles visible until the new level fully covers the viewport.
 - Crossfade new tiles over 100–150 ms.
@@ -236,7 +236,7 @@ Fallback if (2) proves unreliable on the device's driver: render into `SharedMem
 ### 4.5 Scheduler
 
 - A priority queue in the UI process decides what to request; the render process executes requests in order and supports cancellation.
-- Priority: visible tiles at the current target level, ordered by distance from viewport center → base layers of visible pages → prefetch ring in the scroll/fling direction → adjacent pages' base layers → thumbnails.
+- Priority: base layers of visible pages (one small render, so a page is never blank) → visible tiles at the current target level, ordered by distance from viewport center → adjacent pages' base layers (so a page scrolled onto already has its base) → prefetch ring in the scroll/fling direction → thumbnails. During a fast scroll only base layers are requested.
 - On every gesture update, requests that are no longer relevant are cancelled.
 - **In-flight cancellation** uses PDFium's progressive rendering API (`FPDF_RenderPageBitmap_Start` / `FPDF_RenderPage_Continue` with an `IFSDK_PAUSE` callback that checks a cancel flag). A heavy tile at a stale zoom must never block the queue.
 - Keep `FPDF_PAGE` handles loaded for pages near the viewport (LRU, ~6 pages) to avoid re-parsing content streams per tile.
