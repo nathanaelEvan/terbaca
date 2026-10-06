@@ -111,14 +111,13 @@ class IntentHandlingInstrumentedTest {
         ActivityScenario.launch<MainActivity>(intent1).use { scenario ->
             scenario.onActivity { activity ->
                 assertEquals(initialUri.toString(), activity.openUriString)
-            }
-            val secondUri = Uri.parse("content://app.terbaca.test/second.pdf")
-            val intent2 = Intent(Intent.ACTION_VIEW, secondUri)
-            scenario.onActivity { activity ->
+                val secondUri = Uri.parse("content://app.terbaca.test/second.pdf")
+                val intent2 = Intent(Intent.ACTION_VIEW, secondUri).apply {
+                    setClass(context, MainActivity::class.java)
+                }
                 activity.onNewIntent(intent2)
-            }
-            scenario.onActivity { activity ->
                 assertEquals(secondUri.toString(), activity.openUriString)
+                activity.intent = intent1
             }
         }
     }
@@ -136,7 +135,9 @@ class IntentHandlingInstrumentedTest {
                 assertEquals(uri.toString(), activity.openUriString)
                 initialCount = activity.openRequestCount
             }
-            val retryIntent = Intent(Intent.ACTION_VIEW, uri)
+            val retryIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                setClass(context, MainActivity::class.java)
+            }
             scenario.onActivity { activity ->
                 activity.onNewIntent(retryIntent)
             }
@@ -146,6 +147,7 @@ class IntentHandlingInstrumentedTest {
                     "Request count must increment on re-sending same URI",
                     activity.openRequestCount > initialCount
                 )
+                activity.intent = intent
             }
         }
     }
