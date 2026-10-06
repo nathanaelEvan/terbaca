@@ -52,7 +52,8 @@ class MainActivity : ComponentActivity() {
         val handle: Long,
         val pages: List<PageInfo>,
         val initialPage: Int = 0,
-        val savedMode: ReadingMode? = null
+        val savedMode: ReadingMode? = null,
+        val contentHash: String? = null
     )
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
@@ -186,6 +187,8 @@ class MainActivity : ComponentActivity() {
                                 renderer = renderer(),
                                 docHandle = doc.handle,
                                 initialPage = doc.initialPage,
+                                contentHash = doc.contentHash,
+                                thumbnailPipeline = thumbnailPipeline,
                                 onPageChange = { page ->
                                     scope.launch {
                                         openUriString?.let { uriStr ->
@@ -249,7 +252,7 @@ class MainActivity : ComponentActivity() {
             val savedMode = record.readingMode?.let {
                 runCatching { ReadingMode.valueOf(it) }.getOrNull()
             }
-            OpenedDocument(opened.handle, opened.pages, record.lastPage, savedMode)
+            OpenedDocument(opened.handle, opened.pages, record.lastPage, savedMode, hash)
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
