@@ -55,7 +55,7 @@ class RecentsRepository(
      * falls back to [fallbackDisplayName] (F-LIB-1).
      */
     fun resolveTitle(metadataTitle: String?, fallbackDisplayName: String): String =
-        metadataTitle?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackDisplayName
+        app.terbaca.core.data.resolveTitle(metadataTitle, fallbackDisplayName)
 
     suspend fun recordOpened(
         uri: Uri,
@@ -129,3 +129,11 @@ class RecentsRepository(
             RecentsRepository(context, RecentsDatabase.create(context).recentDocumentDao())
     }
 }
+
+/**
+ * Resolves display title: prefers PDF metadata title when present and non-blank;
+ * falls back to [fallbackDisplayName] (F-LIB-1).
+ */
+fun resolveTitle(metadataTitle: String?, fallbackDisplayName: String): String =
+    metadataTitle?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackDisplayName
+

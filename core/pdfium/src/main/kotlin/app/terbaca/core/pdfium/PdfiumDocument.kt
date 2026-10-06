@@ -53,7 +53,7 @@ class PdfiumDocument internal constructor(
      */
     fun getTitle(): String? = synchronized(lock) {
         checkNotClosed()
-        PdfiumNative.nativeGetDocumentTitle(nativePtr)?.trim()?.takeIf { it.isNotEmpty() }
+        PdfiumNative.nativeGetDocumentTitle(nativePtr)
     }
 
     companion object {

@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * In-process mock implementation of [PageRenderer] for unit testing and M1 prototyping per PRD §4.2.
  */
-class InProcessPageRenderer(
+open class InProcessPageRenderer(
     private val defaultPageCount: Int = 1,
     private val defaultWidthPoints: Float = 612f,
     private val defaultHeightPoints: Float = 792f,
@@ -29,6 +29,7 @@ class InProcessPageRenderer(
 ) : PageRenderer {
 
     private val documents = ConcurrentHashMap<Long, List<PageInfo>>()
+    private val documentTitles = ConcurrentHashMap<Long, String>()
     private val nextHandle = AtomicLong(1L)
     private val recoveryListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
     val cancelledRenderIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
@@ -51,7 +52,8 @@ class InProcessPageRenderer(
     fun createTestDocument(
         pageCount: Int = defaultPageCount,
         widthPoints: Float = defaultWidthPoints,
-        heightPoints: Float = defaultHeightPoints
+        heightPoints: Float = defaultHeightPoints,
+        title: String? = null
     ): Long {
         check(isServiceConnected) { "Service is disconnected" }
         val handle = nextHandle.getAndIncrement()
@@ -59,6 +61,9 @@ class InProcessPageRenderer(
             PageInfo(index = i, widthPoints = widthPoints, heightPoints = heightPoints)
         }
         documents[handle] = pages
+        if (title != null) {
+            documentTitles[handle] = title
+        }
         return handle
     }
 
@@ -184,8 +189,13 @@ class InProcessPageRenderer(
         }
     }
 
+    override suspend fun getDocumentTitle(docHandle: Long): String? {
+        return documentTitles[docHandle]
+    }
+
     override suspend fun closeDocument(docHandle: Long) {
         documents.remove(docHandle)
+        documentTitles.remove(docHandle)
     }
 }
 

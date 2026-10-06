@@ -135,6 +135,13 @@ class PdfiumRemoteServiceTest {
         }
         org.junit.Assert.assertNull(renderer.getDocumentTitle(handle2))
         renderer.closeDocument(handle2)
+
+        val fileWithUtf16Title = copyAssetToTempFile("fixtures/with_title_utf16be.pdf")
+        val handle3 = ParcelFileDescriptor.open(fileWithUtf16Title, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            renderer.openDocument(pfd)
+        }
+        assertEquals("Terbaca — 📖", renderer.getDocumentTitle(handle3))
+        renderer.closeDocument(handle3)
     }
 
     @Test

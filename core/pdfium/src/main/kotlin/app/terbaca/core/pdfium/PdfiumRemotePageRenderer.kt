@@ -435,7 +435,7 @@ class PdfiumRemotePageRenderer(
         checkSessionActiveOrThrow(docHandle)
         executeWithRetry { service ->
             val remoteHandle = getRemoteHandle(docHandle)
-            service.getDocumentTitle(remoteHandle)?.trim()?.takeIf { it.isNotEmpty() }
+            service.getDocumentTitle(remoteHandle)
         }
     }
 

@@ -109,6 +109,19 @@ class PdfiumNativeExecutionTest {
     }
 
     @Test
+    fun testValidPdf_withUtf16BeTitle_returnsExtractedTitle() {
+        val file = copyAssetToTempFile("fixtures/with_title_utf16be.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            val document = PdfiumEngine.openDocument(pfd)
+            try {
+                assertEquals("Terbaca — 📖", document.getTitle())
+            } finally {
+                document.close()
+            }
+        }
+    }
+
+    @Test
     fun testPasswordProtectedPdf_withWrongPasswordThrowsPdfPasswordException() {
         val file = copyAssetToTempFile("fixtures/password_protected.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->

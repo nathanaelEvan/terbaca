@@ -9,22 +9,27 @@ class TitleResolutionTest {
     fun resolveTitle_withNonBlankMetadataTitle_returnsMetadataTitle() {
         val title = "Designing Data-Intensive Applications"
         val fallback = "ddia.pdf"
-        assertEquals(title, "Designing Data-Intensive Applications".trim().takeIf { it.isNotEmpty() } ?: fallback)
+        assertEquals(title, resolveTitle(title, fallback))
+    }
+
+    @Test
+    fun resolveTitle_withWhitespacePaddedMetadataTitle_returnsTrimmedMetadataTitle() {
+        val title = "   Designing Data-Intensive Applications   \n"
+        val fallback = "ddia.pdf"
+        assertEquals("Designing Data-Intensive Applications", resolveTitle(title, fallback))
     }
 
     @Test
     fun resolveTitle_withNullMetadataTitle_fallsBackToDisplayName() {
         val fallback = "document_123.pdf"
         val metadataTitle: String? = null
-        val resolved = metadataTitle?.trim()?.takeIf { it.isNotEmpty() } ?: fallback
-        assertEquals(fallback, resolved)
+        assertEquals(fallback, resolveTitle(metadataTitle, fallback))
     }
 
     @Test
     fun resolveTitle_withBlankMetadataTitle_fallsBackToDisplayName() {
         val fallback = "document_123.pdf"
         val blankMetadataTitle = "   \n\t  "
-        val resolved = blankMetadataTitle.trim().takeIf { it.isNotEmpty() } ?: fallback
-        assertEquals(fallback, resolved)
+        assertEquals(fallback, resolveTitle(blankMetadataTitle, fallback))
     }
 }

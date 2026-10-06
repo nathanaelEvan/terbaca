@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
@@ -597,20 +598,26 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetDocumentTitle(
     auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
     if (!doc_handle || !doc_handle->doc) return nullptr;
 
-    PthreadGuard lock(s_pdfium_mutex);
-    unsigned long len = FPDF_GetMetaText(doc_handle->doc, "Title", nullptr, 0);
-    if (len <= 2) return nullptr;
+    unsigned char* buf = nullptr;
+    jsize char_count = 0;
 
-    auto* buf = static_cast<unsigned char*>(malloc(len));
-    if (!buf) return nullptr;
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        unsigned long len = FPDF_GetMetaText(doc_handle->doc, "Title", nullptr, 0);
+        if (len <= 2) return nullptr;
 
-    unsigned long actual_len = FPDF_GetMetaText(doc_handle->doc, "Title", buf, len);
-    if (actual_len <= 2) {
-        free(buf);
-        return nullptr;
+        buf = static_cast<unsigned char*>(malloc(len));
+        if (!buf) return nullptr;
+
+        unsigned long actual_len = FPDF_GetMetaText(doc_handle->doc, "Title", buf, len);
+        unsigned long valid_len = std::min(actual_len, len);
+        if (valid_len <= 2) {
+            free(buf);
+            return nullptr;
+        }
+        char_count = static_cast<jsize>((valid_len - 2) / 2);
     }
 
-    jsize char_count = static_cast<jsize>((actual_len - 2) / 2);
     jstring result = env->NewString(reinterpret_cast<const jchar*>(buf), char_count);
     free(buf);
     return result;
