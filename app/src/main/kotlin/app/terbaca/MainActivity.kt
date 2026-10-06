@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,14 +70,12 @@ class MainActivity : ComponentActivity() {
     private var opened by mutableStateOf<OpenedDocument?>(null)
     internal var openUriString by mutableStateOf<String?>(null)
         private set
-    internal var recordInRecents by mutableStateOf(true)
-        private set
     internal var currentDocumentError by mutableStateOf<DocumentError?>(null)
         private set
     internal var openRequestCount by mutableStateOf(0)
         private set
     internal var loading by mutableStateOf(false)
-        private set
+        @VisibleForTesting internal set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -118,7 +117,6 @@ class MainActivity : ComponentActivity() {
                     return
                 }
                 currentDocumentError = null
-                recordInRecents = true
                 openUriString = uri.toString()
                 openRequestCount++
             }
@@ -126,7 +124,6 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun openRecent(recent: RecentDocument) {
-        recordInRecents = true
         openUriString = recent.uri
         openRequestCount++
     }
@@ -159,7 +156,6 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_OPEN_URI, openUriString)
-        outState.putBoolean(KEY_RECORD_IN_RECENTS, recordInRecents)
         outState.putString(KEY_DOCUMENT_ERROR, currentDocumentError?.key)
     }
 
@@ -170,7 +166,6 @@ class MainActivity : ComponentActivity() {
 
         if (savedInstanceState != null) {
             openUriString = savedInstanceState.getString(KEY_OPEN_URI)
-            recordInRecents = savedInstanceState.getBoolean(KEY_RECORD_IN_RECENTS, true)
             currentDocumentError = DocumentError.fromKey(savedInstanceState.getString(KEY_DOCUMENT_ERROR))
         } else {
             handleIncomingIntent(intent)
@@ -188,7 +183,6 @@ class MainActivity : ComponentActivity() {
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
                         currentDocumentError = null
-                        recordInRecents = true
                         openUriString = uri.toString()
                         openRequestCount++
                     }
@@ -227,7 +221,7 @@ class MainActivity : ComponentActivity() {
                     currentDocumentError = null
                     try {
                         Log.d(TAG, "Opening document: $uriStr (request #$openRequestCount)")
-                        val result = openFromUri(Uri.parse(uriStr), recordInRecents = recordInRecents)
+                        val result = openFromUri(Uri.parse(uriStr))
                         if (openUriString == uriStr) {
                             when (result) {
                                 is OpenResult.Success -> {
@@ -365,8 +359,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Opens a SAF/content URI, records it in recents if requested, and returns an OpenResult. */
-    private suspend fun openFromUri(uri: Uri, recordInRecents: Boolean = true): OpenResult = withContext(Dispatchers.IO) {
+    /** Opens a SAF/content URI, records it in recents when its grant persists, and returns an OpenResult. */
+    private suspend fun openFromUri(uri: Uri): OpenResult = withContext(Dispatchers.IO) {
         if (!isAllowedPdfScheme(uri.scheme)) {
             Log.w(TAG, "Rejected non-content URI: $uri")
             return@withContext OpenResult.Failure(DocumentError.Unavailable())
@@ -374,7 +368,6 @@ class MainActivity : ComponentActivity() {
         var handle: Long? = null
         try {
             withPersistedPermission(
-                recordInRecents = recordInRecents,
                 isAlreadyPersisted = { recents.isPermissionPersisted(uri) },
                 persistPermission = { recents.persistReadPermission(uri) },
                 releasePermission = { recents.releasePersistablePermission(uri) }
@@ -396,7 +389,10 @@ class MainActivity : ComponentActivity() {
                 val initialPage = (state?.page ?: 0).coerceIn(0, opened.pages.lastIndex)
                 if (persisted) {
                     val displayName = resolveOpenedTitle(renderer(), opened.handle, recents.displayName(uri))
-                    recents.recordOpened(uri, displayName, hash, opened.pages.size, initialPage, state?.readingMode)
+                    // Once the row exists the grant must survive, so a cancel can't split the two.
+                    withContext(NonCancellable) {
+                        recents.recordOpened(uri, displayName, hash, opened.pages.size, initialPage, state?.readingMode)
+                    }
                     generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
                 }
                 val savedMode = state?.readingMode?.let {
@@ -494,7 +490,6 @@ class MainActivity : ComponentActivity() {
         private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
         private const val KEY_OPEN_URI = "open_uri"
-        private const val KEY_RECORD_IN_RECENTS = "record_in_recents"
         private const val KEY_DOCUMENT_ERROR = "document_error"
     }
 }
@@ -510,29 +505,22 @@ private fun DocumentState.readerViewport(): ReaderViewport? {
 /**
  * Executes [block] with read permission management.
  *
- * Persists read permission if [recordInRecents] is true and it is not already persisted.
- * Releases newly persisted permissions if [block] throws an [Exception].
- * Never releases permissions that were already persisted, or on [CancellationException].
+ * Persists read permission unless it is already persisted. If [block] fails or is cancelled,
+ * releases the grant only when this call took it, so an open that never reached recents doesn't
+ * leave a dangling grant. Grants that existed before are never released.
  */
 internal suspend fun <T> withPersistedPermission(
-    recordInRecents: Boolean,
     isAlreadyPersisted: () -> Boolean,
     persistPermission: () -> Boolean,
     releasePermission: () -> Unit,
     block: suspend (isPersisted: Boolean) -> T
 ): T {
     val alreadyPersisted = isAlreadyPersisted()
-    val newlyPersisted = if (recordInRecents && !alreadyPersisted) {
-        persistPermission()
-    } else {
-        false
-    }
+    val newlyPersisted = !alreadyPersisted && persistPermission()
     val persisted = alreadyPersisted || newlyPersisted
     return try {
         block(persisted)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         if (newlyPersisted) {
             releasePermission()
         }
