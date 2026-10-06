@@ -52,9 +52,11 @@ import app.terbaca.core.render.scheduler.TilePriority
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -64,6 +66,23 @@ const val TILE_CROSSFADE_DURATION_MS = 150L // F-REN-3: 100-150 ms
 
 /** Longest a loaded tile waits for the rest of the visible set before it is revealed anyway. */
 const val TILE_REVEAL_TIMEOUT_MS = 300L
+
+/**
+ * The same wait when every visible page already shows its base layer: blurry for a moment then one
+ * sharp fade beats sharp squares appearing over blur. A heavy zoomed screen is ~45 tiles (~0.5 s).
+ */
+const val TILE_REVEAL_TIMEOUT_OVER_BASE_MS = 1500L
+
+/** Pages above and below the viewport whose base layers are kept ready for scrolling onto. */
+private const val ADJACENT_BASE_PAGES = 2
+
+/**
+ * Scroll per viewport update, as a fraction of the viewport height, above which only base layers are
+ * requested (~8000 px/s at 120 Hz on the Pad 7): detail tiles of a page flying past are stale before
+ * they arrive and would delay the base layers of the pages coming next.
+ */
+private const val FAST_SCROLL_FRACTION = 0.03f
+private const val FAST_SCROLL_SETTLE_MS = 100L
 
 /** Fade-start marker for a tile that is loaded but not revealed yet (draws at alpha 0). */
 const val TILE_UNREVEALED = Long.MAX_VALUE
@@ -193,12 +212,14 @@ fun DocumentSurface(
                     PageFrame(index, pageVisible, level, TilePyramid.getVisibleTiles(page, level, pageVisible))
                 }
                 // One reveal batch across every visible page, so the whole screen sharpens at once.
+                val basesShown = pages.all { tileCache.get(TileCache.baseLayerKey(it.index)) != null }
                 revealPendingSince[0] = revealTiles(
                     pages.flatMap { it.tiles },
                     { tileCache.get(it) != null },
                     tileFadeStartTimes,
                     revealPendingSince[0].takeIf { it != NO_PENDING_REVEAL },
-                    now
+                    now,
+                    timeoutMs = if (basesShown) TILE_REVEAL_TIMEOUT_OVER_BASE_MS else TILE_REVEAL_TIMEOUT_MS
                 ) ?: NO_PENDING_REVEAL
                 for (frame in pages) {
                     val pageRect = layout.pageRect(frame.index)
@@ -533,7 +554,8 @@ private fun DocumentTileCollector(
             // Base layers of the pages just above and below the viewport, so scrolling onto them
             // never shows a placeholder.
             val adjacentBases = if (visiblePages.isEmpty()) emptyList() else {
-                listOf(visiblePages.first - 1, visiblePages.last + 1)
+                ((visiblePages.first - ADJACENT_BASE_PAGES until visiblePages.first) +
+                    (visiblePages.last + 1..visiblePages.last + ADJACENT_BASE_PAGES))
                     .filter { it in layout.pages.indices }
                     .map { TilePyramid.computeBaseLevelBounds(layout.pages[it], state.fitWidthScale) }
             }
@@ -548,6 +570,11 @@ private fun DocumentTileCollector(
             tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
 
             visibleBases.forEach { requester.request(it, TilePriority(TileLayerType.VISIBLE_BASE)) }
+            if (hypot(scrollDeltaX, scrollDeltaY) > state.viewportHeight * FAST_SCROLL_FRACTION) {
+                adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
+                // Cancelled by the next update (collectLatest); if none comes, the view stopped here.
+                delay(FAST_SCROLL_SETTLE_MS)
+            }
             // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
             // via isZooming): zooming out at a frozen high level would ask for many large tiles.
             if (zooming) return@collectLatest
@@ -671,7 +698,7 @@ private fun DrawScope.drawTilePyramid(
 /**
  * Batched reveal, so the view sharpens in one fade instead of a checkerboard of squares:
  * tiles that arrive while visible stay hidden ([TILE_UNREVEALED]) until every visible tile is
- * loaded, or the batch has waited [TILE_REVEAL_TIMEOUT_MS]; then they all start fading together.
+ * loaded, or the batch has waited [timeoutMs]; then they all start fading together.
  * Tiles that arrived off-screen (prefetch) are marked fully faded, so they scroll in already sharp.
  * Returns when the current batch started waiting, or null when nothing is waiting.
  */
@@ -680,7 +707,8 @@ internal fun revealTiles(
     isLoaded: (TileKey) -> Boolean,
     fadeStartTimes: MutableMap<TileKey, Long>,
     pendingSince: Long?,
-    now: Long
+    now: Long,
+    timeoutMs: Long = TILE_REVEAL_TIMEOUT_MS
 ): Long? {
     val visibleKeys = visibleTiles.mapTo(HashSet()) { it.key }
     var waiting = false
@@ -690,7 +718,7 @@ internal fun revealTiles(
     }
     if (!waiting) return null
     val since = pendingSince ?: now
-    if (visibleTiles.all { isLoaded(it.key) } || now - since >= TILE_REVEAL_TIMEOUT_MS) {
+    if (visibleTiles.all { isLoaded(it.key) } || now - since >= timeoutMs) {
         for (tile in visibleTiles) {
             if (fadeStartTimes[tile.key] == TILE_UNREVEALED) fadeStartTimes[tile.key] = now
         }
