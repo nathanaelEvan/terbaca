@@ -32,7 +32,8 @@ import kotlin.math.min
 class DocumentTransformState(
     val layout: DocumentLayout,
     initialViewportWidth: Float = 0f,
-    initialViewportHeight: Float = 0f
+    initialViewportHeight: Float = 0f,
+    val initialPage: Int = 0
 ) {
     var viewportWidth by mutableFloatStateOf(initialViewportWidth)
         private set
@@ -91,6 +92,7 @@ class DocumentTransformState(
 
     /** Runs flings; any other mutation through it (a jump, a scrollbar drag) cancels the fling. */
     private val mutex = MutatorMutex()
+    private var hasAppliedInitialPage = false
 
     init {
         if (initialViewportWidth > 0f && initialViewportHeight > 0f) {
@@ -120,6 +122,13 @@ class DocumentTransformState(
             scale = fitWidthScale
         }
         scale = scale.coerceIn(minScale, maxScale)
+
+        if (!hasAppliedInitialPage && initialPage in 0 until layout.pageCount) {
+            val targetPage = initialPage.coerceIn(0, layout.pageCount - 1)
+            offsetY = -layout.pageRect(targetPage).top * scale
+            hasAppliedInitialPage = true
+        }
+
         clampOffsets()
     }
 
@@ -292,9 +301,10 @@ private const val MIN_SCALE = 1e-3f
 
 @Composable
 fun rememberDocumentTransformState(
-    layout: DocumentLayout
+    layout: DocumentLayout,
+    initialPage: Int = 0
 ): DocumentTransformState {
     return remember(layout) {
-        DocumentTransformState(layout)
+        DocumentTransformState(layout, initialPage = initialPage)
     }
 }

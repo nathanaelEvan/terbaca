@@ -48,7 +48,13 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
-    private class OpenedDocument(val handle: Long, val pages: List<PageInfo>)
+    private class OpenedDocument(
+        val handle: Long,
+        val pages: List<PageInfo>,
+        val initialPage: Int = 0,
+        val savedMode: ReadingMode? = null,
+        val contentHash: String? = null
+    )
 
     private sealed interface OpenResult {
         data class Success(val doc: OpenedDocument) : OpenResult
@@ -225,7 +231,7 @@ class MainActivity : ComponentActivity() {
                 val err = documentError
                 when {
                     doc != null -> {
-                        val currentMode = userModeOverride ?: remember(doc.pages) {
+                        val currentMode = userModeOverride ?: doc.savedMode ?: remember(doc.pages) {
                             autoDetectReadingMode(doc.pages)
                         }
                         if (currentMode == ReadingMode.SLIDE) {
@@ -234,8 +240,22 @@ class MainActivity : ComponentActivity() {
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
+                                initialPage = doc.initialPage,
+                                onPageSettled = { page ->
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateLastPage(Uri.parse(uriStr), page)
+                                        }
+                                    }
+                                },
                                 onModeToggle = {
-                                    userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
+                                    val newMode = ReadingMode.CONTINUOUS_VERTICAL
+                                    userModeOverride = newMode
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
+                                        }
+                                    }
                                 }
                             )
                         } else {
@@ -244,8 +264,24 @@ class MainActivity : ComponentActivity() {
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
+                                initialPage = doc.initialPage,
+                                contentHash = doc.contentHash,
+                                thumbnailPipeline = thumbnailPipeline,
+                                onPageChange = { page ->
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateLastPage(Uri.parse(uriStr), page)
+                                        }
+                                    }
+                                },
                                 onModeToggle = {
-                                    userModeOverride = ReadingMode.SLIDE
+                                    val newMode = ReadingMode.SLIDE
+                                    userModeOverride = newMode
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
+                                        }
+                                    }
                                 }
                             )
                         }
@@ -305,11 +341,18 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            if (recordInRecents) {
-                recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            val record = if (recordInRecents) {
+                val r = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
                 generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
+                r
+            } else {
+                null
             }
-            OpenResult.Success(opened)
+            val initialPage = record?.lastPage ?: 0
+            val savedMode = record?.readingMode?.let {
+                runCatching { ReadingMode.valueOf(it) }.getOrNull()
+            }
+            OpenResult.Success(OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash))
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }

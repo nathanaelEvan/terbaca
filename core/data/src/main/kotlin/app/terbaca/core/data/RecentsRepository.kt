@@ -50,22 +50,42 @@ class RecentsRepository(
         return queried ?: uri.lastPathSegment?.substringAfterLast('/') ?: uri.toString()
     }
 
-    suspend fun recordOpened(uri: Uri, displayName: String, contentHash: String, pageCount: Int) {
+    suspend fun recordOpened(
+        uri: Uri,
+        displayName: String,
+        contentHash: String,
+        pageCount: Int
+    ): RecentDocument {
         val uriString = uri.toString()
         val existingByUri = dao.getByUri(uriString)
         val existingByHash = dao.getByContentHash(contentHash)
         val lastPage = existingByUri?.lastPage ?: existingByHash?.lastPage ?: 0
-        dao.upsert(
-            RecentDocument(
-                uri = uriString,
-                contentHash = contentHash,
-                displayName = displayName,
-                pageCount = pageCount,
-                lastPage = lastPage,
-                lastOpenedAtMillis = now()
-            )
+        val readingMode = existingByUri?.readingMode ?: existingByHash?.readingMode
+        val doc = RecentDocument(
+            uri = uriString,
+            contentHash = contentHash,
+            displayName = displayName,
+            pageCount = pageCount,
+            lastPage = lastPage,
+            lastOpenedAtMillis = now(),
+            readingMode = readingMode
         )
+        dao.upsert(doc)
         trimToLimit()
+        return doc
+    }
+
+    suspend fun getExisting(uri: Uri, contentHash: String? = null): RecentDocument? {
+        val uriString = uri.toString()
+        return dao.getByUri(uriString) ?: contentHash?.let { dao.getByContentHash(it) }
+    }
+
+    suspend fun updateLastPage(uri: Uri, lastPage: Int) {
+        dao.updateLastPage(uri.toString(), lastPage)
+    }
+
+    suspend fun updateReadingMode(uri: Uri, readingMode: String?) {
+        dao.updateReadingMode(uri.toString(), readingMode)
     }
 
     suspend fun remove(document: RecentDocument) {
