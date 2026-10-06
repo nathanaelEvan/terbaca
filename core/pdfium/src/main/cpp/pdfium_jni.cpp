@@ -14,7 +14,9 @@
 #include <cstring>
 #include "fpdfview.h"
 #include "fpdf_doc.h"
+#include "fpdf_edit.h"
 #include "fpdf_progressive.h"
+#include "fpdf_text.h"
 
 enum RenderTileStatus {
     RENDER_TILE_SUCCESS = 0,
@@ -621,6 +623,427 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetDocumentTitle(
     jstring result = env->NewString(reinterpret_cast<const jchar*>(buf), char_count);
     free(buf);
     return result;
+}
+
+JNIEXPORT jstring JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetPageText(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr,
+        jint pageIndex) {
+    if (docPtr == 0 || pageIndex < 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    jstring result = nullptr;
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        FPDF_PAGE page = FPDF_LoadPage(doc_handle->doc, pageIndex);
+        if (!page) return nullptr;
+
+        FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+        if (!text_page) {
+            FPDF_ClosePage(page);
+            return nullptr;
+        }
+
+        int char_count = FPDFText_CountChars(text_page);
+        if (char_count > 0) {
+            auto* buffer = static_cast<unsigned short*>(malloc((static_cast<size_t>(char_count) + 1) * sizeof(unsigned short)));
+            if (buffer) {
+                int chars_written = FPDFText_GetText(text_page, 0, char_count, buffer);
+                int len = (chars_written > 1) ? (chars_written - 1) : 0;
+                if (len > 0) {
+                    result = env->NewString(reinterpret_cast<const jchar*>(buffer), len);
+                } else {
+                    result = env->NewStringUTF("");
+                }
+                free(buffer);
+            } else {
+                result = env->NewStringUTF("");
+            }
+        } else {
+            result = env->NewStringUTF("");
+        }
+
+        FPDFText_ClosePage(text_page);
+        FPDF_ClosePage(page);
+    }
+    return result;
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetPageCharBoxes(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr,
+        jint pageIndex) {
+    if (docPtr == 0 || pageIndex < 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    jfloatArray result = nullptr;
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        FPDF_PAGE page = FPDF_LoadPage(doc_handle->doc, pageIndex);
+        if (!page) return nullptr;
+
+        FPDF_TEXTPAGE text_page = FPDFText_LoadPage(page);
+        if (!text_page) {
+            FPDF_ClosePage(page);
+            return nullptr;
+        }
+
+        int char_count = FPDFText_CountChars(text_page);
+        if (char_count > 0) {
+            double page_height = FPDF_GetPageHeight(page);
+            size_t total_floats = static_cast<size_t>(char_count) * 4;
+            auto* boxes = static_cast<float*>(malloc(total_floats * sizeof(float)));
+            if (boxes) {
+                for (int i = 0; i < char_count; ++i) {
+                    double left = 0, right = 0, bottom = 0, top = 0;
+                    size_t base = static_cast<size_t>(i) * 4;
+                    if (FPDFText_GetCharBox(text_page, i, &left, &right, &bottom, &top)) {
+                        float b_left = static_cast<float>(left < right ? left : right);
+                        float b_right = static_cast<float>(left > right ? left : right);
+                        float b_top = static_cast<float>(page_height - (bottom > top ? bottom : top));
+                        float b_bottom = static_cast<float>(page_height - (bottom < top ? bottom : top));
+                        if (b_top > b_bottom) { float tmp = b_top; b_top = b_bottom; b_bottom = tmp; }
+                        if (b_left > b_right) { float tmp = b_left; b_left = b_right; b_right = tmp; }
+                        boxes[base] = b_left;
+                        boxes[base + 1] = b_top;
+                        boxes[base + 2] = b_right;
+                        boxes[base + 3] = b_bottom;
+                    } else {
+                        boxes[base] = 0.0f;
+                        boxes[base + 1] = 0.0f;
+                        boxes[base + 2] = 0.0f;
+                        boxes[base + 3] = 0.0f;
+                    }
+                }
+                result = env->NewFloatArray(static_cast<jsize>(total_floats));
+                if (result) {
+                    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(total_floats), boxes);
+                }
+                free(boxes);
+            }
+        }
+
+        FPDFText_ClosePage(text_page);
+        FPDF_ClosePage(page);
+    }
+    return result;
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetImageBounds(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr,
+        jint pageIndex) {
+    if (docPtr == 0 || pageIndex < 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    jfloatArray result = nullptr;
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        FPDF_PAGE page = FPDF_LoadPage(doc_handle->doc, pageIndex);
+        if (!page) return nullptr;
+
+        int obj_count = FPDFPage_CountObjects(page);
+        if (obj_count > 0) {
+            double page_height = FPDF_GetPageHeight(page);
+            auto* temp_bounds = static_cast<float*>(malloc(static_cast<size_t>(obj_count) * 4 * sizeof(float)));
+            if (temp_bounds) {
+                int img_count = 0;
+                for (int i = 0; i < obj_count; ++i) {
+                    FPDF_PAGEOBJECT obj = FPDFPage_GetObject(page, i);
+                    if (!obj) continue;
+                    if (FPDFPageObj_GetType(obj) == FPDF_PAGEOBJ_IMAGE) {
+                        float left = 0, bottom = 0, right = 0, top = 0;
+                        if (FPDFPageObj_GetBounds(obj, &left, &bottom, &right, &top)) {
+                            float b_left = left < right ? left : right;
+                            float b_right = left > right ? left : right;
+                            float b_top = static_cast<float>(page_height - (bottom > top ? bottom : top));
+                            float b_bottom = static_cast<float>(page_height - (bottom < top ? bottom : top));
+                            if (b_top > b_bottom) { float tmp = b_top; b_top = b_bottom; b_bottom = tmp; }
+                            if (b_left > b_right) { float tmp = b_left; b_left = b_right; b_right = tmp; }
+                            int base = img_count * 4;
+                            temp_bounds[base] = b_left;
+                            temp_bounds[base + 1] = b_top;
+                            temp_bounds[base + 2] = b_right;
+                            temp_bounds[base + 3] = b_bottom;
+                            img_count++;
+                        }
+                    }
+                }
+                if (img_count > 0) {
+                    result = env->NewFloatArray(img_count * 4);
+                    if (result) {
+                        env->SetFloatArrayRegion(result, 0, img_count * 4, temp_bounds);
+                    }
+                }
+                free(temp_bounds);
+            }
+        }
+        FPDF_ClosePage(page);
+    }
+    return result;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetPageLinks(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr,
+        jint pageIndex) {
+    if (docPtr == 0 || pageIndex < 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    jclass parcelClass = env->FindClass("app/terbaca/core/pdfium/PageLinkParcel");
+    if (!parcelClass) return nullptr;
+    jmethodID parcelInit = env->GetMethodID(parcelClass, "<init>", "()V");
+    jfieldID fLeft = env->GetFieldID(parcelClass, "left", "F");
+    jfieldID fTop = env->GetFieldID(parcelClass, "top", "F");
+    jfieldID fRight = env->GetFieldID(parcelClass, "right", "F");
+    jfieldID fBottom = env->GetFieldID(parcelClass, "bottom", "F");
+    jfieldID fPage = env->GetFieldID(parcelClass, "targetPageIndex", "I");
+    jfieldID fX = env->GetFieldID(parcelClass, "targetX", "F");
+    jfieldID fY = env->GetFieldID(parcelClass, "targetY", "F");
+    jfieldID fUri = env->GetFieldID(parcelClass, "uri", "Ljava/lang/String;");
+
+    jclass listClass = env->FindClass("java/util/ArrayList");
+    if (!listClass) return nullptr;
+    jmethodID listInit = env->GetMethodID(listClass, "<init>", "()V");
+    jmethodID listAdd = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
+    jmethodID listSize = env->GetMethodID(listClass, "size", "()I");
+    jmethodID listToArray = env->GetMethodID(listClass, "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
+
+    jobject list = env->NewObject(listClass, listInit);
+    if (!list) return nullptr;
+
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        FPDF_PAGE page = FPDF_LoadPage(doc_handle->doc, pageIndex);
+        if (page) {
+            double page_height = FPDF_GetPageHeight(page);
+            int start_pos = 0;
+            FPDF_LINK link_annot = nullptr;
+
+            while (FPDFLink_Enumerate(page, &start_pos, &link_annot)) {
+                if (!link_annot) continue;
+
+                FS_RECTF rect{};
+                if (!FPDFLink_GetAnnotRect(link_annot, &rect)) continue;
+
+                float b_left = rect.left < rect.right ? rect.left : rect.right;
+                float b_right = rect.left > rect.right ? rect.left : rect.right;
+                float b_top = static_cast<float>(page_height - (rect.bottom > rect.top ? rect.bottom : rect.top));
+                float b_bottom = static_cast<float>(page_height - (rect.bottom < rect.top ? rect.bottom : rect.top));
+                if (b_top > b_bottom) { float tmp = b_top; b_top = b_bottom; b_bottom = tmp; }
+                if (b_left > b_right) { float tmp = b_left; b_left = b_right; b_right = tmp; }
+
+                int target_page = -1;
+                float target_x = 0.0f / 0.0f; // NaN
+                float target_y = 0.0f / 0.0f; // NaN
+                jstring juri = nullptr;
+
+                FPDF_DEST dest = FPDFLink_GetDest(doc_handle->doc, link_annot);
+                if (!dest) {
+                    FPDF_ACTION action = FPDFLink_GetAction(link_annot);
+                    if (action) {
+                        unsigned long action_type = FPDFAction_GetType(action);
+                        if (action_type == PDFACTION_GOTO) {
+                            dest = FPDFAction_GetDest(doc_handle->doc, action);
+                        } else if (action_type == PDFACTION_URI) {
+                            unsigned long uri_len = FPDFAction_GetURIPath(doc_handle->doc, action, nullptr, 0);
+                            if (uri_len > 0) {
+                                auto* uri_buf = static_cast<char*>(malloc(uri_len));
+                                if (uri_buf) {
+                                    FPDFAction_GetURIPath(doc_handle->doc, action, uri_buf, uri_len);
+                                    juri = env->NewStringUTF(uri_buf);
+                                    free(uri_buf);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (dest) {
+                    int page_idx = FPDFDest_GetDestPageIndex(doc_handle->doc, dest);
+                    if (page_idx >= 0) {
+                        target_page = page_idx;
+                        FPDF_BOOL hasX = 0, hasY = 0, hasZoom = 0;
+                        FS_FLOAT x = 0, y = 0, zoom = 0;
+                        if (FPDFDest_GetLocationInPage(dest, &hasX, &hasY, &hasZoom, &x, &y, &zoom)) {
+                            if (hasX) target_x = x;
+                            if (hasY) {
+                                double dest_w = 0, dest_h = 0;
+                                FPDF_GetPageSizeByIndex(doc_handle->doc, target_page, &dest_w, &dest_h);
+                                target_y = static_cast<float>(dest_h - y);
+                            }
+                        }
+                    }
+                }
+
+                jobject obj = env->NewObject(parcelClass, parcelInit);
+                if (obj) {
+                    env->SetFloatField(obj, fLeft, b_left);
+                    env->SetFloatField(obj, fTop, b_top);
+                    env->SetFloatField(obj, fRight, b_right);
+                    env->SetFloatField(obj, fBottom, b_bottom);
+                    env->SetIntField(obj, fPage, target_page);
+                    env->SetFloatField(obj, fX, target_x);
+                    env->SetFloatField(obj, fY, target_y);
+                    if (juri) {
+                        env->SetObjectField(obj, fUri, juri);
+                        env->DeleteLocalRef(juri);
+                    }
+                    env->CallBooleanMethod(list, listAdd, obj);
+                    env->DeleteLocalRef(obj);
+                }
+            }
+            FPDF_ClosePage(page);
+        }
+    }
+
+    jint count = env->CallIntMethod(list, listSize);
+    jobjectArray emptyArray = env->NewObjectArray(count, parcelClass, nullptr);
+    jobjectArray resultArray = static_cast<jobjectArray>(env->CallObjectMethod(list, listToArray, emptyArray));
+    return resultArray;
+}
+
+static void TraverseBookmarksHelper(
+        JNIEnv* env,
+        FPDF_DOCUMENT doc,
+        FPDF_BOOKMARK current,
+        int depth,
+        int* count,
+        jobject list,
+        jmethodID listAdd,
+        jclass parcelClass,
+        jmethodID parcelInit,
+        jfieldID fTitle,
+        jfieldID fPage,
+        jfieldID fX,
+        jfieldID fY,
+        jfieldID fDepth) {
+    if (depth > 16 || *count >= 2000) return;
+    while (current) {
+        (*count)++;
+        jobject obj = env->NewObject(parcelClass, parcelInit);
+        if (obj) {
+            unsigned long len = FPDFBookmark_GetTitle(current, nullptr, 0);
+            if (len > 2) {
+                auto* buf = static_cast<unsigned char*>(malloc(len));
+                if (buf) {
+                    FPDFBookmark_GetTitle(current, buf, len);
+                    jsize char_count = static_cast<jsize>((len - 2) / 2);
+                    jstring jtitle = env->NewString(reinterpret_cast<const jchar*>(buf), char_count);
+                    env->SetObjectField(obj, fTitle, jtitle);
+                    env->DeleteLocalRef(jtitle);
+                    free(buf);
+                }
+            } else {
+                jstring emptyStr = env->NewStringUTF("");
+                env->SetObjectField(obj, fTitle, emptyStr);
+                env->DeleteLocalRef(emptyStr);
+            }
+
+            int target_page = -1;
+            float dest_x = 0.0f / 0.0f; // NaN
+            float dest_y = 0.0f / 0.0f; // NaN
+
+            FPDF_DEST dest = FPDFBookmark_GetDest(doc, current);
+            if (!dest) {
+                FPDF_ACTION action = FPDFBookmark_GetAction(current);
+                if (action && FPDFAction_GetType(action) == PDFACTION_GOTO) {
+                    dest = FPDFAction_GetDest(doc, action);
+                }
+            }
+
+            if (dest) {
+                int page_idx = FPDFDest_GetDestPageIndex(doc, dest);
+                if (page_idx >= 0) {
+                    target_page = page_idx;
+                    FPDF_BOOL hasX = 0, hasY = 0, hasZoom = 0;
+                    FS_FLOAT x = 0, y = 0, zoom = 0;
+                    if (FPDFDest_GetLocationInPage(dest, &hasX, &hasY, &hasZoom, &x, &y, &zoom)) {
+                        if (hasX) dest_x = x;
+                        if (hasY) {
+                            double page_w = 0, page_h = 0;
+                            FPDF_GetPageSizeByIndex(doc, page_idx, &page_w, &page_h);
+                            dest_y = static_cast<float>(page_h - y);
+                        }
+                    }
+                }
+            }
+
+            env->SetIntField(obj, fPage, target_page);
+            env->SetFloatField(obj, fX, dest_x);
+            env->SetFloatField(obj, fY, dest_y);
+            env->SetIntField(obj, fDepth, depth);
+
+            env->CallBooleanMethod(list, listAdd, obj);
+            env->DeleteLocalRef(obj);
+        }
+
+        FPDF_BOOKMARK first_child = FPDFBookmark_GetFirstChild(doc, current);
+        if (first_child) {
+            TraverseBookmarksHelper(env, doc, first_child, depth + 1, count, list, listAdd,
+                                    parcelClass, parcelInit, fTitle, fPage, fX, fY, fDepth);
+        }
+
+        current = FPDFBookmark_GetNextSibling(doc, current);
+    }
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetOutline(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr) {
+    if (docPtr == 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    jclass parcelClass = env->FindClass("app/terbaca/core/pdfium/OutlineItemParcel");
+    if (!parcelClass) return nullptr;
+    jmethodID parcelInit = env->GetMethodID(parcelClass, "<init>", "()V");
+    jfieldID fTitle = env->GetFieldID(parcelClass, "title", "Ljava/lang/String;");
+    jfieldID fPage = env->GetFieldID(parcelClass, "pageIndex", "I");
+    jfieldID fX = env->GetFieldID(parcelClass, "destX", "F");
+    jfieldID fY = env->GetFieldID(parcelClass, "destY", "F");
+    jfieldID fDepth = env->GetFieldID(parcelClass, "depth", "I");
+
+    jclass listClass = env->FindClass("java/util/ArrayList");
+    if (!listClass) return nullptr;
+    jmethodID listInit = env->GetMethodID(listClass, "<init>", "()V");
+    jmethodID listAdd = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
+    jmethodID listSize = env->GetMethodID(listClass, "size", "()I");
+    jmethodID listToArray = env->GetMethodID(listClass, "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
+
+    jobject list = env->NewObject(listClass, listInit);
+    if (!list) return nullptr;
+
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        FPDF_BOOKMARK first_root = FPDFBookmark_GetFirstChild(doc_handle->doc, nullptr);
+        if (first_root) {
+            int count = 0;
+            TraverseBookmarksHelper(env, doc_handle->doc, first_root, 0, &count, list, listAdd,
+                                    parcelClass, parcelInit, fTitle, fPage, fX, fY, fDepth);
+        }
+    }
+
+    jint count = env->CallIntMethod(list, listSize);
+    if (count <= 0) return nullptr;
+
+    jobjectArray emptyArray = env->NewObjectArray(count, parcelClass, nullptr);
+    jobjectArray resultArray = static_cast<jobjectArray>(env->CallObjectMethod(list, listToArray, emptyArray));
+    return resultArray;
 }
 
 } // extern "C"

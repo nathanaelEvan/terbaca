@@ -458,6 +458,59 @@ class PdfiumNativeExecutionTest {
         }
     }
 
+    @Test
+    fun testExtraction_paperTwoColumn_extractsTextBoxesLinksAndOutline() {
+        val file = copyAssetToTempFile("fixtures/paper_two_column.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val text = doc.getPageText(0)
+                assertNotNull("Page 0 text should not be null", text)
+                assertTrue("Page 0 text should not be empty", text!!.isNotEmpty())
+
+                val charBoxes = doc.getPageCharBoxes(0)
+                assertNotNull("Page 0 char boxes should not be null", charBoxes)
+                assertTrue("Page 0 char boxes should have elements", charBoxes!!.isNotEmpty())
+                assertEquals("Char box array size must be multiple of 4", 0, charBoxes.size % 4)
+
+                for (i in charBoxes.indices step 4) {
+                    val left = charBoxes[i]
+                    val top = charBoxes[i + 1]
+                    val right = charBoxes[i + 2]
+                    val bottom = charBoxes[i + 3]
+                    assertTrue("Box left ($left) <= right ($right)", left <= right + 0.01f)
+                    assertTrue("Box top ($top) <= bottom ($bottom)", top <= bottom + 0.01f)
+                }
+
+                val links = doc.getPageLinks(0)
+                assertNotNull("Page 0 links should not be null", links)
+
+                val outline = doc.getOutline()
+                assertNotNull("Outline should not be null", outline)
+                assertTrue("paper_two_column.pdf should have outline items", outline.isNotEmpty())
+                assertTrue("First outline item should have non-empty title", outline[0].title.isNotEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun testExtraction_scannedDoc_extractsImageBounds() {
+        val file = copyAssetToTempFile("fixtures/scanned_doc.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val bounds = doc.getImageBounds(0)
+                assertNotNull("Image bounds should not be null", bounds)
+                assertTrue("Scanned doc page 0 must have image bounds", bounds!!.isNotEmpty())
+                assertEquals("Image bounds array size must be multiple of 4", 0, bounds.size % 4)
+                val left = bounds[0]
+                val top = bounds[1]
+                val right = bounds[2]
+                val bottom = bounds[3]
+                assertTrue("Image left ($left) <= right ($right)", left <= right)
+                assertTrue("Image top ($top) <= bottom ($bottom)", top <= bottom)
+            }
+        }
+    }
+
     private companion object {
         const val STRESS_ITERATIONS = 200
 

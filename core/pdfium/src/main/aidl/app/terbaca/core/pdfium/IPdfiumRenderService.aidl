@@ -2,6 +2,8 @@ package app.terbaca.core.pdfium;
 
 import android.os.ParcelFileDescriptor;
 import app.terbaca.core.pdfium.RenderResult;
+import app.terbaca.core.pdfium.PageLinkParcel;
+import app.terbaca.core.pdfium.OutlineItemParcel;
 
 /**
  * Binder interface for the dedicated out-of-process PDFium render service.
@@ -68,5 +70,31 @@ interface IPdfiumRenderService {
      * Returns the metadata title of the document, or null if none is specified (F-LIB-1).
      */
     String getDocumentTitle(long docHandle);
-}
 
+    /**
+     * Extracts full unicode text for the page specified by pageIndex (M3-01).
+     */
+    String getPageText(long docHandle, int pageIndex);
+
+    /**
+     * Extracts character bounding boxes for the page in top-left coordinates (M3-01).
+     * Packed as 4 floats per character: [left, top, right, bottom].
+     */
+    float[] getPageCharBoxes(long docHandle, int pageIndex);
+
+    /**
+     * Extracts hyperlinks present on the page (M3-01).
+     */
+    List<PageLinkParcel> getPageLinks(long docHandle, int pageIndex);
+
+    /**
+     * Extracts the hierarchical document outline (bookmarks / TOC) (M3-01).
+     */
+    List<OutlineItemParcel> getOutline(long docHandle);
+
+    /**
+     * Extracts bounding boxes of raster image objects on the page (M3-01).
+     * Packed as 4 floats per image: [left, top, right, bottom].
+     */
+    float[] getImageBounds(long docHandle, int pageIndex);
+}

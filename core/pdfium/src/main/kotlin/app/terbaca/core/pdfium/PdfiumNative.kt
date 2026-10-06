@@ -44,6 +44,11 @@ internal object PdfiumNative {
     ): Int
     external fun nativeCloseDocument(docPtr: Long)
     external fun nativeGetDocumentTitle(docPtr: Long): String?
+    external fun nativeGetPageText(docPtr: Long, pageIndex: Int): String?
+    external fun nativeGetPageCharBoxes(docPtr: Long, pageIndex: Int): FloatArray?
+    external fun nativeGetImageBounds(docPtr: Long, pageIndex: Int): FloatArray?
+    external fun nativeGetPageLinks(docPtr: Long, pageIndex: Int): Array<PageLinkParcel>?
+    external fun nativeGetOutline(docPtr: Long): Array<OutlineItemParcel>?
     external fun nativeGetLastError(): Int
 }
 
