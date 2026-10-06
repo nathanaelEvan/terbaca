@@ -61,6 +61,9 @@ class ThumbnailPipeline(
 
         val key = diskCache.key(contentHash, pageInfo.index, targetWidthPx)
         return coalesceRender(key) {
+            // A request that finished between our memory check and taking this slot has already
+            // cached the thumbnail; don't render it twice.
+            memoryCache.getThumbnail(pageInfo.index)?.let { return@coalesceRender it }
             val bounds = TilePyramid.computeThumbnailBounds(pageInfo, targetWidthPx)
             val rendered = renderer.renderTile(
                 docHandle = docHandle,
