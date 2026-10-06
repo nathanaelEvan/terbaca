@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
