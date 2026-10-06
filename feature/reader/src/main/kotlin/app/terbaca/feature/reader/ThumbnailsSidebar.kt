@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -35,7 +36,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.PageInfo
@@ -59,7 +66,16 @@ fun ThumbnailsSidebar(
 
     LaunchedEffect(currentPage) {
         if (currentPage in pages.indices) {
-            listState.animateScrollToItem(currentPage)
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            // Off-screen items haven't been measured; thumbnails are similar in size, so borrow one.
+            val itemSize = (visibleItems.firstOrNull { it.index == currentPage } ?: visibleItems.firstOrNull())?.size ?: 0
+            val offset = centeredScrollOffset(
+                viewportSize = layoutInfo.viewportSize.height,
+                itemSize = itemSize,
+                beforeContentPadding = layoutInfo.beforeContentPadding
+            )
+            listState.animateScrollToItem(currentPage, offset)
         }
     }
 
@@ -97,10 +113,10 @@ fun ThumbnailsSidebar(
                     )
                 }
                 IconButton(onClick = onClose) {
-                    Text(
-                        text = "✕",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Icon(
+                        painter = painterResource(R.drawable.ic_close),
+                        contentDescription = stringResource(R.string.reader_sidebar_close),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -144,10 +160,16 @@ private fun ThumbnailItem(
         value = thumbnailLoader?.invoke(page)
     }
 
+    val pageLabel = stringResource(R.string.reader_thumbnail_page, page.index + 1)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            // One focusable button per page, announced as "Page N" and whether it's the current one.
+            .semantics(mergeDescendants = true) {
+                contentDescription = pageLabel
+                selected = isCurrent
+            }
+            .clickable(role = Role.Button, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
@@ -171,7 +193,7 @@ private fun ThumbnailItem(
             if (img != null) {
                 Image(
                     bitmap = img.asImageBitmap(),
-                    contentDescription = stringResource(R.string.reader_thumbnail_page, page.index + 1),
+                    contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
@@ -183,7 +205,8 @@ private fun ThumbnailItem(
                     Text(
                         text = "${page.index + 1}",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clearAndSetSemantics { }
                     )
                 }
             }
@@ -191,6 +214,7 @@ private fun ThumbnailItem(
         Spacer(Modifier.height(4.dp))
         Text(
             text = "${page.index + 1}",
+            modifier = Modifier.clearAndSetSemantics { },
             style = MaterialTheme.typography.labelSmall,
             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
             color = if (isCurrent) {
@@ -201,3 +225,11 @@ private fun ThumbnailItem(
         )
     }
 }
+
+/**
+ * Scroll offset for [androidx.compose.foundation.lazy.LazyListState.animateScrollToItem] that
+ * centres an item of [itemSize] px in a viewport of [viewportSize] px. The offset is measured from
+ * the end of the [beforeContentPadding]; negative values leave space above the item.
+ */
+internal fun centeredScrollOffset(viewportSize: Int, itemSize: Int, beforeContentPadding: Int): Int =
+    beforeContentPadding - ((viewportSize - itemSize) / 2).coerceAtLeast(0)
