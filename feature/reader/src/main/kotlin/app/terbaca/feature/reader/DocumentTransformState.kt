@@ -16,8 +16,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import app.terbaca.core.render.pyramid.TilePyramid
 import app.terbaca.core.render.pyramid.ViewportRect
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -92,7 +94,13 @@ class DocumentTransformState(
 
     /** Runs flings; any other mutation through it (a jump, a scrollbar drag) cancels the fling. */
     private val mutex = MutatorMutex()
+
+    /** The running fling's job, so synchronous actions (keyboard) can stop it first. */
+    private var flingJob: Job? = null
     private var hasAppliedInitialPage = false
+
+    /** False until the first valid viewport sets the scale to fit-width. */
+    private var isScaleInitialized = false
 
     init {
         if (initialViewportWidth > 0f && initialViewportHeight > 0f) {
@@ -102,9 +110,16 @@ class DocumentTransformState(
 
     /**
      * Updates viewport dimensions and recalculates fit scales and bounds.
+     *
+     * On a resize (docked sidebar, rotation) a view at fit-width stays at fit-width, and the
+     * document point at the top-left of the viewport stays there, so the reading position holds.
      */
     fun updateViewport(width: Float, height: Float) {
         if (width <= 0f || height <= 0f) return
+        val wasAtFitWidth = isScaleInitialized &&
+            abs(scale - fitWidthScale) <= fitWidthScale * FIT_WIDTH_EPSILON
+        val anchorX = (-offsetX / scale).coerceAtLeast(0f)
+        val anchorY = (-offsetY / scale).coerceAtLeast(0f)
         viewportWidth = width
         viewportHeight = height
 
@@ -118,14 +133,18 @@ class DocumentTransformState(
         minScale = fitPageScale
         maxScale = fitWidthScale * TilePyramid.DEFAULT_MAX_ZOOM_MULTIPLIER
 
-        if (scale < minScale) {
-            scale = fitWidthScale
-        }
+        if (!isScaleInitialized || wasAtFitWidth) scale = fitWidthScale
         scale = scale.coerceIn(minScale, maxScale)
 
+        if (!isScaleInitialized) {
+            isScaleInitialized = true
+        } else {
+            offsetX = -anchorX * scale
+            offsetY = -anchorY * scale
+        }
+
         if (!hasAppliedInitialPage && initialPage in 0 until layout.pageCount) {
-            val targetPage = initialPage.coerceIn(0, layout.pageCount - 1)
-            offsetY = -layout.pageRect(targetPage).top * scale
+            offsetY = -layout.pageRect(initialPage).top * scale
             hasAppliedInitialPage = true
         }
 
@@ -195,6 +214,8 @@ class DocumentTransformState(
         decay: DecayAnimationSpec<Float> = exponentialDecay()
     ) = mutex.mutate {
         coroutineScope {
+            val job = coroutineContext[Job]
+            flingJob = job
             animOffsetX.snapTo(offsetX)
             animOffsetY.snapTo(offsetY)
 
@@ -210,9 +231,22 @@ class DocumentTransformState(
                     clampOffsets()
                 }
             }
-            jobX.join()
-            jobY.join()
+            try {
+                jobX.join()
+                jobY.join()
+            } finally {
+                if (flingJob === job) flingJob = null
+            }
         }
+    }
+
+    /**
+     * Stops a running fling right away, so a discrete action (a key press) isn't overwritten by
+     * the fling's next frame. Cancelling also unregisters the fling's pending frame callback.
+     */
+    fun cancelFling() {
+        flingJob?.cancel()
+        flingJob = null
     }
 
     /** Cancels a running fling, e.g. when the user grabs the scrollbar. */
@@ -225,9 +259,30 @@ class DocumentTransformState(
     val scrollFraction: Float
         get() = if (scrollRangePx > 0f) (-offsetY / scrollRangePx).coerceIn(0f, 1f) else 0f
 
-    /** Page under the viewport center (F-NAV-2). */
+    /**
+     * Current page (F-NAV-2): the first page at the scroll top, the last at the scroll bottom (so a
+     * document of short pages still reaches N/N), otherwise the page filling most of the viewport.
+     * The viewport centre was wrong when pages are shorter than half the viewport.
+     */
     val currentPage: Int
-        get() = layout.pageAt(((viewportHeight / 2f - offsetY) / max(scale, MIN_SCALE)).coerceAtLeast(0f))
+        get() {
+            val s = max(scale, MIN_SCALE)
+            if (offsetY >= -SCROLL_EDGE_EPSILON_PX) return 0
+            if (offsetY <= viewportHeight - layout.height * s + SCROLL_EDGE_EPSILON_PX) return layout.pageCount - 1
+            val top = -offsetY / s
+            val bottom = (viewportHeight - offsetY) / s
+            var best = layout.pageAt(top)
+            var bestShare = -1f
+            for (index in layout.pagesIn(ViewportRect(0f, top, layout.width, bottom))) {
+                val rect = layout.pageRect(index)
+                val share = min(bottom, rect.bottom) - max(top, rect.top)
+                if (share > bestShare) {
+                    best = index
+                    bestShare = share
+                }
+            }
+            return best
+        }
 
     /** Scrolls to [fraction] of the document height (fast-scroll, F-NAV-3). Stop flings first. */
     fun scrollToFraction(fraction: Float) {
@@ -255,41 +310,56 @@ class DocumentTransformState(
         return ViewportRect(left = left, top = top, right = right, bottom = bottom)
     }
 
+    // Keyboard actions (F-NAV-7) stop a running fling first, or its next frame would undo them.
+
     /** Scrolls vertically by [deltaYPx] pixels (positive scrolls down). */
     fun scrollBy(deltaYPx: Float) {
+        cancelFling()
         onPan(0f, -deltaYPx)
+    }
+
+    /** Scrolls horizontally by [deltaXPx] pixels (positive scrolls right). */
+    fun scrollHorizontallyBy(deltaXPx: Float) {
+        cancelFling()
+        onPan(-deltaXPx, 0f)
     }
 
     /** Scrolls vertically by a viewport page fraction (e.g. 0.9 for PageUp/PageDown). */
     fun scrollPage(down: Boolean, fraction: Float = 0.9f) {
+        cancelFling()
         val delta = viewportHeight * fraction
         onPan(0f, if (down) -delta else delta)
     }
 
     /** Scrolls to top of document (Home key). */
     fun scrollToTop() {
+        cancelFling()
         scrollToFraction(0f)
     }
 
     /** Scrolls to bottom of document (End key). */
     fun scrollToBottom() {
+        cancelFling()
         scrollToFraction(1f)
     }
 
     /** Zooms in anchored at the viewport center (Ctrl + '+'). */
     fun zoomIn(factor: Float = 1.25f) {
+        cancelFling()
         val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
         onPinch(factor, center)
     }
 
     /** Zooms out anchored at the viewport center (Ctrl + '-'). */
     fun zoomOut(factor: Float = 1.25f) {
+        cancelFling()
         val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
         onPinch(1f / factor, center)
     }
 
     /** Resets zoom to fit-width scale (Ctrl + '0'). */
     fun resetZoom() {
+        cancelFling()
         val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
         if (scale > 0f) {
             onPinch(fitWidthScale / scale, center)
@@ -298,6 +368,12 @@ class DocumentTransformState(
 }
 
 private const val MIN_SCALE = 1e-3f
+
+/** Relative tolerance for "the scale is at fit-width" when the viewport resizes. */
+private const val FIT_WIDTH_EPSILON = 1e-3f
+
+/** Within this many pixels of either scroll end counts as at that end. */
+private const val SCROLL_EDGE_EPSILON_PX = 0.5f
 
 @Composable
 fun rememberDocumentTransformState(

@@ -20,6 +20,8 @@ enum class ReaderNavAction {
     SEARCH,
     SCROLL_UP,
     SCROLL_DOWN,
+    SCROLL_LEFT,
+    SCROLL_RIGHT,
     PAGE_UP,
     PAGE_DOWN,
     HOME,
@@ -32,36 +34,43 @@ enum class ReaderNavAction {
  */
 fun resolveReaderKeyAction(event: KeyEvent): ReaderNavAction {
     if (event.type != KeyEventType.KeyDown) return ReaderNavAction.NONE
-    val isCtrl = event.isCtrlPressed
-    val isShift = event.isShiftPressed
+    return resolveReaderKeyAction(event.key, event.isCtrlPressed, event.isShiftPressed)
+}
 
+/** Maps a pressed [key] with its modifiers to a [ReaderNavAction] (pure, so JVM tests can run it). */
+fun resolveReaderKeyAction(key: Key, isCtrl: Boolean, isShift: Boolean): ReaderNavAction {
     return when {
         // Zoom shortcuts: Ctrl + '=', Ctrl + '+', NumPad Add
-        isCtrl && (event.key == Key.Plus || event.key == Key.Equals || event.key == Key.NumPadAdd) ->
+        isCtrl && (key == Key.Plus || key == Key.Equals || key == Key.NumPadAdd) ->
             ReaderNavAction.ZOOM_IN
         // Zoom shortcuts: Ctrl + '-', NumPad Subtract
-        isCtrl && (event.key == Key.Minus || event.key == Key.NumPadSubtract) ->
+        isCtrl && (key == Key.Minus || key == Key.NumPadSubtract) ->
             ReaderNavAction.ZOOM_OUT
         // Reset zoom: Ctrl + '0', NumPad 0
-        isCtrl && (event.key == Key.Zero || event.key == Key.NumPad0) ->
+        isCtrl && (key == Key.Zero || key == Key.NumPad0) ->
             ReaderNavAction.ZOOM_RESET
         // Search: Ctrl + F
-        isCtrl && event.key == Key.F ->
+        isCtrl && key == Key.F ->
             ReaderNavAction.SEARCH
         // Line-by-line scrolling: Up / Down
-        event.key == Key.DirectionUp ->
+        key == Key.DirectionUp ->
             ReaderNavAction.SCROLL_UP
-        event.key == Key.DirectionDown ->
+        key == Key.DirectionDown ->
             ReaderNavAction.SCROLL_DOWN
+        // Horizontal panning when zoomed in: Left / Right
+        key == Key.DirectionLeft ->
+            ReaderNavAction.SCROLL_LEFT
+        key == Key.DirectionRight ->
+            ReaderNavAction.SCROLL_RIGHT
         // Page scrolling: PageUp / PageDown, Space / Shift+Space
-        event.key == Key.PageUp || (event.key == Key.Spacebar && isShift) ->
+        key == Key.PageUp || (key == Key.Spacebar && isShift) ->
             ReaderNavAction.PAGE_UP
-        event.key == Key.PageDown || (event.key == Key.Spacebar && !isShift) ->
+        key == Key.PageDown || (key == Key.Spacebar && !isShift) ->
             ReaderNavAction.PAGE_DOWN
         // Document boundaries: Home / End
-        event.key == Key.MoveHome ->
+        key == Key.MoveHome ->
             ReaderNavAction.HOME
-        event.key == Key.MoveEnd ->
+        key == Key.MoveEnd ->
             ReaderNavAction.END
         else ->
             ReaderNavAction.NONE
@@ -78,8 +87,20 @@ fun handleReaderKeyEvent(
     state: DocumentTransformState,
     scrollStepPx: Float = DEFAULT_KEYBOARD_SCROLL_STEP_PX,
     onSearch: (() -> Unit)? = null
+): Boolean = applyReaderNavAction(resolveReaderKeyAction(event), state, scrollStepPx, onSearch)
+
+/**
+ * Applies [action] to [state].
+ *
+ * @return true if the action was handled.
+ */
+fun applyReaderNavAction(
+    action: ReaderNavAction,
+    state: DocumentTransformState,
+    scrollStepPx: Float = DEFAULT_KEYBOARD_SCROLL_STEP_PX,
+    onSearch: (() -> Unit)? = null
 ): Boolean {
-    return when (resolveReaderKeyAction(event)) {
+    return when (action) {
         ReaderNavAction.ZOOM_IN -> {
             state.zoomIn()
             true
@@ -102,6 +123,14 @@ fun handleReaderKeyEvent(
         }
         ReaderNavAction.SCROLL_DOWN -> {
             state.scrollBy(scrollStepPx)
+            true
+        }
+        ReaderNavAction.SCROLL_LEFT -> {
+            state.scrollHorizontallyBy(-scrollStepPx)
+            true
+        }
+        ReaderNavAction.SCROLL_RIGHT -> {
+            state.scrollHorizontallyBy(scrollStepPx)
             true
         }
         ReaderNavAction.PAGE_UP -> {

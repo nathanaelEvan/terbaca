@@ -106,4 +106,32 @@ class KeyboardNavigationTest {
             // If android.view.KeyEvent is not mocked in JVM, the state-level tests above still verify the logic
         }
     }
+
+    @Test
+    fun leftRightArrows_mapToHorizontalScroll() {
+        assertEquals(ReaderNavAction.SCROLL_LEFT, resolveReaderKeyAction(Key.DirectionLeft, isCtrl = false, isShift = false))
+        assertEquals(ReaderNavAction.SCROLL_RIGHT, resolveReaderKeyAction(Key.DirectionRight, isCtrl = false, isShift = false))
+    }
+
+    @Test
+    fun scrollLeftRight_pansHorizontallyWhenZoomed() {
+        val state = DocumentTransformState(DocumentLayout(listOf(page1, page2, page3)))
+        state.updateViewport(612f, 792f)
+        state.zoomIn(2f) // content 1224 px wide, centred on x: offsetX = -306
+
+        assertTrue(applyReaderNavAction(ReaderNavAction.SCROLL_RIGHT, state, scrollStepPx = 50f))
+        assertEquals(-356f, state.offsetX, 0.001f)
+
+        assertTrue(applyReaderNavAction(ReaderNavAction.SCROLL_LEFT, state, scrollStepPx = 100f))
+        assertEquals(-256f, state.offsetX, 0.001f)
+    }
+
+    @Test
+    fun scrollLeftRight_isNoOpWhenPageFitsWidth() {
+        val state = DocumentTransformState(DocumentLayout(listOf(page1, page2, page3)))
+        state.updateViewport(612f, 792f)
+
+        applyReaderNavAction(ReaderNavAction.SCROLL_RIGHT, state, scrollStepPx = 50f)
+        assertEquals(0f, state.offsetX, 0.001f)
+    }
 }
