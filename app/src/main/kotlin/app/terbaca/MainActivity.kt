@@ -28,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import app.terbaca.core.data.RecentDocument
 import app.terbaca.core.data.computeContentHash
+import app.terbaca.core.data.resolveTitle
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.ReadingMode
 import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
+import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailDiskCache
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.render.cache.TileCache
@@ -247,7 +249,8 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            val record = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            val displayName = resolveOpenedTitle(renderer(), opened.handle, recents.displayName(uri))
+            val record = recents.recordOpened(uri, displayName, hash, opened.pages.size)
             generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
             val savedMode = record.readingMode?.let {
                 runCatching { ReadingMode.valueOf(it) }.getOrNull()
@@ -352,3 +355,24 @@ class MainActivity : ComponentActivity() {
         internal var openDocumentCallCount = 0
     }
 }
+
+/**
+ * Safely extracts document metadata title, falling back to [fallbackDisplayName]
+ * if the lookup fails or returns blank (F-LIB-1). Rethrows [CancellationException].
+ */
+internal suspend fun resolveOpenedTitle(
+    renderer: PageRenderer,
+    docHandle: Long,
+    fallbackDisplayName: String
+): String {
+    val metadataTitle = try {
+        renderer.getDocumentTitle(docHandle)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (t: Throwable) {
+        runCatching { Log.w("MainActivity", "Failed to extract metadata title for handle $docHandle", t) }
+        null
+    }
+    return resolveTitle(metadataTitle, fallbackDisplayName)
+}
+

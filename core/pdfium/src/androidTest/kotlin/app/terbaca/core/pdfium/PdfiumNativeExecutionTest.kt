@@ -83,6 +83,45 @@ class PdfiumNativeExecutionTest {
     }
 
     @Test
+    fun testValidPdf_withoutTitle_returnsNull() {
+        val file = copyAssetToTempFile("fixtures/valid_2pages.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            val document = PdfiumEngine.openDocument(pfd)
+            try {
+                org.junit.Assert.assertNull(document.getTitle())
+            } finally {
+                document.close()
+            }
+        }
+    }
+
+    @Test
+    fun testValidPdf_withTitle_returnsExtractedTitle() {
+        val file = copyAssetToTempFile("fixtures/with_title.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            val document = PdfiumEngine.openDocument(pfd)
+            try {
+                assertEquals("Terbaca Test Document", document.getTitle())
+            } finally {
+                document.close()
+            }
+        }
+    }
+
+    @Test
+    fun testValidPdf_withUtf16BeTitle_returnsExtractedTitle() {
+        val file = copyAssetToTempFile("fixtures/with_title_utf16be.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            val document = PdfiumEngine.openDocument(pfd)
+            try {
+                assertEquals("Terbaca — 📖", document.getTitle())
+            } finally {
+                document.close()
+            }
+        }
+    }
+
+    @Test
     fun testPasswordProtectedPdf_withWrongPasswordThrowsPdfPasswordException() {
         val file = copyAssetToTempFile("fixtures/password_protected.pdf")
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->

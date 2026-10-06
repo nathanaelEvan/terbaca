@@ -7,10 +7,13 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include "fpdfview.h"
+#include "fpdf_doc.h"
 #include "fpdf_progressive.h"
 
 enum RenderTileStatus {
@@ -584,6 +587,40 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeRenderTileToDirectBuffer(
     }
 
     return status;
+}
+
+JNIEXPORT jstring JNICALL
+Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetDocumentTitle(
+        JNIEnv* env,
+        jclass /* clazz */,
+        jlong docPtr) {
+    if (docPtr == 0) return nullptr;
+    auto* doc_handle = reinterpret_cast<NativeDocument*>(docPtr);
+    if (!doc_handle || !doc_handle->doc) return nullptr;
+
+    unsigned char* buf = nullptr;
+    jsize char_count = 0;
+
+    {
+        PthreadGuard lock(s_pdfium_mutex);
+        unsigned long len = FPDF_GetMetaText(doc_handle->doc, "Title", nullptr, 0);
+        if (len <= 2) return nullptr;
+
+        buf = static_cast<unsigned char*>(malloc(len));
+        if (!buf) return nullptr;
+
+        unsigned long actual_len = FPDF_GetMetaText(doc_handle->doc, "Title", buf, len);
+        unsigned long valid_len = std::min(actual_len, len);
+        if (valid_len <= 2) {
+            free(buf);
+            return nullptr;
+        }
+        char_count = static_cast<jsize>((valid_len - 2) / 2);
+    }
+
+    jstring result = env->NewString(reinterpret_cast<const jchar*>(buf), char_count);
+    free(buf);
+    return result;
 }
 
 } // extern "C"
