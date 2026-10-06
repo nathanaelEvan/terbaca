@@ -35,7 +35,6 @@ import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailDiskCache
 import app.terbaca.core.render.cache.ThumbnailPipeline
-import app.terbaca.core.render.cache.TileCache
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
@@ -79,13 +78,10 @@ class MainActivity : ComponentActivity() {
     private var renderer: PdfiumRemotePageRenderer? = null
     private val recents by lazy { (application as TerbacaApp).recentsRepository }
     private val thumbnailDiskCache by lazy { (application as TerbacaApp).thumbnailDiskCache }
-    private val thumbnailPipeline by lazy {
-        ThumbnailPipeline(
-            memoryCache = TileCache(),
-            diskCache = thumbnailDiskCache,
-            renderer = renderer()
-        )
+    private val thumbnailPipelineLazy = lazy {
+        ThumbnailPipeline(diskCache = thumbnailDiskCache, renderer = renderer())
     }
+    private val thumbnailPipeline by thumbnailPipelineLazy
 
     private fun renderer(): PdfiumRemotePageRenderer =
         renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
@@ -124,6 +120,11 @@ class MainActivity : ComponentActivity() {
         recordInRecents = true
         openUriString = recent.uri
         openRequestCount++
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (thumbnailPipelineLazy.isInitialized()) thumbnailPipeline.onTrimMemory(level)
     }
 
     public override fun onNewIntent(intent: Intent) {
@@ -331,6 +332,7 @@ class MainActivity : ComponentActivity() {
                     }
                     else -> {
                         val entries by recents.recents.collectAsState(initial = emptyList())
+                        val thumbnailWrites by thumbnailDiskCache.writes.collectAsState()
                         LibraryScreen(
                             recents = entries,
                             onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
@@ -340,7 +342,8 @@ class MainActivity : ComponentActivity() {
                                 withContext(Dispatchers.IO) {
                                     thumbnailDiskCache.get(hash, 0, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)
                                 }
-                            }
+                            },
+                            thumbnailVersion = thumbnailWrites
                         )
                     }
                 }

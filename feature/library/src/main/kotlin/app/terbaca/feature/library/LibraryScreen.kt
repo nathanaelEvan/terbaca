@@ -27,8 +27,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -54,7 +57,8 @@ fun LibraryScreen(
     onRecentClick: (RecentDocument) -> Unit,
     onRemove: (RecentDocument) -> Unit,
     modifier: Modifier = Modifier,
-    thumbnailLoader: (suspend (contentHash: String) -> Bitmap?)? = null
+    thumbnailLoader: (suspend (contentHash: String) -> Bitmap?)? = null,
+    thumbnailVersion: Int = 0
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -80,7 +84,7 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     items(recents, key = { it.document.uri }) { entry ->
-                        RecentCard(entry, onRecentClick, onRemove, thumbnailLoader)
+                        RecentCard(entry, onRecentClick, onRemove, thumbnailLoader, thumbnailVersion)
                     }
                 }
             }
@@ -108,11 +112,15 @@ private fun RecentCard(
     entry: RecentEntry,
     onRecentClick: (RecentDocument) -> Unit,
     onRemove: (RecentDocument) -> Unit,
-    thumbnailLoader: (suspend (contentHash: String) -> Bitmap?)? = null
+    thumbnailLoader: (suspend (contentHash: String) -> Bitmap?)?,
+    thumbnailVersion: Int
 ) {
     val doc = entry.document
-    val thumbnailBitmap by produceState<Bitmap?>(initialValue = null, doc.contentHash) {
-        value = thumbnailLoader?.invoke(doc.contentHash)
+    var thumbnailBitmap by remember(doc.contentHash) { mutableStateOf<Bitmap?>(null) }
+    // A thumbnail is often written after the card first shows (it renders once the document is
+    // open), so retry a missing one whenever the cache reports a new write.
+    LaunchedEffect(doc.contentHash, thumbnailVersion) {
+        if (thumbnailBitmap == null) thumbnailBitmap = thumbnailLoader?.invoke(doc.contentHash)
     }
 
     Column(
