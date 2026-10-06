@@ -55,6 +55,19 @@ class TileRevealTest {
     }
 
     @Test
+    fun overBase_keepsWaitingPastShortTimeout() {
+        val fades = mutableMapOf(visible[0].key to TILE_UNREVEALED)
+        val loaded = setOf(visible[0].key)
+        val since = now - TILE_REVEAL_TIMEOUT_MS
+        val result = revealTiles(
+            visible, { it in loaded }, fades, pendingSince = since, now,
+            timeoutMs = TILE_REVEAL_TIMEOUT_OVER_BASE_MS
+        )
+        assertEquals(since, result)
+        assertEquals(TILE_UNREVEALED, fades[visible[0].key])
+    }
+
+    @Test
     fun offscreenArrival_isMarkedFullyFaded() {
         val fades = mutableMapOf(offscreen.key to TILE_UNREVEALED)
         val since = revealTiles(visible, { it == offscreen.key }, fades, pendingSince = null, now)
