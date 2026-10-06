@@ -63,6 +63,24 @@ class RecentsDatabaseTest {
     }
 
     @Test
+    fun updateLastPage_updatesPosition() = runTest {
+        val d = doc("hash1", openedAt = 1, lastPage = 0, uri = "content://test/doc")
+        dao.upsert(d)
+        dao.updateLastPage("content://test/doc", 7)
+        val updated = dao.getByUri("content://test/doc")
+        assertEquals(7, updated?.lastPage)
+    }
+
+    @Test
+    fun updateReadingMode_updatesMode() = runTest {
+        val d = doc("hash1", openedAt = 1, lastPage = 0, uri = "content://test/doc")
+        dao.upsert(d)
+        dao.updateReadingMode("content://test/doc", "SLIDE")
+        val updated = dao.getByUri("content://test/doc")
+        assertEquals("SLIDE", updated?.readingMode)
+    }
+
+    @Test
     fun computeContentHash_readsRealDescriptor_withoutMovingOffset() {
         val bytes = Random(7).nextBytes(200 * 1024)
         val file = File(context.cacheDir, "hash_test.bin").apply { writeBytes(bytes) }

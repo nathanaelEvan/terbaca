@@ -1,6 +1,7 @@
 package app.terbaca.core.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -26,7 +27,8 @@ data class RecentDocument(
     val displayName: String,
     val pageCount: Int,
     val lastPage: Int,
-    val lastOpenedAtMillis: Long
+    val lastOpenedAtMillis: Long,
+    val readingMode: String? = null
 )
 
 @Dao
@@ -43,6 +45,12 @@ interface RecentDocumentDao {
     @Upsert
     suspend fun upsert(document: RecentDocument)
 
+    @Query("UPDATE recent_documents SET lastPage = :lastPage WHERE uri = :uri")
+    suspend fun updateLastPage(uri: String, lastPage: Int)
+
+    @Query("UPDATE recent_documents SET readingMode = :readingMode WHERE uri = :uri")
+    suspend fun updateReadingMode(uri: String, readingMode: String?)
+
     @Query("DELETE FROM recent_documents WHERE uri = :uri")
     suspend fun delete(uri: String)
 
@@ -50,7 +58,13 @@ interface RecentDocumentDao {
     suspend fun countByUri(uri: String): Int
 }
 
-@Database(entities = [RecentDocument::class], version = 1)
+@Database(
+    entities = [RecentDocument::class],
+    version = 2,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2)
+    ]
+)
 abstract class RecentsDatabase : RoomDatabase() {
     abstract fun recentDocumentDao(): RecentDocumentDao
 

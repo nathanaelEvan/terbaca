@@ -48,7 +48,12 @@ import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
-    private class OpenedDocument(val handle: Long, val pages: List<PageInfo>)
+    private class OpenedDocument(
+        val handle: Long,
+        val pages: List<PageInfo>,
+        val initialPage: Int = 0,
+        val savedMode: ReadingMode? = null
+    )
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
@@ -147,7 +152,7 @@ class MainActivity : ComponentActivity() {
                 val doc = opened
                 when {
                     doc != null -> {
-                        val currentMode = userModeOverride ?: remember(doc.pages) {
+                        val currentMode = userModeOverride ?: doc.savedMode ?: remember(doc.pages) {
                             autoDetectReadingMode(doc.pages)
                         }
                         if (currentMode == ReadingMode.SLIDE) {
@@ -156,8 +161,22 @@ class MainActivity : ComponentActivity() {
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
+                                initialPage = doc.initialPage,
+                                onPageSettled = { page ->
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateLastPage(Uri.parse(uriStr), page)
+                                        }
+                                    }
+                                },
                                 onModeToggle = {
-                                    userModeOverride = ReadingMode.CONTINUOUS_VERTICAL
+                                    val newMode = ReadingMode.CONTINUOUS_VERTICAL
+                                    userModeOverride = newMode
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
+                                        }
+                                    }
                                 }
                             )
                         } else {
@@ -166,8 +185,22 @@ class MainActivity : ComponentActivity() {
                                 pages = doc.pages,
                                 renderer = renderer(),
                                 docHandle = doc.handle,
+                                initialPage = doc.initialPage,
+                                onPageChange = { page ->
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateLastPage(Uri.parse(uriStr), page)
+                                        }
+                                    }
+                                },
                                 onModeToggle = {
-                                    userModeOverride = ReadingMode.SLIDE
+                                    val newMode = ReadingMode.SLIDE
+                                    userModeOverride = newMode
+                                    scope.launch {
+                                        openUriString?.let { uriStr ->
+                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
+                                        }
+                                    }
                                 }
                             )
                         }
@@ -211,9 +244,12 @@ class MainActivity : ComponentActivity() {
             }
             val opened = openPfd(pfd) // takes ownership of pfd
             handle = opened.handle
-            recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+            val record = recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
             generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
-            opened
+            val savedMode = record.readingMode?.let {
+                runCatching { ReadingMode.valueOf(it) }.getOrNull()
+            }
+            OpenedDocument(opened.handle, opened.pages, record.lastPage, savedMode)
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }
