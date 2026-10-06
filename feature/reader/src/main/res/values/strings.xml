@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="reader_page_indicator">%1$d / %2$d</string>
+    <string name="reader_mode_slides">Slides</string>
     <string name="reader_jump_title">Go to page</string>
     <string name="reader_jump_label">Page (1–%1$d)</string>
     <string name="reader_jump_go">Go</string>

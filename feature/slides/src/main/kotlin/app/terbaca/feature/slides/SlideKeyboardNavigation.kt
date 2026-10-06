@@ -52,6 +52,25 @@ fun resolveSlideKeyAction(event: KeyEvent): SlideNavAction {
 }
 
 /**
+ * Page a navigation [action] should scroll to, or null if it doesn't move the pager.
+ *
+ * Steps from [targetPage] (the page an in-flight animation is heading to), not the page currently
+ * on screen, so a second press during the flip animation still advances one more slide.
+ */
+fun slideNavTargetPage(action: SlideNavAction, targetPage: Int, pageCount: Int): Int? {
+    if (pageCount <= 0) return null
+    val lastPage = pageCount - 1
+    val destination = when (action) {
+        SlideNavAction.NEXT -> targetPage + 1
+        SlideNavAction.PREVIOUS -> targetPage - 1
+        SlideNavAction.FIRST -> 0
+        SlideNavAction.LAST -> lastPage
+        SlideNavAction.SEARCH, SlideNavAction.NONE -> return null
+    }.coerceIn(0, lastPage)
+    return destination.takeIf { it != targetPage }
+}
+
+/**
  * Handles keyboard navigation for slide mode per PRD F-NAV-7 & F-DECK-2.
  *
  * @return true if the event was consumed.
@@ -64,39 +83,12 @@ fun handleSlideKeyEvent(
     onSearch: (() -> Unit)? = null
 ): Boolean {
     val action = resolveSlideKeyAction(event)
-    return when (action) {
-        SlideNavAction.SEARCH -> {
-            onSearch?.invoke()
-            true
+    when (action) {
+        SlideNavAction.NONE -> return false
+        SlideNavAction.SEARCH -> onSearch?.invoke()
+        else -> slideNavTargetPage(action, pagerState.targetPage, pageCount)?.let { page ->
+            coroutineScope.launch { pagerState.animateScrollToPage(page) }
         }
-        SlideNavAction.NEXT -> {
-            if (pagerState.currentPage < pageCount - 1) {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }
-            true
-        }
-        SlideNavAction.PREVIOUS -> {
-            if (pagerState.currentPage > 0) {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                }
-            }
-            true
-        }
-        SlideNavAction.FIRST -> {
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(0)
-            }
-            true
-        }
-        SlideNavAction.LAST -> {
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(pageCount - 1)
-            }
-            true
-        }
-        SlideNavAction.NONE -> false
     }
+    return true
 }

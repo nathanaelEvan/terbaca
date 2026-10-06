@@ -2,6 +2,7 @@ package app.terbaca.feature.slides
 
 import androidx.compose.ui.input.key.KeyEvent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SlideKeyboardNavigationTest {
@@ -75,5 +76,28 @@ class SlideKeyboardNavigationTest {
         } catch (_: RuntimeException) {
             // Android mock fallback
         }
+    }
+
+    @Test
+    fun nextAndPreviousStepFromAnimationTarget() {
+        // Second press while animating 3 -> 4 (targetPage = 4) must head to 5, not re-target 4.
+        assertEquals(5, slideNavTargetPage(SlideNavAction.NEXT, targetPage = 4, pageCount = 10))
+        assertEquals(3, slideNavTargetPage(SlideNavAction.PREVIOUS, targetPage = 4, pageCount = 10))
+    }
+
+    @Test
+    fun navTargetIsClampedToDocumentBounds() {
+        assertNull(slideNavTargetPage(SlideNavAction.NEXT, targetPage = 9, pageCount = 10))
+        assertNull(slideNavTargetPage(SlideNavAction.PREVIOUS, targetPage = 0, pageCount = 10))
+        assertEquals(0, slideNavTargetPage(SlideNavAction.FIRST, targetPage = 6, pageCount = 10))
+        assertEquals(9, slideNavTargetPage(SlideNavAction.LAST, targetPage = 6, pageCount = 10))
+        assertNull(slideNavTargetPage(SlideNavAction.LAST, targetPage = 9, pageCount = 10))
+        assertNull(slideNavTargetPage(SlideNavAction.NEXT, targetPage = 0, pageCount = 0))
+    }
+
+    @Test
+    fun nonNavigationActionsHaveNoTarget() {
+        assertNull(slideNavTargetPage(SlideNavAction.SEARCH, targetPage = 2, pageCount = 10))
+        assertNull(slideNavTargetPage(SlideNavAction.NONE, targetPage = 2, pageCount = 10))
     }
 }

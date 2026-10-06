@@ -157,7 +157,7 @@ fun ReaderScreen(
                         tonalElevation = 2.dp
                     ) {
                         Text(
-                            text = "Slides",
+                            text = stringResource(R.string.reader_mode_slides),
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
