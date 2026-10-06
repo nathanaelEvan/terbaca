@@ -53,6 +53,30 @@ class IntentHandlingInstrumentedTest {
     }
 
     @Test
+    fun extractPdfUri_historyIntent_returnsNull() {
+        val uri = Uri.parse("content://app.terbaca/test.pdf")
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            flags = Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY
+        }
+        assertNull(extractPdfUri(intent))
+    }
+
+    @Test
+    fun nonContentScheme_isRejectedAsUnavailable() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val fileUri = Uri.parse("file:///data/data/app.terbaca/databases/recents.db")
+        val intent = Intent(Intent.ACTION_VIEW, fileUri).apply {
+            setClass(context, MainActivity::class.java)
+        }
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            scenario.onActivity { activity ->
+                // File scheme is rejected, openUriString is not opened
+                assertNull(activity.openUriString)
+            }
+        }
+    }
+
+    @Test
     fun tapRecent_afterDocumentOpenedFromIntent_opensRecentDocument() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val initialUri = Uri.parse("content://app.terbaca.test/intent_doc.pdf")
@@ -62,7 +86,7 @@ class IntentHandlingInstrumentedTest {
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->
                 // Initial intent was processed and requested to open
-                assertEquals(initialUri.toString(), activity.lastRequestedOpenUri)
+                assertEquals(initialUri.toString(), activity.openUriString)
 
                 // Simulate user tapping a recent document after returning to library
                 val recentDoc = RecentDocument(
@@ -73,10 +97,10 @@ class IntentHandlingInstrumentedTest {
                     lastPage = 0,
                     lastOpenedAtMillis = 1000L
                 )
-                activity.openRecentHandler?.invoke(recentDoc)
+                activity.openRecent(recentDoc)
 
                 // Verify the recent document is requested to open despite intentToProcess being non-null
-                assertEquals("content://app.terbaca.test/recent_doc.pdf", activity.lastRequestedOpenUri)
+                assertEquals("content://app.terbaca.test/recent_doc.pdf", activity.openUriString)
             }
         }
     }

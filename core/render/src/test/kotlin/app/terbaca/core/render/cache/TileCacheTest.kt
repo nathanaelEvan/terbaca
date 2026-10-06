@@ -372,6 +372,36 @@ class TileCacheTest {
     }
 
     @Test
+    fun testClearThumbnails() {
+        val recycled = mutableListOf<Bitmap>()
+        val cache = createTestCache(
+            budget = TileMemoryBudget(hotBytes = 1000, warmBytes = 1000, thumbnailBytes = 500),
+            recycled = recycled
+        )
+
+        val tileKey = TileKey(0, 1, 0, 0)
+        val tileBmp = createFakeBitmap()
+        cache.pinHot(setOf(tileKey))
+        cache.put(tileKey, tileBmp)
+
+        val thumbBmp = createFakeBitmap()
+        cache.putThumbnail(0, thumbBmp)
+
+        assertEquals(1, cache.hotCount)
+        assertEquals(1, cache.thumbnailCount)
+
+        cache.clearThumbnails()
+
+        assertEquals(0, cache.thumbnailCount)
+        assertEquals(0L, cache.thumbnailBytes)
+        assertNull(cache.getThumbnail(0))
+        // Hot tile is preserved
+        assertEquals(1, cache.hotCount)
+        assertEquals(tileBmp, cache.get(tileKey))
+        assertEquals(listOf(thumbBmp), recycled)
+    }
+
+    @Test
     fun testBaseLayerKey_matchesTilePyramidBaseBoundsKey() {
         val pageInfo = app.terbaca.core.model.PageInfo(index = 5, widthPoints = 612f, heightPoints = 792f)
         val baseBounds = app.terbaca.core.render.pyramid.TilePyramid.computeBaseLevelBounds(pageInfo, 1.5f)

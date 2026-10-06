@@ -21,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +31,9 @@ import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.ReadingMode
 import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
+import app.terbaca.core.render.cache.ThumbnailDiskCache
+import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.render.cache.TileCache
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
@@ -55,24 +57,43 @@ class MainActivity : ComponentActivity() {
 
     private val incomingIntent = mutableStateOf<Intent?>(null)
 
-    @get:androidx.annotation.VisibleForTesting
-    internal var lastRequestedOpenUri: String? = null
+    internal var openUriString by mutableStateOf<String?>(null)
         private set
-
-    @androidx.annotation.VisibleForTesting
-    internal var openRecentHandler: ((RecentDocument) -> Unit)? = null
+    internal var recordInRecents by mutableStateOf(true)
+        private set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
     private val recents by lazy { (application as TerbacaApp).recentsRepository }
+    private val thumbnailDiskCache by lazy { (application as TerbacaApp).thumbnailDiskCache }
+    private val thumbnailPipeline by lazy {
+        ThumbnailPipeline(
+            memoryCache = TileCache(),
+            diskCache = thumbnailDiskCache,
+            renderer = renderer()
+        )
+    }
 
     private fun renderer(): PdfiumRemotePageRenderer =
         renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
 
+    internal fun openRecent(recent: RecentDocument) {
+        recordInRecents = true
+        openUriString = recent.uri
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        incomingIntent.value = intent
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
+            incomingIntent.value = intent
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_OPEN_URI, openUriString)
+        outState.putBoolean(KEY_RECORD_IN_RECENTS, recordInRecents)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,7 +101,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestHighestRefreshRate()
 
-        if (savedInstanceState == null) {
+        if (savedInstanceState != null) {
+            openUriString = savedInstanceState.getString(KEY_OPEN_URI)
+            recordInRecents = savedInstanceState.getBoolean(KEY_RECORD_IN_RECENTS, true)
+        } else if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
             incomingIntent.value = intent
         }
 
@@ -91,20 +115,17 @@ class MainActivity : ComponentActivity() {
             TerbacaTheme {
                 var opened by remember { mutableStateOf<OpenedDocument?>(null) }
                 var documentError by remember { mutableStateOf<DocumentError?>(null) }
-                var openUriString by rememberSaveable { mutableStateOf<String?>(null) }
                 var userModeOverride by remember { mutableStateOf<ReadingMode?>(null) }
                 val intentToProcess by incomingIntent
                 val initialUri = remember(intentToProcess) { extractPdfUri(intentToProcess) }
                 var loading by remember {
                     mutableStateOf(corpusAsset != null || openUriString != null || initialUri != null)
                 }
-                var recordInRecents by remember { mutableStateOf(true) }
                 val scope = rememberCoroutineScope()
 
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
-                        recents.persistReadPermission(uri)
-                        recordInRecents = true
+                        recordInRecents = recents.persistReadPermission(uri)
                         openUriString = uri.toString()
                     }
                 }
@@ -131,6 +152,13 @@ class MainActivity : ComponentActivity() {
                     val currentIntent = intentToProcess ?: return@LaunchedEffect
                     val uri = extractPdfUri(currentIntent)
                     if (uri != null) {
+                        if (!isAllowedPdfScheme(uri.scheme)) {
+                            opened = null
+                            openUriString = null
+                            documentError = DocumentError.Unavailable()
+                            loading = false
+                            return@LaunchedEffect
+                        }
                         val persisted = recents.persistReadPermission(uri)
                         recordInRecents = shouldRecordInRecents(currentIntent.action, persisted)
                         openUriString = uri.toString()
@@ -140,7 +168,6 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(openUriString) {
                     val uriStr = openUriString ?: return@LaunchedEffect
                     if (corpusAsset != null) return@LaunchedEffect
-                    lastRequestedOpenUri = uriStr
                     if (opened != null) {
                         val oldDoc = opened
                         opened = null
@@ -243,16 +270,16 @@ class MainActivity : ComponentActivity() {
                     }
                     else -> {
                         val entries by recents.recents.collectAsState(initial = emptyList())
-                        val onRecentClickLambda: (RecentDocument) -> Unit = { recent: RecentDocument ->
-                            recordInRecents = true
-                            openUriString = recent.uri
-                        }
-                        openRecentHandler = onRecentClickLambda
                         LibraryScreen(
                             recents = entries,
                             onOpenDocument = { picker.launch(arrayOf(PDF_MIME_TYPE)) },
-                            onRecentClick = onRecentClickLambda,
-                            onRemove = { recent -> scope.launch { recents.remove(recent) } }
+                            onRecentClick = { recent -> openRecent(recent) },
+                            onRemove = { recent -> scope.launch { recents.remove(recent) } },
+                            thumbnailLoader = { hash ->
+                                withContext(Dispatchers.IO) {
+                                    thumbnailDiskCache.get(hash, 0, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)
+                                }
+                            }
                         )
                     }
                 }
@@ -262,6 +289,10 @@ class MainActivity : ComponentActivity() {
 
     /** Opens a SAF/content URI, records it in recents if requested, and returns an OpenResult. */
     private suspend fun openFromUri(uri: Uri, recordInRecents: Boolean = true): OpenResult = withContext(Dispatchers.IO) {
+        if (!isAllowedPdfScheme(uri.scheme)) {
+            Log.w(TAG, "Rejected non-content URI: $uri")
+            return@withContext OpenResult.Failure(DocumentError.Unavailable())
+        }
         var handle: Long? = null
         try {
             val pfd = contentResolver.openFileDescriptor(uri, "r")
@@ -277,6 +308,7 @@ class MainActivity : ComponentActivity() {
             handle = opened.handle
             if (recordInRecents) {
                 recents.recordOpened(uri, recents.displayName(uri), hash, opened.pages.size)
+                generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
             }
             OpenResult.Success(opened)
         } catch (e: CancellationException) {
@@ -331,6 +363,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun generateThumbnailIfMissing(docHandle: Long, contentHash: String, firstPage: PageInfo?) {
+        if (firstPage == null) return
+        if (thumbnailDiskCache.contains(contentHash, firstPage.index, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                thumbnailPipeline.getThumbnail(docHandle, contentHash, firstPage)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to generate thumbnail for $contentHash", e)
+            }
+        }
+    }
+
     /**
      * PRD §4.6: ask for the display's highest refresh rate (144 Hz on Pad 7) at the current
      * resolution. HyperOS caps apps at 120 Hz (ADR 0004); the request stays in case that changes.
@@ -346,7 +390,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        openRecentHandler = null
         renderer?.close()
         renderer = null
     }
@@ -355,5 +398,7 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
         private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
+        private const val KEY_OPEN_URI = "open_uri"
+        private const val KEY_RECORD_IN_RECENTS = "record_in_recents"
     }
 }

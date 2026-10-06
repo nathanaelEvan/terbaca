@@ -89,9 +89,9 @@ class IntentHandlingTest {
     }
 
     @Test
-    fun shouldRecordInRecents_actionView_persistFailed_returnsTrue() {
+    fun shouldRecordInRecents_actionView_persistFailed_returnsFalse() {
         val result = shouldRecordInRecents(Intent.ACTION_VIEW, isPermissionPersisted = false)
-        assertTrue(result)
+        assertFalse(result)
     }
 
     @Test
@@ -101,8 +101,42 @@ class IntentHandlingTest {
     }
 
     @Test
-    fun shouldRecordInRecents_otherAction_returnsTrue() {
+    fun shouldRecordInRecents_otherAction_persistFailed_returnsFalse() {
         val result = shouldRecordInRecents(Intent.ACTION_MAIN, isPermissionPersisted = false)
-        assertTrue(result)
+        assertFalse(result)
+    }
+
+    @Test
+    fun isAllowedPdfScheme_contentScheme_returnsTrue() {
+        assertTrue(isAllowedPdfScheme("content"))
+        assertTrue(isAllowedPdfScheme("CONTENT"))
+    }
+
+    @Test
+    fun isAllowedPdfScheme_nonContentScheme_returnsFalse() {
+        assertFalse(isAllowedPdfScheme("file"))
+        assertFalse(isAllowedPdfScheme("http"))
+        assertFalse(isAllowedPdfScheme("https"))
+        assertFalse(isAllowedPdfScheme(""))
+        assertFalse(isAllowedPdfScheme(null))
+    }
+
+    @Test
+    fun checkPdfUriScheme_contentScheme_returnsNull() {
+        assertNull(checkPdfUriScheme("content"))
+        assertNull(checkPdfUriScheme("CONTENT"))
+    }
+
+    @Test
+    fun checkPdfUriScheme_nonContentScheme_mapsToUnavailable() {
+        val errFile = checkPdfUriScheme("file")
+        assertTrue(errFile is DocumentError.Unavailable)
+        assertEquals(R.string.error_unavailable_title, errFile?.titleRes)
+
+        val errHttp = checkPdfUriScheme("http")
+        assertTrue(errHttp is DocumentError.Unavailable)
+
+        val errNull = checkPdfUriScheme(null)
+        assertTrue(errNull is DocumentError.Unavailable)
     }
 }

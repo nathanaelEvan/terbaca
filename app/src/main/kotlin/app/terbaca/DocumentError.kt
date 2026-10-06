@@ -65,9 +65,20 @@ fun Throwable.toDocumentError(): DocumentError = when (this) {
     else -> DocumentError.Generic()
 }
 
+/**
+ * Security: Accept only content:// schemes (F-OPEN-1 / Confused Deputy mitigation).
+ * Non-content schemes (file://, http://, etc.) are treated as Unavailable.
+ */
+fun isAllowedPdfScheme(scheme: String?): Boolean =
+    "content".equals(scheme, ignoreCase = true)
+
+fun checkPdfUriScheme(scheme: String?): DocumentError? =
+    if (isAllowedPdfScheme(scheme)) null else DocumentError.Unavailable()
+
 /** Extracts a PDF URI from ACTION_VIEW or ACTION_SEND intents. */
 fun extractPdfUri(intent: Intent?): Uri? {
     if (intent == null) return null
+    if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
     return when (intent.action) {
         Intent.ACTION_VIEW -> intent.data
         Intent.ACTION_SEND -> {
@@ -80,11 +91,11 @@ fun extractPdfUri(intent: Intent?): Uri? {
 
 /**
  * Decides whether to record an opened document into recents (F-OPEN-4).
- * For ACTION_SEND with transient grants (where persistReadPermission fails), the document
- * must NOT be saved to recents as it will not survive restarts.
+ * For external intents (ACTION_VIEW, ACTION_SEND) where persistReadPermission fails,
+ * the document must NOT be saved to recents as it will become a dead, unclickable entry.
  */
 fun shouldRecordInRecents(action: String?, isPermissionPersisted: Boolean): Boolean =
-    if (action == Intent.ACTION_SEND) isPermissionPersisted else true
+    isPermissionPersisted
 
 /** Friendly error screen for encrypted, corrupt, and unavailable PDF documents (F-OPEN-5). */
 @Composable
