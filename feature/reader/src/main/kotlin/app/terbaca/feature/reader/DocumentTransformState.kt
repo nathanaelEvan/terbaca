@@ -401,10 +401,14 @@ class DocumentTransformState(
         val docX = (position.x - offsetX) / scale
         val docY = (position.y - offsetY) / scale
         if (docY < 0f || docY > layout.height) return null
-        val index = layout.pageAt(docY)
-        val rect = layout.pageRect(index)
-        if (docX < rect.left || docX > rect.right || docY < rect.top || docY > rect.bottom) return null
-        return PagePoint(index, docX - rect.left, docY - rect.top)
+        // A spread row holds two pages side by side (F-MODE-2).
+        for (index in layout.rowPagesAt(docY)) {
+            val rect = layout.pageRect(index)
+            if (docX >= rect.left && docX <= rect.right && docY >= rect.top && docY <= rect.bottom) {
+                return PagePoint(index, docX - rect.left, docY - rect.top)
+            }
+        }
+        return null
     }
 
     /**
