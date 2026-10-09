@@ -116,6 +116,28 @@ PRD §4.6 defined a fallback plan:
 - Trace finding for the deck (doc 5): the cost is GPU fill. "waiting for GPU completion" averaged about 4 ms per frame and peaked at 10 ms, while the UI thread `doFrame` averaged about 1 ms. The AndroidExternalSurface/GL fallback is not needed at 120 Hz.
 - Raw output: `benchmark/build/outputs/connected_android_test_additional_output/benchmark/connected/<device>/app.terbaca.benchmark-benchmarkData.json` (not committed).
 
+### M2 measurement run (2026-10-06)
+
+- **Device and build:** same as above (Xiaomi Pad 7, Android 16, HyperOS, USB powered), at commit 6557f4e plus this PR's benchmark fix. `benchmark` build type. The baseline profile is still the one generated in M1 and has not been regenerated.
+- **Benchmark fix:** `exerciseReader` pinched `device.findObject(By.pkg(...))`. Since M2 added clickable chrome, that can match the page-indicator pill, and a pinch on a tiny object is a tap: every iteration opened the jump-to-page dialog with the IME and never zoomed. Perfetto showed `IWindowSession.addToDisplayAsUser`/`remove` binder calls of 8–18 ms in `Compose:onRemembered`/`onForgotten` on the main thread. Before the fix, paper and heavy_plot read 97.4% / 97.1% with 13 / 18 frames over 16.6 ms. Those numbers measured the dialog, not the reader. The pinch now targets the window root (`depth(0)`).
+
+| Metric | Budget (§7) | Measured | Status |
+|---|---|---|---|
+| Pinch/pan/fling, doc 1 (paper, now multi-page continuous) | ≥ 99% ≤ 8.33 ms; 0 > 16.6 ms | 99.49% / 1 frame (18.2 ms: RenderThread blocked 15.9 ms in `queueBuffer`, a compositor stall, 1 of 3,136). Previous run: 99.40% / 0 | **Met**, with one compositor stall |
+| Pinch/pan/fling, doc 3 (heavy_plot) | same | 99.43% / 0 (max 16.5 ms) | **Met** |
+| Pinch/pan/fling, doc 5 (deck, now slide mode with zoom) | same | 99.95% / 0 | **Met** |
+| Fling through 30-page paper | same | Covered by the doc 1 row (continuous layout, two flings per iteration) | **Met** |
+| Slide flip (`SlideFlipBenchmark`, 16 flicks × 5) | no frame > 8.33 ms | 97.22–97.40% ≤ 8.33 ms, max 12.5–13.8 ms, 0 > 16.6 ms. Slow frames sit in the drag: input dispatch + pager `measureAndLayout` + RenderThread draw | **Missed** |
+| Cold start → library visible | ≤ 500 ms | timeToInitialDisplay median 595 ms (584–606) with the M1 baseline profile; 577 ms with no compilation | **Missed** |
+| Total PSS, 100-page paper, active zoom | ≤ 250 MB | 226 MB at open; peak 311 MB zoomed (UI 293 + render 18). `EGL mtrack` 206 MB of the UI process | **Missed**: see note |
+| Tile sharpening latency, open → first page sharp, heavy_plot sharp within 1 s | see §7 | Not instrumented | Not measured |
+
+- **PSS note:** PRD §5 budgets hot ~80 + warm ~80 + thumbnails ~20 = ~180 MB of hardware bitmaps. The three full-screen window buffers add ~80 MB on top (3200×2136×4 B each). So §5 as written cannot fit §7's 250 MB. Resolve this in a PRD change: shrink warm and/or hot, or raise the PSS budget.
+- **Next steps for the misses:**
+  - Regenerate the baseline profile; it predates all M2 code. Then re-measure startup and slide flip.
+  - Profile the library's first frame: Room query plus availability checks.
+  - Cut per-frame pager layout work during a slide drag.
+
 ## Links
 
 - [PRD.md §4.1 Engine](../PRD.md#41-engine)

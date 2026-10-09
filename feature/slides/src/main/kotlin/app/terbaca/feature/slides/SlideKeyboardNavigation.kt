@@ -80,15 +80,24 @@ fun handleSlideKeyEvent(
     pagerState: PagerState,
     pageCount: Int,
     coroutineScope: CoroutineScope,
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    onNavigate: () -> Unit = {}
 ): Boolean {
     val action = resolveSlideKeyAction(event)
     when (action) {
         SlideNavAction.NONE -> return false
         SlideNavAction.SEARCH -> onSearch?.invoke()
         else -> slideNavTargetPage(action, pagerState.targetPage, pageCount)?.let { page ->
+            onNavigate()
             coroutineScope.launch { pagerState.animateScrollToPage(page) }
         }
     }
     return true
 }
+
+/**
+ * Page a tap on thumbnail [thumbnailIndex] should move the pager to (F-NAV-4), or null when the
+ * index is out of range or the pager is already there or heading there ([targetPage]).
+ */
+fun sidebarJumpTarget(thumbnailIndex: Int, targetPage: Int, pageCount: Int): Int? =
+    thumbnailIndex.takeIf { it in 0 until pageCount && it != targetPage }

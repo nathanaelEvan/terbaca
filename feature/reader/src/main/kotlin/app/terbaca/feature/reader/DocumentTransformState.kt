@@ -24,6 +24,14 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
+ * A continuous-mode viewport saved per document (F-LIB-2), independent of screen size and density:
+ * [zoom] is relative to fit-width (1 = fit-width), and ([x], [y]) is the document point (PDF
+ * points in [DocumentLayout]) at the top-left of the viewport. It restores the same zoom and
+ * reading position after a rotation, on another window size, or on another device.
+ */
+data class ReaderViewport(val zoom: Float, val x: Float, val y: Float)
+
+/**
  * State holder for document pan, zoom, pinch focal anchoring, and fling gestures, over the
  * whole [layout] (all pages, in document points).
  *
@@ -35,7 +43,9 @@ class DocumentTransformState(
     val layout: DocumentLayout,
     initialViewportWidth: Float = 0f,
     initialViewportHeight: Float = 0f,
-    val initialPage: Int = 0
+    val initialPage: Int = 0,
+    /** Restored on the first valid viewport instead of [initialPage], when set. */
+    val initialViewport: ReaderViewport? = null
 ) {
     var viewportWidth by mutableFloatStateOf(initialViewportWidth)
         private set
@@ -143,9 +153,15 @@ class DocumentTransformState(
             offsetY = -anchorY * scale
         }
 
-        if (!hasAppliedInitialPage && initialPage in 0 until layout.pageCount) {
-            offsetY = -layout.pageRect(initialPage).top * scale
+        if (!hasAppliedInitialPage) {
             hasAppliedInitialPage = true
+            if (initialViewport != null) {
+                scale = (fitWidthScale * initialViewport.zoom).coerceIn(minScale, maxScale)
+                offsetX = -initialViewport.x * scale
+                offsetY = -initialViewport.y * scale
+            } else if (initialPage in 0 until layout.pageCount) {
+                offsetY = -layout.pageRect(initialPage).top * scale
+            }
         }
 
         clampOffsets()
@@ -251,6 +267,17 @@ class DocumentTransformState(
 
     /** Cancels a running fling, e.g. when the user grabs the scrollbar. */
     suspend fun stopFling() = mutex.mutate(MutatePriority.UserInput) {}
+
+    /** True once a real viewport size is known; before that the position means nothing. */
+    val hasViewport: Boolean get() = viewportWidth > 0f && viewportHeight > 0f
+
+    /** The current zoom and position, to save and restore later (F-LIB-2). Read outside composition. */
+    val viewport: ReaderViewport
+        get() = ReaderViewport(
+            zoom = if (fitWidthScale > 0f) scale / fitWidthScale else 1f,
+            x = -offsetX / max(scale, MIN_SCALE),
+            y = -offsetY / max(scale, MIN_SCALE)
+        )
 
     /** Scrollable height beyond the viewport, in pixels (0 when the document fits). */
     private val scrollRangePx: Float get() = max(0f, layout.height * scale - viewportHeight)
@@ -378,9 +405,10 @@ private const val SCROLL_EDGE_EPSILON_PX = 0.5f
 @Composable
 fun rememberDocumentTransformState(
     layout: DocumentLayout,
-    initialPage: Int = 0
+    initialPage: Int = 0,
+    initialViewport: ReaderViewport? = null
 ): DocumentTransformState {
     return remember(layout) {
-        DocumentTransformState(layout, initialPage = initialPage)
+        DocumentTransformState(layout, initialPage = initialPage, initialViewport = initialViewport)
     }
 }

@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 private val SIDEBAR_WIDTH = 240.dp
@@ -53,6 +55,7 @@ fun ReaderScreen(
     renderer: PageRenderer? = null,
     docHandle: Long = 0L,
     initialPage: Int = 0,
+    initialViewport: ReaderViewport? = null,
     contentHash: String? = null,
     thumbnailPipeline: ThumbnailPipeline? = null,
     thumbnailLoader: (suspend (PageInfo) -> Bitmap?)? = remember(thumbnailPipeline, docHandle, contentHash) {
@@ -63,11 +66,12 @@ fun ReaderScreen(
         }
     },
     onPageChange: ((Int) -> Unit)? = null,
+    onViewportChange: ((ReaderViewport) -> Unit)? = null,
     onModeToggle: (() -> Unit)? = null,
     onSearchRequested: (() -> Unit)? = null
 ) {
     val layout = remember(pages) { DocumentLayout(pages) }
-    val state = rememberDocumentTransformState(layout, initialPage = initialPage)
+    val state = rememberDocumentTransformState(layout, initialPage, initialViewport)
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
@@ -78,11 +82,23 @@ fun ReaderScreen(
         focusRequester.requestFocus()
     }
 
+    // Both wait for the first real viewport: before it, the position reads as page 1 at fit-width.
     LaunchedEffect(state) {
-        snapshotFlow { state.currentPage }
+        snapshotFlow { if (state.hasViewport) state.currentPage else null }
+            .filterNotNull()
             .distinctUntilChanged()
             .collect { page ->
                 onPageChange?.invoke(page)
+            }
+    }
+
+    // Fires every frame during a gesture; the receiver debounces (F-LIB-2).
+    LaunchedEffect(state) {
+        snapshotFlow { if (state.hasViewport) state.viewport else null }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { viewport ->
+                onViewportChange?.invoke(viewport)
             }
     }
 

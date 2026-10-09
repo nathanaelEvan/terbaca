@@ -167,6 +167,49 @@ class DocumentTransformStateTest {
     }
 
     @Test
+    fun savedViewport_restoresOnAnotherViewportSize() {
+        val layout = DocumentLayout(List(10) { PageInfo(index = it, widthPoints = 612f, heightPoints = 792f) })
+        val before = DocumentTransformState(layout)
+        before.updateViewport(1224f, 1600f) // fit-width 2 px/pt
+        before.zoomIn(1.5f)
+        before.onPan(-300f, -5_000f)
+        val saved = before.viewport
+        assertEquals(1.5f, saved.zoom, 0.001f)
+
+        // Reopened in a narrower window: same relative zoom, same document point at the top-left.
+        val after = DocumentTransformState(layout, initialPage = 0, initialViewport = saved)
+        after.updateViewport(612f, 900f) // fit-width 1 px/pt
+        assertEquals(1.5f, after.scale, 0.001f)
+        assertEquals(saved.x, after.viewport.x, 0.01f)
+        assertEquals(saved.y, after.viewport.y, 0.01f)
+        assertEquals(before.currentPage, layout.pageAt(after.viewport.y))
+    }
+
+    @Test
+    fun savedViewport_isClampedToTheDocument() {
+        val layout = DocumentLayout(List(3) { PageInfo(index = it, widthPoints = 612f, heightPoints = 792f) })
+        val state = DocumentTransformState(
+            layout,
+            initialViewport = ReaderViewport(zoom = 100f, x = 1e6f, y = 1e6f)
+        )
+        state.updateViewport(612f, 792f)
+        assertEquals(state.maxScale, state.scale, 0.001f)
+        assertEquals(layout.pageCount - 1, state.currentPage)
+        assertEquals(612f - layout.width * state.scale, state.offsetX, 0.01f)
+    }
+
+    @Test
+    fun viewport_beforeLayout_isNotReady() {
+        val state = DocumentTransformState(DocumentLayout(listOf(letterPage)))
+        assertEquals(false, state.hasViewport)
+        state.updateViewport(612f, 792f)
+        assertTrue(state.hasViewport)
+        assertEquals(1f, state.viewport.zoom, 0.001f)
+        assertEquals(0f, state.viewport.x, 0.001f)
+        assertEquals(0f, state.viewport.y, 0.001f)
+    }
+
+    @Test
     fun initialScale_isFitWidth_whenFitWidthBelowOne() {
         // A large-format page (A1-ish) in a smaller viewport: fit-width is 0.5 px/pt.
         val poster = PageInfo(index = 0, widthPoints = 2000f, heightPoints = 3000f)

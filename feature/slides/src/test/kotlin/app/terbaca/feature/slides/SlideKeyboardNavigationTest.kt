@@ -100,4 +100,17 @@ class SlideKeyboardNavigationTest {
         assertNull(slideNavTargetPage(SlideNavAction.SEARCH, targetPage = 2, pageCount = 10))
         assertNull(slideNavTargetPage(SlideNavAction.NONE, targetPage = 2, pageCount = 10))
     }
+
+    @Test
+    fun sidebarJump_mapsThumbnailToPage() {
+        assertEquals(7, sidebarJumpTarget(thumbnailIndex = 7, targetPage = 2, pageCount = 10))
+        assertEquals(0, sidebarJumpTarget(thumbnailIndex = 0, targetPage = 9, pageCount = 10))
+    }
+
+    @Test
+    fun sidebarJump_ignoresCurrentTargetAndOutOfRange() {
+        assertNull(sidebarJumpTarget(thumbnailIndex = 4, targetPage = 4, pageCount = 10))
+        assertNull(sidebarJumpTarget(thumbnailIndex = 10, targetPage = 4, pageCount = 10))
+        assertNull(sidebarJumpTarget(thumbnailIndex = -1, targetPage = 4, pageCount = 10))
+    }
 }

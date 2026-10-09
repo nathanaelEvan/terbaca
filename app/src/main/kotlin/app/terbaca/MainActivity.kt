@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import app.terbaca.core.data.DocumentState
+import app.terbaca.core.data.DocumentStateWriter
 import app.terbaca.core.data.RecentDocument
 import app.terbaca.core.data.computeContentHash
 import app.terbaca.core.data.resolveTitle
@@ -38,6 +41,7 @@ import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.theme.TerbacaTheme
 import app.terbaca.feature.library.LibraryScreen
 import app.terbaca.feature.reader.ReaderScreen
+import app.terbaca.feature.reader.ReaderViewport
 import app.terbaca.feature.slides.SlidesScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +58,8 @@ class MainActivity : ComponentActivity() {
         val pages: List<PageInfo>,
         val initialPage: Int = 0,
         val savedMode: ReadingMode? = null,
-        val contentHash: String? = null
+        val contentHash: String? = null,
+        val savedViewport: ReaderViewport? = null
     )
 
     private sealed interface OpenResult {
@@ -65,19 +70,22 @@ class MainActivity : ComponentActivity() {
     private var opened by mutableStateOf<OpenedDocument?>(null)
     internal var openUriString by mutableStateOf<String?>(null)
         private set
-    internal var recordInRecents by mutableStateOf(true)
-        private set
     internal var currentDocumentError by mutableStateOf<DocumentError?>(null)
         private set
     internal var openRequestCount by mutableStateOf(0)
         private set
     internal var loading by mutableStateOf(false)
-        private set
+        @VisibleForTesting internal set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
     private var renderer: PdfiumRemotePageRenderer? = null
     private val recents by lazy { (application as TerbacaApp).recentsRepository }
     private val thumbnailDiskCache by lazy { (application as TerbacaApp).thumbnailDiskCache }
+
+    // App scope: the onStop flush must outlive this activity (F-LIB-2).
+    private val stateWriter by lazy {
+        DocumentStateWriter((application as TerbacaApp).appScope) { recents.saveState(it) }
+    }
     private val thumbnailPipelineLazy = lazy {
         ThumbnailPipeline(diskCache = thumbnailDiskCache, renderer = renderer())
     }
@@ -109,7 +117,6 @@ class MainActivity : ComponentActivity() {
                     return
                 }
                 currentDocumentError = null
-                recordInRecents = true
                 openUriString = uri.toString()
                 openRequestCount++
             }
@@ -117,7 +124,6 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun openRecent(recent: RecentDocument) {
-        recordInRecents = true
         openUriString = recent.uri
         openRequestCount++
     }
@@ -125,6 +131,20 @@ class MainActivity : ComponentActivity() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (thumbnailPipelineLazy.isInitialized()) thumbnailPipeline.onTrimMemory(level)
+    }
+
+    /** Queues the reading state of [doc] for a debounced save, keyed by content hash (F-LIB-2). */
+    private fun saveState(doc: OpenedDocument, position: ReadingPosition, mode: ReadingMode?) {
+        val hash = doc.contentHash ?: return
+        val viewport = position.viewport
+        stateWriter.submit(
+            DocumentState(hash, position.currentPage, mode?.name, viewport?.zoom, viewport?.x, viewport?.y)
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        stateWriter.flush()
     }
 
     public override fun onNewIntent(intent: Intent) {
@@ -136,7 +156,6 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(KEY_OPEN_URI, openUriString)
-        outState.putBoolean(KEY_RECORD_IN_RECENTS, recordInRecents)
         outState.putString(KEY_DOCUMENT_ERROR, currentDocumentError?.key)
     }
 
@@ -147,7 +166,6 @@ class MainActivity : ComponentActivity() {
 
         if (savedInstanceState != null) {
             openUriString = savedInstanceState.getString(KEY_OPEN_URI)
-            recordInRecents = savedInstanceState.getBoolean(KEY_RECORD_IN_RECENTS, true)
             currentDocumentError = DocumentError.fromKey(savedInstanceState.getString(KEY_DOCUMENT_ERROR))
         } else {
             handleIncomingIntent(intent)
@@ -165,7 +183,6 @@ class MainActivity : ComponentActivity() {
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     if (uri != null) {
                         currentDocumentError = null
-                        recordInRecents = true
                         openUriString = uri.toString()
                         openRequestCount++
                     }
@@ -204,7 +221,7 @@ class MainActivity : ComponentActivity() {
                     currentDocumentError = null
                     try {
                         Log.d(TAG, "Opening document: $uriStr (request #$openRequestCount)")
-                        val result = openFromUri(Uri.parse(uriStr), recordInRecents = recordInRecents)
+                        val result = openFromUri(Uri.parse(uriStr))
                         if (openUriString == uriStr) {
                             when (result) {
                                 is OpenResult.Success -> {
@@ -254,7 +271,7 @@ class MainActivity : ComponentActivity() {
                             autoDetectReadingMode(doc.pages)
                         }
                         // Keyed by the opened document, so a newly opened file starts at its own page.
-                        val position = remember(doc) { ReadingPosition(doc.initialPage) }
+                        val position = remember(doc) { ReadingPosition(doc.initialPage, doc.savedViewport) }
                         if (currentMode == ReadingMode.SLIDE) {
                             SlidesScreen(
                                 modifier = Modifier.fillMaxSize(),
@@ -262,23 +279,17 @@ class MainActivity : ComponentActivity() {
                                 renderer = renderer(),
                                 docHandle = doc.handle,
                                 initialPage = position.entryPage,
+                                contentHash = doc.contentHash,
+                                thumbnailPipeline = thumbnailPipeline,
                                 onPageSettled = { page ->
                                     position.onPageChanged(page)
-                                    scope.launch {
-                                        openUriString?.let { uriStr ->
-                                            recents.updateLastPage(Uri.parse(uriStr), page)
-                                        }
-                                    }
+                                    saveState(doc, position, userModeOverride ?: doc.savedMode)
                                 },
                                 onModeToggle = {
                                     val newMode = ReadingMode.CONTINUOUS_VERTICAL
                                     position.onModeSwitch()
                                     userModeOverride = newMode
-                                    scope.launch {
-                                        openUriString?.let { uriStr ->
-                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
-                                        }
-                                    }
+                                    saveState(doc, position, newMode)
                                 }
                             )
                         } else {
@@ -288,25 +299,22 @@ class MainActivity : ComponentActivity() {
                                 renderer = renderer(),
                                 docHandle = doc.handle,
                                 initialPage = position.entryPage,
+                                initialViewport = position.entryViewport,
                                 contentHash = doc.contentHash,
                                 thumbnailPipeline = thumbnailPipeline,
                                 onPageChange = { page ->
                                     position.onPageChanged(page)
-                                    scope.launch {
-                                        openUriString?.let { uriStr ->
-                                            recents.updateLastPage(Uri.parse(uriStr), page)
-                                        }
-                                    }
+                                    saveState(doc, position, userModeOverride ?: doc.savedMode)
+                                },
+                                onViewportChange = { viewport ->
+                                    position.onViewportChanged(viewport)
+                                    saveState(doc, position, userModeOverride ?: doc.savedMode)
                                 },
                                 onModeToggle = {
                                     val newMode = ReadingMode.SLIDE
                                     position.onModeSwitch()
                                     userModeOverride = newMode
-                                    scope.launch {
-                                        openUriString?.let { uriStr ->
-                                            recents.updateReadingMode(Uri.parse(uriStr), newMode.name)
-                                        }
-                                    }
+                                    saveState(doc, position, newMode)
                                 }
                             )
                         }
@@ -351,8 +359,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Opens a SAF/content URI, records it in recents if requested, and returns an OpenResult. */
-    private suspend fun openFromUri(uri: Uri, recordInRecents: Boolean = true): OpenResult = withContext(Dispatchers.IO) {
+    /** Opens a SAF/content URI, records it in recents when its grant persists, and returns an OpenResult. */
+    private suspend fun openFromUri(uri: Uri): OpenResult = withContext(Dispatchers.IO) {
         if (!isAllowedPdfScheme(uri.scheme)) {
             Log.w(TAG, "Rejected non-content URI: $uri")
             return@withContext OpenResult.Failure(DocumentError.Unavailable())
@@ -360,7 +368,6 @@ class MainActivity : ComponentActivity() {
         var handle: Long? = null
         try {
             withPersistedPermission(
-                recordInRecents = recordInRecents,
                 isAlreadyPersisted = { recents.isPermissionPersisted(uri) },
                 persistPermission = { recents.persistReadPermission(uri) },
                 releasePermission = { recents.releasePersistablePermission(uri) }
@@ -376,19 +383,24 @@ class MainActivity : ComponentActivity() {
                 }
                 val opened = openPfd(pfd) // takes ownership of pfd
                 handle = opened.handle
-                val record = if (persisted) {
+                // Keyed by content (F-LIB-2), so it restores without a library entry too. Read
+                // before recordOpened, which replaces this URI's entry (the edited-in-place fallback).
+                val state = recents.loadState(uri, hash)
+                val initialPage = (state?.page ?: 0).coerceIn(0, opened.pages.lastIndex)
+                if (persisted) {
                     val displayName = resolveOpenedTitle(renderer(), opened.handle, recents.displayName(uri))
-                    val r = recents.recordOpened(uri, displayName, hash, opened.pages.size)
+                    // Once the row exists the grant must survive, so a cancel can't split the two.
+                    withContext(NonCancellable) {
+                        recents.recordOpened(uri, displayName, hash, opened.pages.size, initialPage, state?.readingMode)
+                    }
                     generateThumbnailIfMissing(opened.handle, hash, opened.pages.firstOrNull())
-                    r
-                } else {
-                    null
                 }
-                val initialPage = record?.lastPage ?: 0
-                val savedMode = record?.readingMode?.let {
+                val savedMode = state?.readingMode?.let {
                     runCatching { ReadingMode.valueOf(it) }.getOrNull()
                 }
-                OpenResult.Success(OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash))
+                OpenResult.Success(
+                    OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash, state?.readerViewport())
+                )
             }
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
@@ -478,37 +490,37 @@ class MainActivity : ComponentActivity() {
         private const val PDF_MIME_TYPE = "application/pdf"
         const val EXTRA_CORPUS_FILE = "app.terbaca.extra.CORPUS_FILE"
         private const val KEY_OPEN_URI = "open_uri"
-        private const val KEY_RECORD_IN_RECENTS = "record_in_recents"
         private const val KEY_DOCUMENT_ERROR = "document_error"
     }
+}
+
+/** The saved scroll-mode viewport, if the state has one (F-LIB-2). */
+private fun DocumentState.readerViewport(): ReaderViewport? {
+    val zoom = zoom ?: return null
+    val x = offsetX ?: return null
+    val y = offsetY ?: return null
+    return ReaderViewport(zoom, x, y)
 }
 
 /**
  * Executes [block] with read permission management.
  *
- * Persists read permission if [recordInRecents] is true and it is not already persisted.
- * Releases newly persisted permissions if [block] throws an [Exception].
- * Never releases permissions that were already persisted, or on [CancellationException].
+ * Persists read permission unless it is already persisted. If [block] fails or is cancelled,
+ * releases the grant only when this call took it, so an open that never reached recents doesn't
+ * leave a dangling grant. Grants that existed before are never released.
  */
 internal suspend fun <T> withPersistedPermission(
-    recordInRecents: Boolean,
     isAlreadyPersisted: () -> Boolean,
     persistPermission: () -> Boolean,
     releasePermission: () -> Unit,
     block: suspend (isPersisted: Boolean) -> T
 ): T {
     val alreadyPersisted = isAlreadyPersisted()
-    val newlyPersisted = if (recordInRecents && !alreadyPersisted) {
-        persistPermission()
-    } else {
-        false
-    }
+    val newlyPersisted = !alreadyPersisted && persistPermission()
     val persisted = alreadyPersisted || newlyPersisted
     return try {
         block(persisted)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         if (newlyPersisted) {
             releasePermission()
         }

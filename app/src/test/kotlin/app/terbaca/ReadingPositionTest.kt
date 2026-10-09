@@ -1,6 +1,8 @@
 package app.terbaca
 
+import app.terbaca.feature.reader.ReaderViewport
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ReadingPositionTest {
@@ -32,5 +34,21 @@ class ReadingPositionTest {
         position.onPageChanged(5)
         assertEquals(3, position.entryPage)
         assertEquals(5, position.currentPage)
+    }
+
+    @Test
+    fun savedViewportIsRestoredOnOpen_notAfterModeSwitch() {
+        val saved = ReaderViewport(zoom = 2f, x = 40f, y = 8_000f)
+        val position = ReadingPosition(initialPage = 9, initialViewport = saved)
+        assertEquals(saved, position.entryViewport)
+        assertEquals(saved, position.viewport)
+
+        position.onModeSwitch() // Scroll -> Slides: the slide page is the position now
+        assertNull(position.entryViewport)
+        assertNull(position.viewport)
+
+        val moved = ReaderViewport(zoom = 1f, x = 0f, y = 100f)
+        position.onViewportChanged(moved)
+        assertEquals(moved, position.viewport)
     }
 }
