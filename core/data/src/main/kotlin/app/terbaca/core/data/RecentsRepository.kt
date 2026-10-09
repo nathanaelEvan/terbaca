@@ -155,9 +155,22 @@ class RecentsRepository(
 }
 
 /**
- * Resolves display title: prefers PDF metadata title when present and non-blank;
- * falls back to [fallbackDisplayName] (F-LIB-1).
+ * Resolves display title: prefers PDF metadata title when present and meaningful;
+ * falls back to [fallbackDisplayName] (F-LIB-1). Titles that authoring tools write by default
+ * ("Microsoft Word - Document1.docx", "Untitled", "PowerPoint Presentation") are ignored (#38).
  */
 fun resolveTitle(metadataTitle: String?, fallbackDisplayName: String): String =
-    metadataTitle?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackDisplayName
+    metadataTitle?.trim()?.takeIf { it.isNotEmpty() && !isJunkTitle(it) } ?: fallbackDisplayName
+
+private val JUNK_TITLE_PREFIXES = listOf("microsoft word -", "microsoft powerpoint -", "microsoft excel -")
+private val JUNK_TITLES = Regex(
+    """untitled.*|(powerpoint )?presentation\d*|document\d*|slide \d+|title|no title|""" +
+        """\(?(anonymous|unknown)\)?|.*\.(docx?|pptx?|xlsx?|odt|odp|rtf|txt|tex|dvi|ps|pdf|indd|pages|key)""",
+    RegexOption.IGNORE_CASE
+)
+
+internal fun isJunkTitle(title: String): Boolean {
+    val lower = title.lowercase()
+    return JUNK_TITLE_PREFIXES.any { lower.startsWith(it) } || JUNK_TITLES.matches(title)
+}
 
