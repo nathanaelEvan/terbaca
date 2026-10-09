@@ -24,4 +24,9 @@
     <string name="reader_search_page">Page %1$d</string>
     <string name="reader_search_close">Close</string>
     <string name="reader_selection_copy">Copy</string>
+    <string name="reader_theme_original">Theme: Original</string>
+    <string name="reader_theme_dark">Theme: Dark</string>
+    <string name="reader_theme_sepia">Theme: Sepia</string>
+    <string name="reader_images_original">Images: original</string>
+    <string name="reader_images_themed">Images: themed</string>
 </resources>
