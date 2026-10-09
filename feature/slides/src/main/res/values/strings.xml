@@ -5,4 +5,6 @@
     <string name="slides_slide_description">Slide %1$d</string>
     <string name="slides_present">Present</string>
     <string name="slides_grid">Grid</string>
+    <string name="slides_two_up">2-up</string>
+    <string name="slides_one_up">1-up</string>
 </resources>

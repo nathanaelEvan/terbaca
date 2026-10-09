@@ -143,6 +143,9 @@ fun SlidesScreen(
     var isPresenting by rememberSaveable { mutableStateOf(false) }
     // Grid overview (F-DECK-1).
     var isGrid by rememberSaveable { mutableStateOf(false) }
+    // Slide 2-up stacked (F-MODE-4): portrait only; presenting always shows one slide.
+    var twoUpWanted by rememberSaveable { mutableStateOf(false) }
+    val twoUp = !isLandscape && twoUpWanted && !isPresenting
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -259,7 +262,18 @@ fun SlidesScreen(
             Box(modifier = Modifier.weight(1f).fillMaxHeight().then(tapZones)) {
                 // The grid and the pager share each slide's image, so opening the grid shrinks the
                 // current slide into its cell, and picking a cell grows it back into the pager.
-                SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+                if (twoUp) {
+                    TwoUpSlides(
+                        pages = pages,
+                        currentSlide = currentPage,
+                        renderer = renderer,
+                        docHandle = docHandle,
+                        slideCache = slideCache,
+                        coroutineScope = coroutineScope,
+                        decay = decay,
+                        onSlideChange = { slide -> pagerState.requestScrollToPage(slide) }
+                    )
+                } else SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
                     AnimatedContent(targetState = isGrid, label = "slideGrid") { showGrid ->
                         if (showGrid) {
                             SlideGrid(
@@ -335,8 +349,11 @@ fun SlidesScreen(
                         },
                         onGrid = {
                             zoomState.reset()
+                            twoUpWanted = false
                             isGrid = true
                         },
+                        twoUp = twoUp,
+                        onTwoUp = if (isLandscape) null else ({ twoUpWanted = !twoUpWanted }),
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
@@ -368,7 +385,7 @@ fun SlidesScreen(
 }
 
 @Composable
-private fun SlideItem(
+internal fun SlideItem(
     page: PageInfo,
     renderer: PageRenderer?,
     docHandle: Long,
@@ -617,6 +634,8 @@ private fun SlideOverlay(
     onModeToggle: (() -> Unit)?,
     onPresent: () -> Unit,
     onGrid: () -> Unit,
+    twoUp: Boolean,
+    onTwoUp: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -672,6 +691,22 @@ private fun SlideOverlay(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+            if (onTwoUp != null) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .clickable(role = Role.Button, onClick = onTwoUp)
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(if (twoUp) R.string.slides_one_up else R.string.slides_two_up),
+                        color = TerbacaDarkAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
             if (onModeToggle != null) {
                 Spacer(modifier = Modifier.width(10.dp))
