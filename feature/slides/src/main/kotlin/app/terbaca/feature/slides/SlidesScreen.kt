@@ -4,6 +4,8 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -139,6 +141,8 @@ fun SlidesScreen(
     var isSidebarOpen by rememberSaveable { mutableStateOf(false) }
     // Presentation mode (F-DECK-2/3): no chrome, tap zones, clicker and volume keys, screen on.
     var isPresenting by rememberSaveable { mutableStateOf(false) }
+    // Grid overview (F-DECK-1).
+    var isGrid by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -192,6 +196,8 @@ fun SlidesScreen(
     if (isPresenting) {
         PresentationWindowEffect()
         BackHandler { isPresenting = false }
+    } else if (isGrid) {
+        BackHandler { isGrid = false }
     } else if (isSidebarOpen && !isLandscape) {
         BackHandler { isSidebarOpen = false }
     }
@@ -251,30 +257,65 @@ fun SlidesScreen(
                 Modifier
             }
             Box(modifier = Modifier.weight(1f).fillMaxHeight().then(tapZones)) {
-                HorizontalPager(
-                    state = pagerState,
-                    beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
-                    flingBehavior = flingBehavior,
-                    // Zoomed in, a drag pans the slide instead of paging (F-NAV-1).
-                    userScrollEnabled = !isZoomed,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        // A resize or rotation refits the slide.
-                        .onSizeChanged { zoomState.reset() }
-                ) { pageIndex ->
-                    SlideItem(
-                        page = pages[pageIndex],
-                        renderer = renderer,
-                        docHandle = docHandle,
-                        slideCache = slideCache,
-                        zoomState = zoomState,
-                        isActive = { pagerState.currentPage == pageIndex },
-                        coroutineScope = coroutineScope,
-                        decay = decay
-                    )
+                // The grid and the pager share each slide's image, so opening the grid shrinks the
+                // current slide into its cell, and picking a cell grows it back into the pager.
+                SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+                    AnimatedContent(targetState = isGrid, label = "slideGrid") { showGrid ->
+                        if (showGrid) {
+                            SlideGrid(
+                                pages = pages,
+                                currentPage = currentPage,
+                                thumbnailLoader = thumbnailLoader,
+                                onSlideClick = { index ->
+                                    zoomState.reset()
+                                    coroutineScope.launch {
+                                        pagerState.scrollToPage(index)
+                                        isGrid = false
+                                    }
+                                },
+                                cellModifier = { index ->
+                                    Modifier.sharedElement(
+                                        rememberSharedContentState(key = slideSharedKey(index)),
+                                        animatedVisibilityScope = this@AnimatedContent
+                                    )
+                                }
+                            )
+                        } else {
+                            HorizontalPager(
+                                state = pagerState,
+                                beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
+                                flingBehavior = flingBehavior,
+                                // Zoomed in, a drag pans the slide instead of paging (F-NAV-1).
+                                userScrollEnabled = !isZoomed,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    // A resize or rotation refits the slide.
+                                    .onSizeChanged { zoomState.reset() }
+                            ) { pageIndex ->
+                                SlideItem(
+                                    page = pages[pageIndex],
+                                    renderer = renderer,
+                                    docHandle = docHandle,
+                                    slideCache = slideCache,
+                                    zoomState = zoomState,
+                                    isActive = { pagerState.currentPage == pageIndex },
+                                    coroutineScope = coroutineScope,
+                                    decay = decay,
+                                    imageModifier = if (pageIndex == currentPage) {
+                                        Modifier.sharedElement(
+                                            rememberSharedContentState(key = slideSharedKey(pageIndex)),
+                                            animatedVisibilityScope = this@AnimatedContent
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
-                if (!isSidebarOpen && !isPresenting) {
+                if (!isSidebarOpen && !isPresenting && !isGrid) {
                     SidebarToggleChip(
                         onClick = { isSidebarOpen = true },
                         modifier = Modifier
@@ -283,7 +324,7 @@ fun SlidesScreen(
                     )
                 }
 
-                if (!isPresenting) {
+                if (!isPresenting && !isGrid) {
                     SlideOverlay(
                         currentPage = currentPage,
                         pageCount = pages.size,
@@ -291,6 +332,10 @@ fun SlidesScreen(
                         onPresent = {
                             isSidebarOpen = false
                             isPresenting = true
+                        },
+                        onGrid = {
+                            zoomState.reset()
+                            isGrid = true
                         },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
@@ -332,7 +377,8 @@ private fun SlideItem(
     isActive: () -> Boolean,
     coroutineScope: CoroutineScope,
     decay: DecayAnimationSpec<Float>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    imageModifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -419,7 +465,7 @@ private fun SlideItem(
                 bitmap = currentBitmap.asImageBitmap(),
                 contentDescription = stringResource(R.string.slides_slide_description, page.index + 1),
                 contentScale = ContentScale.Fit,
-                modifier = slideModifier
+                modifier = imageModifier.then(slideModifier)
             )
         } else {
             val density = LocalDensity.current.density
@@ -570,6 +616,7 @@ private fun SlideOverlay(
     pageCount: Int,
     onModeToggle: (() -> Unit)?,
     onPresent: () -> Unit,
+    onGrid: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -612,6 +659,20 @@ private fun SlideOverlay(
                     fontWeight = FontWeight.Medium
                 )
             }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clickable(role = Role.Button, onClick = onGrid)
+                    .padding(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.slides_grid),
+                    color = TerbacaDarkAccent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
             if (onModeToggle != null) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
@@ -638,3 +699,6 @@ private fun SlideOverlay(
         }
     }
 }
+
+/** Shared-element key of slide [index] between the pager and the grid (F-DECK-1). */
+private fun slideSharedKey(index: Int) = "slide-$index"
