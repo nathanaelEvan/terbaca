@@ -4,4 +4,5 @@
     <string name="slides_sidebar_toggle">Thumbnails</string>
     <string name="slides_slide_description">Slide %1$d</string>
     <string name="slides_present">Present</string>
+    <string name="slides_grid">Grid</string>
 </resources>
