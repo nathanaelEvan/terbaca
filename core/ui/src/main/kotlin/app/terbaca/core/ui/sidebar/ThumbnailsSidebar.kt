@@ -58,6 +58,7 @@ import app.terbaca.core.ui.R
 private const val THUMBNAIL_WIDTH_FRACTION = 0.85f
 private const val TAB_THUMBNAILS = 0
 private const val TAB_OUTLINE = 1
+private const val TAB_SEARCH = 2
 private val OUTLINE_INDENT = 12.dp
 
 /**
@@ -73,11 +74,20 @@ fun ThumbnailsSidebar(
     modifier: Modifier = Modifier,
     thumbnailLoader: (suspend (PageInfo) -> Bitmap?)? = null,
     outline: List<OutlineItem> = emptyList(),
-    onOutlineClick: (OutlineItem) -> Unit = {}
+    onOutlineClick: (OutlineItem) -> Unit = {},
+    searchResults: (@Composable (Modifier) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-    var selectedTab by rememberSaveable { mutableIntStateOf(TAB_THUMBNAILS) }
-    val tab = if (outline.isEmpty()) TAB_THUMBNAILS else selectedTab
+    // The search tab opens itself when a search starts; the user can still switch away.
+    var selectedTab by rememberSaveable(searchResults != null) {
+        mutableIntStateOf(if (searchResults != null) TAB_SEARCH else TAB_THUMBNAILS)
+    }
+    val tabs = listOfNotNull(
+        TAB_THUMBNAILS,
+        TAB_OUTLINE.takeIf { outline.isNotEmpty() },
+        TAB_SEARCH.takeIf { searchResults != null }
+    )
+    val tab = selectedTab.takeIf { it in tabs } ?: TAB_THUMBNAILS
     val outlineRows = remember(outline) { flattenOutline(outline) }
 
     LaunchedEffect(currentPage) {
@@ -113,7 +123,7 @@ fun ThumbnailsSidebar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PrimaryTabRow(
-                    selectedTabIndex = tab,
+                    selectedTabIndex = tabs.indexOf(tab),
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
@@ -139,6 +149,18 @@ fun ThumbnailsSidebar(
                             }
                         )
                     }
+                    if (searchResults != null) {
+                        Tab(
+                            selected = tab == TAB_SEARCH,
+                            onClick = { selectedTab = TAB_SEARCH },
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.reader_tab_search),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            }
+                        )
+                    }
                 }
                 IconButton(onClick = onClose) {
                     Icon(
@@ -149,7 +171,9 @@ fun ThumbnailsSidebar(
                 }
             }
 
-            if (tab == TAB_OUTLINE) {
+            if (tab == TAB_SEARCH && searchResults != null) {
+                searchResults(Modifier.fillMaxWidth().weight(1f))
+            } else if (tab == TAB_OUTLINE) {
                 OutlineList(
                     rows = outlineRows,
                     currentPage = currentPage,
