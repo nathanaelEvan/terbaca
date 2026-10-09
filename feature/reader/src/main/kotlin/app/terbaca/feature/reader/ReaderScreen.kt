@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -52,11 +54,17 @@ import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
 import app.terbaca.feature.reader.column.ColumnDetector
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 private val SIDEBAR_WIDTH = 240.dp
+private val SEARCH_BAR_CLEARANCE = 88.dp
+private const val SEARCH_DEBOUNCE_MS = 250L
+
+/** A search hit lands this far below the viewport top (plus the destination margin). */
+private const val SEARCH_HIT_LEAD_POINTS = 48f
 private const val SCRIM_ALPHA = 0.5f
 
 @Composable
@@ -113,6 +121,82 @@ fun ReaderScreen(
         if (item.pageIndex >= 0) jumpTo(item.pageIndex, item.destY)
     }
 
+    // Search (F-ACAD-5): hits stream in page by page while the search runs; a new query restarts it.
+    var isSearchOpen by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val hits = remember(docHandle) { mutableStateListOf<SearchHit>() }
+    var isSearching by remember { mutableStateOf(false) }
+    var activeHit by remember { mutableIntStateOf(-1) }
+    val hitsByPage by remember { derivedStateOf { hits.groupBy { it.pageIndex } } }
+    val showResults = isSearchOpen && query.trim().length >= MIN_QUERY_LENGTH
+
+    LaunchedEffect(query, isSearchOpen, renderer, docHandle) {
+        hits.clear()
+        activeHit = -1
+        val r = renderer ?: return@LaunchedEffect
+        if (!isSearchOpen || query.trim().length < MIN_QUERY_LENGTH) return@LaunchedEffect
+        delay(SEARCH_DEBOUNCE_MS)
+        isSearching = true
+        try {
+            searchDocument(pages.size, query) { index ->
+                extractOrEmpty { listOf(r.getPageText(docHandle, index)) }.firstOrNull()
+            }.collect { hits.addAll(it) }
+        } finally {
+            isSearching = false
+        }
+    }
+
+    val goToHit: (Int) -> Unit = { index ->
+        hits.getOrNull(index)?.let { hit ->
+            activeHit = index
+            val y = hit.rects.firstOrNull()?.top ?: 0f
+            scope.launch { state.scrollToDestination(hit.pageIndex, y - SEARCH_HIT_LEAD_POINTS) }
+        }
+    }
+    // The first next/previous starts from the current page rather than the document start.
+    val nextHit: () -> Unit = {
+        if (hits.isNotEmpty()) {
+            goToHit(
+                if (activeHit < 0) {
+                    hits.indexOfFirst { it.pageIndex >= state.currentPage }.takeIf { it >= 0 } ?: 0
+                } else {
+                    (activeHit + 1) % hits.size
+                }
+            )
+        }
+    }
+    val previousHit: () -> Unit = {
+        if (hits.isNotEmpty()) {
+            goToHit(
+                if (activeHit < 0) {
+                    hits.indexOfLast { it.pageIndex <= state.currentPage }.takeIf { it >= 0 } ?: hits.lastIndex
+                } else {
+                    (activeHit - 1 + hits.size) % hits.size
+                }
+            )
+        }
+    }
+    val closeSearch: () -> Unit = {
+        isSearchOpen = false
+        query = ""
+    }
+    val searchResults: (@Composable (Modifier) -> Unit)? = if (showResults) {
+        { m ->
+            SearchResultsList(
+                hits = hits,
+                activeHit = activeHit,
+                searching = isSearching,
+                onClick = { i ->
+                    if (!isLandscape) isSidebarOpen = false
+                    goToHit(i)
+                },
+                modifier = m
+            )
+        }
+    } else {
+        null
+    }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -139,6 +223,8 @@ fun ReaderScreen(
 
     if (isSidebarOpen && !isLandscape) {
         BackHandler { isSidebarOpen = false }
+    } else if (isSearchOpen) {
+        BackHandler { closeSearch() }
     }
 
     // Only changes when the page does; reading state.currentPage here recomposed every scroll frame.
@@ -152,7 +238,7 @@ fun ReaderScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
-                handleReaderKeyEvent(event, state, onSearch = onSearchRequested)
+                handleReaderKeyEvent(event, state, onSearch = onSearchRequested ?: { isSearchOpen = true })
             }
     ) {
         // One layout for both orientations, so the document surface keeps its composition position
@@ -167,6 +253,7 @@ fun ReaderScreen(
                     thumbnailLoader = thumbnailLoader,
                     outline = outline,
                     onOutlineClick = onOutlineClick,
+                    searchResults = searchResults,
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
@@ -228,8 +315,26 @@ fun ReaderScreen(
                         docHandle = docHandle
                     )
                 }
+                if (showResults) {
+                    SearchHighlights(state, hitsByPage, hits.getOrNull(activeHit))
+                    SearchMarkers(state, hits)
+                }
                 FastScrollbar(state)
                 PageIndicator(state)
+
+                if (isSearchOpen) {
+                    SearchBar(
+                        query = query,
+                        onQueryChange = { query = it },
+                        hitCount = hits.size,
+                        activeHit = activeHit,
+                        searching = isSearching,
+                        onPrevious = previousHit,
+                        onNext = nextHit,
+                        onClose = closeSearch,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
 
                 peek?.let { target ->
                     PeekCard(
@@ -250,7 +355,7 @@ fun ReaderScreen(
                     Surface(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 16.dp),
+                            .padding(top = if (isSearchOpen) SEARCH_BAR_CLEARANCE else 16.dp),
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         tonalElevation = 2.dp
@@ -285,6 +390,27 @@ fun ReaderScreen(
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
                                 .clickable { isSidebarOpen = true }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (!isSearchOpen) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = if (isSidebarOpen) 16.dp else 64.dp, start = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_search_toggle),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable { isSearchOpen = true }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
@@ -333,6 +459,7 @@ fun ReaderScreen(
                     isSidebarOpen = false
                     onOutlineClick(item)
                 },
+                searchResults = searchResults,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .width(SIDEBAR_WIDTH)
