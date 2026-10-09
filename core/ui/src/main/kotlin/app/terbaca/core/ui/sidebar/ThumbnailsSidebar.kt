@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -31,7 +32,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -44,15 +49,20 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.ui.R
 
 private const val THUMBNAIL_WIDTH_FRACTION = 0.85f
+private const val TAB_THUMBNAILS = 0
+private const val TAB_OUTLINE = 1
+private val OUTLINE_INDENT = 12.dp
 
 /**
- * Collapsible sidebar displaying document page thumbnails (F-NAV-4, M2-06).
- * Docked beside the document in landscape; overlay drawer in portrait.
+ * Collapsible sidebar with page thumbnails and, when the document has bookmarks, its outline
+ * (F-NAV-4, M2-06, M3-02). Docked beside the document in landscape; overlay drawer in portrait.
  */
 @Composable
 fun ThumbnailsSidebar(
@@ -61,9 +71,14 @@ fun ThumbnailsSidebar(
     onPageClick: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    thumbnailLoader: (suspend (PageInfo) -> Bitmap?)? = null
+    thumbnailLoader: (suspend (PageInfo) -> Bitmap?)? = null,
+    outline: List<OutlineItem> = emptyList(),
+    onOutlineClick: (OutlineItem) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
+    var selectedTab by rememberSaveable { mutableIntStateOf(TAB_THUMBNAILS) }
+    val tab = if (outline.isEmpty()) TAB_THUMBNAILS else selectedTab
+    val outlineRows = remember(outline) { flattenOutline(outline) }
 
     LaunchedEffect(currentPage) {
         if (currentPage in pages.indices) {
@@ -98,13 +113,13 @@ fun ThumbnailsSidebar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PrimaryTabRow(
-                    selectedTabIndex = 0,
+                    selectedTabIndex = tab,
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     Tab(
-                        selected = true,
-                        onClick = { },
+                        selected = tab == TAB_THUMBNAILS,
+                        onClick = { selectedTab = TAB_THUMBNAILS },
                         text = {
                             Text(
                                 text = stringResource(R.string.reader_tab_thumbnails),
@@ -112,6 +127,18 @@ fun ThumbnailsSidebar(
                             )
                         }
                     )
+                    if (outline.isNotEmpty()) {
+                        Tab(
+                            selected = tab == TAB_OUTLINE,
+                            onClick = { selectedTab = TAB_OUTLINE },
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.reader_tab_outline),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            }
+                        )
+                    }
                 }
                 IconButton(onClick = onClose) {
                     Icon(
@@ -122,7 +149,14 @@ fun ThumbnailsSidebar(
                 }
             }
 
-            LazyColumn(
+            if (tab == TAB_OUTLINE) {
+                OutlineList(
+                    rows = outlineRows,
+                    currentPage = currentPage,
+                    onClick = onOutlineClick,
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                )
+            } else LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -225,6 +259,70 @@ private fun ThumbnailItem(
             }
         )
     }
+}
+
+@Composable
+private fun OutlineList(
+    rows: List<OutlineRow>,
+    currentPage: Int,
+    onClick: (OutlineItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // The entry for the current position: the last one that starts on or before the current page.
+    val currentRow = rows.indexOfLast { it.item.pageIndex in 0..currentPage }
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(vertical = 8.dp)) {
+        items(rows.size) { i ->
+            val row = rows[i]
+            val isCurrent = i == currentRow
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .semantics { selected = isCurrent }
+                    .clickable(enabled = row.item.pageIndex >= 0, role = Role.Button) { onClick(row.item) }
+                    .padding(start = 16.dp + OUTLINE_INDENT * row.depth, end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = row.item.title,
+                    modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                    style = if (row.depth == 0) {
+                        MaterialTheme.typography.bodyMedium
+                    } else {
+                        MaterialTheme.typography.bodySmall
+                    },
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (row.item.pageIndex >= 0) {
+                    Text(
+                        text = "${row.item.pageIndex + 1}",
+                        modifier = Modifier.padding(start = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** An outline entry with its nesting [depth] (0 = top level), in reading order. */
+internal data class OutlineRow(val item: OutlineItem, val depth: Int)
+
+/** Flattens the outline tree depth-first, so nested entries follow their parent. */
+internal fun flattenOutline(items: List<OutlineItem>): List<OutlineRow> {
+    val rows = ArrayList<OutlineRow>()
+    fun visit(list: List<OutlineItem>, depth: Int) {
+        for (item in list) {
+            rows.add(OutlineRow(item, depth))
+            visit(item.children, depth + 1)
+        }
+    }
+    visit(items, 0)
+    return rows
 }
 
 /**

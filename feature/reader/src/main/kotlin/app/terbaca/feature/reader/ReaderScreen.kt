@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,14 +15,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,14 +37,19 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.PageLink
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -77,6 +86,24 @@ fun ReaderScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isSidebarOpen by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // Outline and links (F-NAV-4/5/6, M3-02). Links are read per page on the first tap there.
+    val outline by produceState(emptyList<OutlineItem>(), renderer, docHandle) {
+        value = renderer?.let { r -> extractOrEmpty { r.getOutline(docHandle) } }.orEmpty()
+    }
+    val pageLinks = remember(renderer, docHandle) { HashMap<Int, List<PageLink>>() }
+    val jumpHistory = remember(docHandle) { JumpHistory() }
+    var externalUri by remember { mutableStateOf<String?>(null) }
+
+    // Following a link or outline entry saves the position first, for the back chip.
+    val jumpTo: (Int, Float?) -> Unit = { page, pageY ->
+        jumpHistory.push(JumpEntry(state.viewport, state.currentPage))
+        scope.launch { state.scrollToDestination(page, pageY) }
+    }
+    val onOutlineClick: (OutlineItem) -> Unit = { item ->
+        if (item.pageIndex >= 0) jumpTo(item.pageIndex, item.destY)
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -130,17 +157,65 @@ fun ReaderScreen(
                     onPageClick = { page -> scope.launch { state.scrollToPage(page) } },
                     onClose = { isSidebarOpen = false },
                     thumbnailLoader = thumbnailLoader,
+                    outline = outline,
+                    onOutlineClick = onOutlineClick,
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                DocumentSurface(
-                    state = state,
-                    renderer = renderer,
-                    docHandle = docHandle
-                )
+                // A tap that isn't a drag follows the link under it (the surface consumes drags).
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(state, renderer, docHandle) {
+                            detectTapGestures(onTap = { position ->
+                                val r = renderer ?: return@detectTapGestures
+                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                scope.launch {
+                                    val links = pageLinks[point.pageIndex]
+                                        ?: extractOrEmpty { r.getPageLinks(docHandle, point.pageIndex) }
+                                            .also { pageLinks[point.pageIndex] = it }
+                                    val link = linkAt(links, point.x, point.y) ?: return@launch
+                                    if (link.isInternal) {
+                                        jumpTo(link.targetPageIndex, link.targetY)
+                                    } else {
+                                        externalUri = link.uri
+                                    }
+                                }
+                            })
+                        }
+                ) {
+                    DocumentSurface(
+                        state = state,
+                        renderer = renderer,
+                        docHandle = docHandle
+                    )
+                }
                 FastScrollbar(state)
                 PageIndicator(state)
+
+                jumpHistory.latest?.let { entry ->
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_back_to_page, entry.page + 1),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable {
+                                    jumpHistory.pop()?.let { scope.launch { state.restoreViewport(it.viewport) } }
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+                    }
+                }
 
                 if (!isSidebarOpen) {
                     Surface(
@@ -201,6 +276,11 @@ fun ReaderScreen(
                 },
                 onClose = { isSidebarOpen = false },
                 thumbnailLoader = thumbnailLoader,
+                outline = outline,
+                onOutlineClick = { item ->
+                    isSidebarOpen = false
+                    onOutlineClick(item)
+                },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .width(SIDEBAR_WIDTH)
@@ -208,4 +288,36 @@ fun ReaderScreen(
             )
         }
     }
+
+    externalUri?.let { uri ->
+        val openable = isOpenableUri(uri)
+        AlertDialog(
+            onDismissRequest = { externalUri = null },
+            title = { Text(stringResource(R.string.reader_link_title)) },
+            text = {
+                Text(if (openable) uri else stringResource(R.string.reader_link_unsupported, uri))
+            },
+            confirmButton = {
+                if (openable) {
+                    TextButton(onClick = {
+                        externalUri = null
+                        openExternalUri(context, uri)
+                    }) { Text(stringResource(R.string.reader_link_open)) }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { externalUri = null }) { Text(stringResource(R.string.reader_jump_cancel)) }
+            }
+        )
+    }
+}
+
+/** Runs an extraction call; a failure (render process gone, malformed page) just means no data. */
+private suspend fun <T> extractOrEmpty(block: suspend () -> List<T>): List<T> = try {
+    block()
+} catch (e: CancellationException) {
+    throw e
+} catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+    android.util.Log.w("ReaderScreen", "Extraction failed", e)
+    emptyList()
 }

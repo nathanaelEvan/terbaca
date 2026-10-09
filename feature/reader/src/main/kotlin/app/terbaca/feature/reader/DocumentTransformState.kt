@@ -324,6 +324,43 @@ class DocumentTransformState(
     }
 
     /**
+     * Jumps to a link or outline destination (F-NAV-5): page [index], with the destination's
+     * [pageY] (points from the page top) a little below the viewport top when given. The zoom and
+     * horizontal position stay, so a reader zoomed into a column keeps reading at that zoom.
+     */
+    suspend fun scrollToDestination(index: Int, pageY: Float? = null) = mutex.mutate(MutatePriority.UserInput) {
+        val rect = layout.pageRect(index.coerceIn(0, layout.pageCount - 1))
+        val y = pageY?.takeIf { it.isFinite() }?.coerceIn(0f, rect.height)
+            ?.let { rect.top + it - DESTINATION_MARGIN_POINTS }
+            ?: rect.top
+        offsetY = -max(0f, y) * scale
+        clampOffsets()
+    }
+
+    /** Returns to a saved [viewport] (the back chip, F-NAV-5), cancelling any fling. */
+    suspend fun restoreViewport(viewport: ReaderViewport) = mutex.mutate(MutatePriority.UserInput) {
+        scale = (fitWidthScale * viewport.zoom).coerceIn(minScale, maxScale)
+        offsetX = -viewport.x * scale
+        offsetY = -viewport.y * scale
+        clampOffsets()
+    }
+
+    /**
+     * The page under screen point [position] (pixels in the surface) and the point on that page in
+     * page points from its top-left corner, or null in the gaps and margins around pages.
+     */
+    fun pagePointAt(position: Offset): PagePoint? {
+        if (scale <= 0f) return null
+        val docX = (position.x - offsetX) / scale
+        val docY = (position.y - offsetY) / scale
+        if (docY < 0f || docY > layout.height) return null
+        val index = layout.pageAt(docY)
+        val rect = layout.pageRect(index)
+        if (docX < rect.left || docX > rect.right || docY < rect.top || docY > rect.bottom) return null
+        return PagePoint(index, docX - rect.left, docY - rect.top)
+    }
+
+    /**
      * Returns the current visible rectangle in document point coordinates.
      */
     fun getVisibleRectPoints(): ViewportRect {
@@ -394,7 +431,13 @@ class DocumentTransformState(
     }
 }
 
+/** A point on page [pageIndex], in page points from the page's top-left corner. */
+data class PagePoint(val pageIndex: Int, val x: Float, val y: Float)
+
 private const val MIN_SCALE = 1e-3f
+
+/** A destination lands this far below the viewport top, so its heading isn't flush with the edge. */
+private const val DESTINATION_MARGIN_POINTS = 12f
 
 /** Relative tolerance for "the scale is at fit-width" when the viewport resizes. */
 private const val FIT_WIDTH_EPSILON = 1e-3f
