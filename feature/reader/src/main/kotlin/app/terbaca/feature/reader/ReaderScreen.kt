@@ -97,6 +97,7 @@ fun ReaderScreen(
     val pageLinks = remember(renderer, docHandle) { HashMap<Int, List<PageLink>>() }
     val jumpHistory = remember(docHandle) { JumpHistory() }
     var externalUri by remember { mutableStateOf<String?>(null) }
+    var peek by remember(docHandle) { mutableStateOf<PeekTarget?>(null) }
 
     // Column-aware double-tap zoom (F-ACAD-1): columns are detected once per page, on its first
     // double-tap. The position before a double-tap zoom is kept, so the next double-tap returns.
@@ -210,7 +211,10 @@ fun ReaderScreen(
                                             .also { pageLinks[point.pageIndex] = it }
                                     val link = linkAt(links, point.x, point.y) ?: return@launch
                                     if (link.isInternal) {
-                                        jumpTo(link.targetPageIndex, link.targetY)
+                                        // Peek first (F-ACAD-3); "Go there" on the card follows the link.
+                                        if (link.targetPageIndex in pages.indices) {
+                                            peek = PeekTarget(link.targetPageIndex, link.targetY)
+                                        }
                                     } else {
                                         externalUri = link.uri
                                     }
@@ -226,6 +230,21 @@ fun ReaderScreen(
                 }
                 FastScrollbar(state)
                 PageIndicator(state)
+
+                peek?.let { target ->
+                    PeekCard(
+                        target = target,
+                        page = pages[target.pageIndex],
+                        renderer = renderer,
+                        docHandle = docHandle,
+                        onGoThere = {
+                            peek = null
+                            jumpTo(target.pageIndex, target.pageY)
+                        },
+                        onDismiss = { peek = null },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
 
                 jumpHistory.latest?.let { entry ->
                     Surface(
