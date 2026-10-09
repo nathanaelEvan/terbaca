@@ -2,7 +2,11 @@ package app.terbaca.core.render
 
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.PageLink
+import app.terbaca.core.model.PageRect
+import app.terbaca.core.model.PageText
 import app.terbaca.core.render.scheduler.CancellationToken
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -30,9 +34,29 @@ open class InProcessPageRenderer(
 
     private val documents = ConcurrentHashMap<Long, List<PageInfo>>()
     private val documentTitles = ConcurrentHashMap<Long, String>()
+    private val documentOutlines = ConcurrentHashMap<Long, List<OutlineItem>>()
+    private val pageTexts = ConcurrentHashMap<Pair<Long, Int>, PageText>()
+    private val pageLinks = ConcurrentHashMap<Pair<Long, Int>, List<PageLink>>()
+    private val pageImageBounds = ConcurrentHashMap<Pair<Long, Int>, List<PageRect>>()
     private val nextHandle = AtomicLong(1L)
     private val recoveryListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
     val cancelledRenderIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+
+    fun setOutline(docHandle: Long, outline: List<OutlineItem>) {
+        documentOutlines[docHandle] = outline
+    }
+
+    fun setPageText(docHandle: Long, pageIndex: Int, pageText: PageText) {
+        pageTexts[Pair(docHandle, pageIndex)] = pageText
+    }
+
+    fun setPageLinks(docHandle: Long, pageIndex: Int, links: List<PageLink>) {
+        pageLinks[Pair(docHandle, pageIndex)] = links
+    }
+
+    fun setImageBounds(docHandle: Long, pageIndex: Int, bounds: List<PageRect>) {
+        pageImageBounds[Pair(docHandle, pageIndex)] = bounds
+    }
 
     override var isServiceConnected: Boolean = true
 
@@ -193,9 +217,33 @@ open class InProcessPageRenderer(
         return documentTitles[docHandle]
     }
 
+    override suspend fun getOutline(docHandle: Long): List<OutlineItem> {
+        check(isServiceConnected) { "Service is disconnected" }
+        return documentOutlines[docHandle] ?: emptyList()
+    }
+
+    override suspend fun getPageText(docHandle: Long, pageIndex: Int): PageText {
+        check(isServiceConnected) { "Service is disconnected" }
+        return pageTexts[Pair(docHandle, pageIndex)] ?: PageText(pageIndex, "")
+    }
+
+    override suspend fun getPageLinks(docHandle: Long, pageIndex: Int): List<PageLink> {
+        check(isServiceConnected) { "Service is disconnected" }
+        return pageLinks[Pair(docHandle, pageIndex)] ?: emptyList()
+    }
+
+    override suspend fun getImageBounds(docHandle: Long, pageIndex: Int): List<PageRect> {
+        check(isServiceConnected) { "Service is disconnected" }
+        return pageImageBounds[Pair(docHandle, pageIndex)] ?: emptyList()
+    }
+
     override suspend fun closeDocument(docHandle: Long) {
         documents.remove(docHandle)
         documentTitles.remove(docHandle)
+        documentOutlines.remove(docHandle)
+        pageTexts.keys.filter { it.first == docHandle }.forEach { pageTexts.remove(it) }
+        pageLinks.keys.filter { it.first == docHandle }.forEach { pageLinks.remove(it) }
+        pageImageBounds.keys.filter { it.first == docHandle }.forEach { pageImageBounds.remove(it) }
     }
 }
 

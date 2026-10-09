@@ -79,5 +79,46 @@ class InProcessPageRendererTest {
         renderer.simulateRecovery()
         assertEquals(2, invocationCount)
     }
+
+    @Test
+    fun testExtractionApis() = runTest {
+        val renderer = InProcessPageRenderer()
+        val handle = renderer.createTestDocument(pageCount = 3)
+
+        val outline = listOf(
+            app.terbaca.core.model.OutlineItem("Introduction", 0),
+            app.terbaca.core.model.OutlineItem("Methods", 1)
+        )
+        renderer.setOutline(handle, outline)
+        assertEquals(outline, renderer.getOutline(handle))
+
+        val text = app.terbaca.core.model.PageText(
+            pageIndex = 0,
+            text = "Hello World",
+            charBoxes = listOf(app.terbaca.core.model.CharBox(10f, 10f, 20f, 20f))
+        )
+        renderer.setPageText(handle, 0, text)
+        assertEquals(text, renderer.getPageText(handle, 0))
+
+        val links = listOf(
+            app.terbaca.core.model.PageLink(
+                sourceRect = app.terbaca.core.model.PageRect(50f, 50f, 100f, 70f),
+                targetPageIndex = 1
+            )
+        )
+        renderer.setPageLinks(handle, 0, links)
+        assertEquals(links, renderer.getPageLinks(handle, 0))
+
+        val images = listOf(
+            app.terbaca.core.model.PageRect(100f, 100f, 300f, 250f)
+        )
+        renderer.setImageBounds(handle, 0, images)
+        assertEquals(images, renderer.getImageBounds(handle, 0))
+
+        renderer.closeDocument(handle)
+        assertTrue(renderer.getOutline(handle).isEmpty())
+        assertTrue(renderer.getPageLinks(handle, 0).isEmpty())
+        assertTrue(renderer.getImageBounds(handle, 0).isEmpty())
+    }
 }
 

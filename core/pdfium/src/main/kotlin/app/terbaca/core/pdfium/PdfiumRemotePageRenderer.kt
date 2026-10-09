@@ -10,7 +10,12 @@ import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import android.os.SharedMemory
 import android.util.Log
+import app.terbaca.core.model.CharBox
+import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.PageLink
+import app.terbaca.core.model.PageRect
+import app.terbaca.core.model.PageText
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.scheduler.CancellationToken
 import kotlinx.coroutines.CancellationException
@@ -439,6 +444,60 @@ class PdfiumRemotePageRenderer(
         }
     }
 
+    override suspend fun getPageText(docHandle: Long, pageIndex: Int): PageText = withContext(Dispatchers.IO) {
+        checkSessionActiveOrThrow(docHandle, pageIndex)
+        executeWithRetry { service ->
+            val remoteHandle = getRemoteHandle(docHandle)
+            val text = service.getPageText(remoteHandle, pageIndex) ?: ""
+            val rawBoxes = service.getPageCharBoxes(remoteHandle, pageIndex) ?: FloatArray(0)
+            val charBoxes = ArrayList<CharBox>(rawBoxes.size / 4)
+            for (i in 0 until rawBoxes.size step 4) {
+                charBoxes.add(CharBox(rawBoxes[i], rawBoxes[i + 1], rawBoxes[i + 2], rawBoxes[i + 3]))
+            }
+            PageText(pageIndex = pageIndex, text = text, charBoxes = charBoxes)
+        }
+    }
+
+    override suspend fun getPageLinks(docHandle: Long, pageIndex: Int): List<PageLink> = withContext(Dispatchers.IO) {
+        checkSessionActiveOrThrow(docHandle, pageIndex)
+        executeWithRetry { service ->
+            val remoteHandle = getRemoteHandle(docHandle)
+            val parcels = service.getPageLinks(remoteHandle, pageIndex) ?: emptyList()
+            parcels.map { p ->
+                val sourceRect = PageRect(p.left, p.top, p.right, p.bottom)
+                PageLink(
+                    sourceRect = sourceRect,
+                    targetPageIndex = p.targetPageIndex,
+                    targetX = if (p.targetX.isNaN()) null else p.targetX,
+                    targetY = if (p.targetY.isNaN()) null else p.targetY,
+                    uri = if (p.uri.isNullOrEmpty()) null else p.uri
+                )
+            }
+        }
+    }
+
+    override suspend fun getOutline(docHandle: Long): List<OutlineItem> = withContext(Dispatchers.IO) {
+        checkSessionActiveOrThrow(docHandle)
+        executeWithRetry { service ->
+            val remoteHandle = getRemoteHandle(docHandle)
+            val parcels = service.getOutline(remoteHandle) ?: emptyList()
+            buildOutlineTree(parcels)
+        }
+    }
+
+    override suspend fun getImageBounds(docHandle: Long, pageIndex: Int): List<PageRect> = withContext(Dispatchers.IO) {
+        checkSessionActiveOrThrow(docHandle, pageIndex)
+        executeWithRetry { service ->
+            val remoteHandle = getRemoteHandle(docHandle)
+            val raw = service.getImageBounds(remoteHandle, pageIndex) ?: FloatArray(0)
+            val result = ArrayList<PageRect>(raw.size / 4)
+            for (i in 0 until raw.size step 4) {
+                result.add(PageRect(raw[i], raw[i + 1], raw[i + 2], raw[i + 3]))
+            }
+            result
+        }
+    }
+
     override suspend fun getPageCount(docHandle: Long): Int = withContext(Dispatchers.IO) {
         checkSessionActiveOrThrow(docHandle)
         executeWithRetry { service ->
@@ -752,4 +811,47 @@ class PdfiumRemotePageRenderer(
             }
         }
     }
+}
+
+internal fun buildOutlineTree(parcels: List<OutlineItemParcel>): List<OutlineItem> {
+    if (parcels.isEmpty()) return emptyList()
+
+    class Node(
+        val title: String,
+        val pageIndex: Int,
+        val destX: Float?,
+        val destY: Float?,
+        val depth: Int,
+        val children: MutableList<Node> = mutableListOf()
+    ) {
+        fun toOutlineItem(): OutlineItem = OutlineItem(
+            title = title,
+            pageIndex = pageIndex,
+            destX = destX,
+            destY = destY,
+            children = children.map { it.toOutlineItem() }
+        )
+    }
+
+    val roots = mutableListOf<Node>()
+    val stack = ArrayDeque<Node>()
+
+    for (p in parcels) {
+        val destX = if (p.destX.isNaN()) null else p.destX
+        val destY = if (p.destY.isNaN()) null else p.destY
+        val node = Node(p.title ?: "", p.pageIndex, destX, destY, p.depth)
+
+        while (stack.isNotEmpty() && stack.last().depth >= node.depth) {
+            stack.removeLast()
+        }
+
+        if (stack.isEmpty()) {
+            roots.add(node)
+        } else {
+            stack.last().children.add(node)
+        }
+        stack.addLast(node)
+    }
+
+    return roots.map { it.toOutlineItem() }
 }

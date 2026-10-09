@@ -2,7 +2,11 @@ package app.terbaca.core.render
 
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.model.PageLink
+import app.terbaca.core.model.PageRect
+import app.terbaca.core.model.PageText
 
 /**
  * High-level engine-agnostic interface for opening documents, inspecting page geometry,
@@ -136,6 +140,27 @@ interface PageRenderer {
      * Extracts the metadata title for [docHandle] if present and non-blank (F-LIB-1).
      */
     suspend fun getDocumentTitle(docHandle: Long): String? = null
+
+    /**
+     * Extracts full text and character bounding boxes for [pageIndex] (M3-01).
+     */
+    suspend fun getPageText(docHandle: Long, pageIndex: Int): PageText =
+        PageText(pageIndex = pageIndex, text = "", charBoxes = emptyList())
+
+    /**
+     * Extracts all hyperlinks (internal and external) for [pageIndex] (M3-01).
+     */
+    suspend fun getPageLinks(docHandle: Long, pageIndex: Int): List<PageLink> = emptyList()
+
+    /**
+     * Extracts hierarchical table of contents / bookmarks outline for [docHandle] (M3-01).
+     */
+    suspend fun getOutline(docHandle: Long): List<OutlineItem> = emptyList()
+
+    /**
+     * Extracts bounding boxes of raster image objects on [pageIndex] (M3-01, F-THEME-3).
+     */
+    suspend fun getImageBounds(docHandle: Long, pageIndex: Int): List<PageRect> = emptyList()
 
     /**
      * Closes the document handle and releases native memory and file descriptors.
