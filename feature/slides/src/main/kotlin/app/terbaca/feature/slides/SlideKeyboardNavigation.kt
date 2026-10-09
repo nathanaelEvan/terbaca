@@ -20,6 +20,7 @@ enum class SlideNavAction {
     FIRST,
     LAST,
     SEARCH,
+    EXIT_PRESENTATION,
     NONE
 }
 
@@ -65,7 +66,7 @@ fun slideNavTargetPage(action: SlideNavAction, targetPage: Int, pageCount: Int):
         SlideNavAction.PREVIOUS -> targetPage - 1
         SlideNavAction.FIRST -> 0
         SlideNavAction.LAST -> lastPage
-        SlideNavAction.SEARCH, SlideNavAction.NONE -> return null
+        SlideNavAction.SEARCH, SlideNavAction.EXIT_PRESENTATION, SlideNavAction.NONE -> return null
     }.coerceIn(0, lastPage)
     return destination.takeIf { it != targetPage }
 }
@@ -81,12 +82,16 @@ fun handleSlideKeyEvent(
     pageCount: Int,
     coroutineScope: CoroutineScope,
     onSearch: (() -> Unit)? = null,
-    onNavigate: () -> Unit = {}
+    onNavigate: () -> Unit = {},
+    presenting: Boolean = false,
+    onExitPresentation: () -> Unit = {}
 ): Boolean {
-    val action = resolveSlideKeyAction(event)
+    val action = resolveSlideKeyAction(event).takeIf { it != SlideNavAction.NONE }
+        ?: if (presenting && event.type == KeyEventType.KeyDown) presentationKeyAction(event.key) else SlideNavAction.NONE
     when (action) {
         SlideNavAction.NONE -> return false
         SlideNavAction.SEARCH -> onSearch?.invoke()
+        SlideNavAction.EXIT_PRESENTATION -> onExitPresentation()
         else -> slideNavTargetPage(action, pagerState.targetPage, pageCount)?.let { page ->
             onNavigate()
             coroutineScope.launch { pagerState.animateScrollToPage(page) }

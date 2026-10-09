@@ -32,4 +32,33 @@ class TitleResolutionTest {
         val blankMetadataTitle = "   \n\t  "
         assertEquals(fallback, resolveTitle(blankMetadataTitle, fallback))
     }
+
+    @Test
+    fun resolveTitle_withToolDefaultTitles_fallsBackToDisplayName() {
+        val fallback = "thesis-final.pdf"
+        listOf(
+            "Microsoft Word - Document1.docx",
+            "Microsoft PowerPoint - pitch_v3.pptx",
+            "Untitled",
+            "untitled-1",
+            "PowerPoint Presentation",
+            "Presentation1",
+            "Document1",
+            "Slide 1",
+            "main.tex",
+            "paper.dvi",
+            "Report.pdf",
+            "(anonymous)",
+        ).forEach { junk -> assertEquals(junk, fallback, resolveTitle(junk, fallback)) }
+    }
+
+    @Test
+    fun resolveTitle_withMeaningfulTitles_keepsThem() {
+        listOf(
+            "Attention Is All You Need",
+            "Presentation Skills for Engineers",
+            "Document Layout Analysis with Transformers",
+            "Untangling Distributed Systems",
+        ).forEach { title -> assertEquals(title, resolveTitle(title, "x.pdf")) }
+    }
 }
