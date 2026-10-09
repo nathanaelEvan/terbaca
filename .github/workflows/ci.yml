@@ -76,7 +76,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build test APKs for x86_64
-        run: ./gradlew :core:pdfium:assembleDebugAndroidTest :core:data:assembleDebugAndroidTest :app:assembleDebugAndroidTest -Pterbaca.abis=x86_64 --stacktrace
+        run: ./gradlew :core:pdfium:assembleDebugAndroidTest :core:data:assembleDebugAndroidTest :feature:reader:assembleDebugAndroidTest :app:assembleDebugAndroidTest -Pterbaca.abis=x86_64 --stacktrace
 
       - name: Run instrumented tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -88,7 +88,7 @@ jobs:
           disk-size: 2048M
           emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: ./gradlew :core:pdfium:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest :app:connectedDebugAndroidTest -Pterbaca.abis=x86_64 --stacktrace
+          script: ./gradlew :core:pdfium:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest :feature:reader:connectedDebugAndroidTest :app:connectedDebugAndroidTest -Pterbaca.abis=x86_64 --stacktrace
 
       - name: Upload instrumented test reports
         if: always()

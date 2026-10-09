@@ -2,6 +2,7 @@ package app.terbaca.feature.reader
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.RuntimeShader
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,6 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -36,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -44,17 +50,26 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.OutlineItem
+import app.terbaca.core.model.PageColumnLayout
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.PageLink
+import app.terbaca.core.model.PageRect
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
+import app.terbaca.feature.reader.column.ColumnDetector
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 private val SIDEBAR_WIDTH = 240.dp
+private val SEARCH_BAR_CLEARANCE = 88.dp
+private const val SEARCH_DEBOUNCE_MS = 250L
+
+/** A search hit lands this far below the viewport top (plus the destination margin). */
+private const val SEARCH_HIT_LEAD_POINTS = 48f
 private const val SCRIM_ALPHA = 0.5f
 
 @Composable
@@ -79,12 +94,24 @@ fun ReaderScreen(
     onModeToggle: (() -> Unit)? = null,
     onSearchRequested: (() -> Unit)? = null
 ) {
-    val layout = remember(pages) { DocumentLayout(pages) }
-    val state = rememberDocumentTransformState(layout, initialPage, initialViewport)
-    val focusRequester = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // Two-page spread (F-MODE-2): offered in landscape for portrait pages, cover alone by default.
+    val canSpread = isLandscape && pages.first().heightPoints > pages.first().widthPoints
+    var spreadWanted by rememberSaveable { mutableStateOf(false) }
+    var coverAlone by rememberSaveable { mutableStateOf(true) }
+    val spread = canSpread && spreadWanted
+    val layout = remember(pages, spread, coverAlone) { DocumentLayout(pages, spread = spread, coverAlone = coverAlone) }
+    // A layout switch rebuilds the state; it reopens at the page being read, not the initial one.
+    val firstLayout = remember { layout }
+    var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
+    val state = rememberDocumentTransformState(
+        layout,
+        if (layout === firstLayout) initialPage else lastPage,
+        initialViewport.takeIf { layout === firstLayout }
+    )
+    val focusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
     var isSidebarOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -95,6 +122,33 @@ fun ReaderScreen(
     val pageLinks = remember(renderer, docHandle) { HashMap<Int, List<PageLink>>() }
     val jumpHistory = remember(docHandle) { JumpHistory() }
     var externalUri by remember { mutableStateOf<String?>(null) }
+    var peek by remember(docHandle) { mutableStateOf<PeekTarget?>(null) }
+
+    // Page theme (F-THEME-2/3/4/5): a shader over the surface, so switching needs no re-render.
+    var pageTheme by remember { mutableStateOf(loadPageTheme(context)) }
+    var invertImages by rememberSaveable(docHandle) { mutableStateOf(false) }
+    val themeShader = remember { RuntimeShader(PAGE_THEME_AGSL) }
+    val imageBounds = remember(renderer, docHandle) { mutableStateMapOf<Int, List<PageRect>>() }
+    LaunchedEffect(pageTheme, renderer, docHandle) {
+        val r = renderer ?: return@LaunchedEffect
+        if (pageTheme == PageTheme.ORIGINAL) return@LaunchedEffect
+        // Image bounds for the pages coming into view, once per page.
+        snapshotFlow { if (state.hasViewport) state.layout.pagesIn(state.getVisibleRectPoints()) else IntRange.EMPTY }
+            .distinctUntilChanged()
+            .collect { visible ->
+                for (index in visible) {
+                    if (index !in imageBounds) imageBounds[index] = extractOrEmpty { r.getImageBounds(docHandle, index) }
+                }
+            }
+    }
+
+    // Text selection (F-ACAD-6): a long-press selects the word under the finger.
+    var selection by remember(docHandle) { mutableStateOf<TextSelection?>(null) }
+
+    // Column-aware double-tap zoom (F-ACAD-1): columns are detected once per page, on its first
+    // double-tap. The position before a double-tap zoom is kept, so the next double-tap returns.
+    val pageColumns = remember(renderer, docHandle) { HashMap<Int, PageColumnLayout>() }
+    var beforeDoubleTap by remember(docHandle) { mutableStateOf<ReaderViewport?>(null) }
 
     // Following a link or outline entry saves the position first, for the back chip.
     val jumpTo: (Int, Float?) -> Unit = { page, pageY ->
@@ -103,6 +157,82 @@ fun ReaderScreen(
     }
     val onOutlineClick: (OutlineItem) -> Unit = { item ->
         if (item.pageIndex >= 0) jumpTo(item.pageIndex, item.destY)
+    }
+
+    // Search (F-ACAD-5): hits stream in page by page while the search runs; a new query restarts it.
+    var isSearchOpen by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val hits = remember(docHandle) { mutableStateListOf<SearchHit>() }
+    var isSearching by remember { mutableStateOf(false) }
+    var activeHit by remember { mutableIntStateOf(-1) }
+    val hitsByPage by remember { derivedStateOf { hits.groupBy { it.pageIndex } } }
+    val showResults = isSearchOpen && query.trim().length >= MIN_QUERY_LENGTH
+
+    LaunchedEffect(query, isSearchOpen, renderer, docHandle) {
+        hits.clear()
+        activeHit = -1
+        val r = renderer ?: return@LaunchedEffect
+        if (!isSearchOpen || query.trim().length < MIN_QUERY_LENGTH) return@LaunchedEffect
+        delay(SEARCH_DEBOUNCE_MS)
+        isSearching = true
+        try {
+            searchDocument(pages.size, query) { index ->
+                extractOrEmpty { listOf(r.getPageText(docHandle, index)) }.firstOrNull()
+            }.collect { hits.addAll(it) }
+        } finally {
+            isSearching = false
+        }
+    }
+
+    val goToHit: (Int) -> Unit = { index ->
+        hits.getOrNull(index)?.let { hit ->
+            activeHit = index
+            val y = hit.rects.firstOrNull()?.top ?: 0f
+            scope.launch { state.scrollToDestination(hit.pageIndex, y - SEARCH_HIT_LEAD_POINTS) }
+        }
+    }
+    // The first next/previous starts from the current page rather than the document start.
+    val nextHit: () -> Unit = {
+        if (hits.isNotEmpty()) {
+            goToHit(
+                if (activeHit < 0) {
+                    hits.indexOfFirst { it.pageIndex >= state.currentPage }.takeIf { it >= 0 } ?: 0
+                } else {
+                    (activeHit + 1) % hits.size
+                }
+            )
+        }
+    }
+    val previousHit: () -> Unit = {
+        if (hits.isNotEmpty()) {
+            goToHit(
+                if (activeHit < 0) {
+                    hits.indexOfLast { it.pageIndex <= state.currentPage }.takeIf { it >= 0 } ?: hits.lastIndex
+                } else {
+                    (activeHit - 1 + hits.size) % hits.size
+                }
+            )
+        }
+    }
+    val closeSearch: () -> Unit = {
+        isSearchOpen = false
+        query = ""
+    }
+    val searchResults: (@Composable (Modifier) -> Unit)? = if (showResults) {
+        { m ->
+            SearchResultsList(
+                hits = hits,
+                activeHit = activeHit,
+                searching = isSearching,
+                onClick = { i ->
+                    if (!isLandscape) isSidebarOpen = false
+                    goToHit(i)
+                },
+                modifier = m
+            )
+        }
+    } else {
+        null
     }
 
     LaunchedEffect(Unit) {
@@ -115,6 +245,7 @@ fun ReaderScreen(
             .filterNotNull()
             .distinctUntilChanged()
             .collect { page ->
+                lastPage = page
                 onPageChange?.invoke(page)
             }
     }
@@ -131,6 +262,8 @@ fun ReaderScreen(
 
     if (isSidebarOpen && !isLandscape) {
         BackHandler { isSidebarOpen = false }
+    } else if (isSearchOpen) {
+        BackHandler { closeSearch() }
     }
 
     // Only changes when the page does; reading state.currentPage here recomposed every scroll frame.
@@ -144,7 +277,7 @@ fun ReaderScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
-                handleReaderKeyEvent(event, state, onSearch = onSearchRequested)
+                handleReaderKeyEvent(event, state, onSearch = onSearchRequested ?: { isSearchOpen = true })
             }
     ) {
         // One layout for both orientations, so the document surface keeps its composition position
@@ -159,6 +292,7 @@ fun ReaderScreen(
                     thumbnailLoader = thumbnailLoader,
                     outline = outline,
                     onOutlineClick = onOutlineClick,
+                    searchResults = searchResults,
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
@@ -167,8 +301,59 @@ fun ReaderScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        // Read in the layer block only, so scrolling updates the shader's page and
+                        // image rectangles without recomposing (§4.6).
+                        .graphicsLayer {
+                            renderEffect = pageThemeEffect(
+                                themeShader,
+                                pageTheme,
+                                invertImages,
+                                themeRects(state, state.layout.pagesIn(state.getVisibleRectPoints()), imageBounds)
+                            )
+                        }
                         .pointerInput(state, renderer, docHandle) {
-                            detectTapGestures(onTap = { position ->
+                            detectTapGestures(onDoubleTap = { position ->
+                                val previous = beforeDoubleTap
+                                if (previous != null) {
+                                    beforeDoubleTap = null
+                                    scope.launch { state.restoreViewport(previous, animated = true) }
+                                    return@detectTapGestures
+                                }
+                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                beforeDoubleTap = state.viewport
+                                scope.launch {
+                                    val page = pages[point.pageIndex]
+                                    val columns = pageColumns[point.pageIndex] ?: renderer?.let { r ->
+                                        val boxes = extractOrEmpty { r.getPageText(docHandle, point.pageIndex).charBoxes }
+                                        ColumnDetector.detect(point.pageIndex, page.widthPoints, page.heightPoints, boxes)
+                                            .also { pageColumns[point.pageIndex] = it }
+                                    }
+                                    val column = columns?.findColumn(point.x, point.y)
+                                    if (column != null) {
+                                        state.zoomToSpan(point.pageIndex, column.left, column.right, point.y, position.y)
+                                    } else {
+                                        // Full-width region (title, abstract, wide figure): fit the page width.
+                                        state.zoomToSpan(
+                                            point.pageIndex, 0f, page.widthPoints, point.y, position.y, marginPoints = 0f
+                                        )
+                                    }
+                                }
+                            }, onLongPress = { position ->
+                                val r = renderer ?: return@detectTapGestures
+                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                scope.launch {
+                                    val text = extractOrEmpty { listOf(r.getPageText(docHandle, point.pageIndex)) }
+                                        .firstOrNull() ?: return@launch
+                                    val index = charIndexAt(text.charBoxes, point.x, point.y) ?: return@launch
+                                    val word = wordAt(text.text, index)
+                                    if (!word.isEmpty()) selection = TextSelection(text, word.first, word.last + 1)
+                                }
+                            }, onTap = { position ->
+                                // A tap with a selection only clears it.
+                                if (selection != null) {
+                                    selection = null
+                                    return@detectTapGestures
+                                }
                                 val r = renderer ?: return@detectTapGestures
                                 val point = state.pagePointAt(position) ?: return@detectTapGestures
                                 scope.launch {
@@ -177,7 +362,10 @@ fun ReaderScreen(
                                             .also { pageLinks[point.pageIndex] = it }
                                     val link = linkAt(links, point.x, point.y) ?: return@launch
                                     if (link.isInternal) {
-                                        jumpTo(link.targetPageIndex, link.targetY)
+                                        // Peek first (F-ACAD-3); "Go there" on the card follows the link.
+                                        if (link.targetPageIndex in pages.indices) {
+                                            peek = PeekTarget(link.targetPageIndex, link.targetY)
+                                        }
                                     } else {
                                         externalUri = link.uri
                                     }
@@ -191,14 +379,73 @@ fun ReaderScreen(
                         docHandle = docHandle
                     )
                 }
+                if (showResults) {
+                    SearchHighlights(state, hitsByPage, hits.getOrNull(activeHit))
+                    SearchMarkers(state, hits)
+                }
+                selection?.let { current ->
+                    SelectionLayer(state, current) { movingStart, index ->
+                        selection = moveHandle(current, movingStart, index)
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 16.dp, end = 56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_selection_copy),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable {
+                                    copyToClipboard(context, current.text)
+                                    selection = null
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+                    }
+                }
                 FastScrollbar(state)
                 PageIndicator(state)
+
+                if (isSearchOpen) {
+                    SearchBar(
+                        query = query,
+                        onQueryChange = { query = it },
+                        hitCount = hits.size,
+                        activeHit = activeHit,
+                        searching = isSearching,
+                        onPrevious = previousHit,
+                        onNext = nextHit,
+                        onClose = closeSearch,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
+
+                peek?.let { target ->
+                    PeekCard(
+                        target = target,
+                        page = pages[target.pageIndex],
+                        renderer = renderer,
+                        docHandle = docHandle,
+                        onGoThere = {
+                            peek = null
+                            jumpTo(target.pageIndex, target.pageY)
+                        },
+                        onDismiss = { peek = null },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
 
                 jumpHistory.latest?.let { entry ->
                     Surface(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 16.dp),
+                            .padding(top = if (isSearchOpen) SEARCH_BAR_CLEARANCE else 16.dp),
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         tonalElevation = 2.dp
@@ -234,6 +481,72 @@ fun ReaderScreen(
                             modifier = Modifier
                                 .clickable { isSidebarOpen = true }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                if (!isSearchOpen) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = if (isSidebarOpen) 16.dp else 64.dp, start = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_search_toggle),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable { isSearchOpen = true }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(bottom = 16.dp, start = 16.dp)
+                ) {
+                    ReaderChip(
+                        text = stringResource(
+                            when (pageTheme) {
+                                PageTheme.ORIGINAL -> R.string.reader_theme_original
+                                PageTheme.DARK -> R.string.reader_theme_dark
+                                PageTheme.SEPIA -> R.string.reader_theme_sepia
+                            }
+                        ),
+                        onClick = {
+                            pageTheme = pageTheme.next()
+                            savePageTheme(context, pageTheme)
+                        }
+                    )
+                    if (canSpread) {
+                        Spacer(Modifier.width(8.dp))
+                        ReaderChip(
+                            text = stringResource(if (spread) R.string.reader_layout_spread else R.string.reader_layout_single),
+                            onClick = { spreadWanted = !spreadWanted }
+                        )
+                        if (spread) {
+                            Spacer(Modifier.width(8.dp))
+                            ReaderChip(
+                                text = stringResource(
+                                    if (coverAlone) R.string.reader_cover_alone else R.string.reader_cover_paired
+                                ),
+                                onClick = { coverAlone = !coverAlone }
+                            )
+                        }
+                    }
+                    if (pageTheme != PageTheme.ORIGINAL) {
+                        Spacer(Modifier.width(8.dp))
+                        ReaderChip(
+                            text = stringResource(
+                                if (invertImages) R.string.reader_images_themed else R.string.reader_images_original
+                            ),
+                            onClick = { invertImages = !invertImages }
                         )
                     }
                 }
@@ -281,6 +594,7 @@ fun ReaderScreen(
                     isSidebarOpen = false
                     onOutlineClick(item)
                 },
+                searchResults = searchResults,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .width(SIDEBAR_WIDTH)
@@ -320,4 +634,23 @@ private suspend fun <T> extractOrEmpty(block: suspend () -> List<T>): List<T> = 
 } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
     android.util.Log.w("ReaderScreen", "Extraction failed", e)
     emptyList()
+}
+
+@Composable
+private fun ReaderChip(text: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+        tonalElevation = 2.dp
+    ) {
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        )
+    }
 }

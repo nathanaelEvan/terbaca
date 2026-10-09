@@ -3,6 +3,7 @@
     <!-- Thumbnails sidebar, shared by the reader and slide modes (F-NAV-4). Names kept from :feature:reader. -->
     <string name="reader_tab_thumbnails">Thumbnails</string>
     <string name="reader_tab_outline">Outline</string>
+    <string name="reader_tab_search">Search</string>
     <string name="reader_thumbnail_page">Page %1$d</string>
     <string name="reader_sidebar_close">Close sidebar</string>
 </resources>

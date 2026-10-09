@@ -11,4 +11,26 @@
     <string name="reader_link_title">Open link in another app?</string>
     <string name="reader_link_open">Open</string>
     <string name="reader_link_unsupported">This link can\'t be opened from Terbaca: %1$s</string>
+    <string name="reader_peek_page">Page %1$d</string>
+    <string name="reader_peek_description">Link destination on page %1$d</string>
+    <string name="reader_peek_go">Go there</string>
+    <string name="reader_peek_close">Close</string>
+    <string name="reader_search_toggle">Search</string>
+    <string name="reader_search_hint">Search in document</string>
+    <string name="reader_search_searching">Searching…</string>
+    <string name="reader_search_none">No matches</string>
+    <string name="reader_search_count">%1$d matches</string>
+    <string name="reader_search_position">%1$d / %2$d</string>
+    <string name="reader_search_page">Page %1$d</string>
+    <string name="reader_search_close">Close</string>
+    <string name="reader_selection_copy">Copy</string>
+    <string name="reader_theme_original">Theme: Original</string>
+    <string name="reader_theme_dark">Theme: Dark</string>
+    <string name="reader_theme_sepia">Theme: Sepia</string>
+    <string name="reader_images_original">Images: original</string>
+    <string name="reader_images_themed">Images: themed</string>
+    <string name="reader_layout_single">Single pages</string>
+    <string name="reader_layout_spread">Two-page spread</string>
+    <string name="reader_cover_alone">Cover alone</string>
+    <string name="reader_cover_paired">Cover paired</string>
 </resources>

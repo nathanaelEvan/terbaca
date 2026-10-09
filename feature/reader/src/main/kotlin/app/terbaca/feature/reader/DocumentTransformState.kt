@@ -3,7 +3,9 @@ package app.terbaca.feature.reader
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.runtime.Composable
@@ -338,11 +340,56 @@ class DocumentTransformState(
     }
 
     /** Returns to a saved [viewport] (the back chip, F-NAV-5), cancelling any fling. */
-    suspend fun restoreViewport(viewport: ReaderViewport) = mutex.mutate(MutatePriority.UserInput) {
-        scale = (fitWidthScale * viewport.zoom).coerceIn(minScale, maxScale)
-        offsetX = -viewport.x * scale
-        offsetY = -viewport.y * scale
+    suspend fun restoreViewport(viewport: ReaderViewport, animated: Boolean = false) =
+        mutex.mutate(MutatePriority.UserInput) {
+            val targetScale = (fitWidthScale * viewport.zoom).coerceIn(minScale, maxScale)
+            moveTo(targetScale, -viewport.x * targetScale, -viewport.y * targetScale, animated)
+        }
+
+    /**
+     * Column-aware double-tap zoom (F-ACAD-1): zooms so the span [left]..[right] (page points) of
+     * page [pageIndex] fills the viewport width plus [marginPoints] on each side, keeping the tapped
+     * page point [pageY] at screen y [screenY], so the line the user tapped stays under the finger.
+     */
+    suspend fun zoomToSpan(
+        pageIndex: Int,
+        left: Float,
+        right: Float,
+        pageY: Float,
+        screenY: Float,
+        marginPoints: Float = COLUMN_MARGIN_POINTS,
+        animated: Boolean = true
+    ) = mutex.mutate(MutatePriority.UserInput) {
+        val rect = layout.pageRect(pageIndex.coerceIn(0, layout.pageCount - 1))
+        val spanLeft = rect.left + left - marginPoints
+        val spanWidth = max(1f, right - left + 2 * marginPoints)
+        val targetScale = (viewportWidth / spanWidth).coerceIn(minScale, maxScale)
+        moveTo(targetScale, -spanLeft * targetScale, screenY - (rect.top + pageY) * targetScale, animated)
+    }
+
+    /** Moves to [targetScale] and the clamped target offsets, animated or at once. Run inside [mutex]. */
+    private suspend fun moveTo(targetScale: Float, targetX: Float, targetY: Float, animated: Boolean) {
+        val startScale = scale
+        val startX = offsetX
+        val startY = offsetY
+        scale = targetScale
+        offsetX = targetX
+        offsetY = targetY
         clampOffsets()
+        if (!animated) return
+        val endX = offsetX
+        val endY = offsetY
+        scale = startScale
+        offsetX = startX
+        offsetY = startY
+        animate(0f, 1f, animationSpec = tween(DOUBLE_TAP_ZOOM_MILLIS)) { t, _ ->
+            scale = startScale + (targetScale - startScale) * t
+            offsetX = startX + (endX - startX) * t
+            offsetY = startY + (endY - startY) * t
+        }
+        scale = targetScale
+        offsetX = endX
+        offsetY = endY
     }
 
     /**
@@ -354,10 +401,14 @@ class DocumentTransformState(
         val docX = (position.x - offsetX) / scale
         val docY = (position.y - offsetY) / scale
         if (docY < 0f || docY > layout.height) return null
-        val index = layout.pageAt(docY)
-        val rect = layout.pageRect(index)
-        if (docX < rect.left || docX > rect.right || docY < rect.top || docY > rect.bottom) return null
-        return PagePoint(index, docX - rect.left, docY - rect.top)
+        // A spread row holds two pages side by side (F-MODE-2).
+        for (index in layout.rowPagesAt(docY)) {
+            val rect = layout.pageRect(index)
+            if (docX >= rect.left && docX <= rect.right && docY >= rect.top && docY <= rect.bottom) {
+                return PagePoint(index, docX - rect.left, docY - rect.top)
+            }
+        }
+        return null
     }
 
     /**
@@ -438,6 +489,11 @@ private const val MIN_SCALE = 1e-3f
 
 /** A destination lands this far below the viewport top, so its heading isn't flush with the edge. */
 private const val DESTINATION_MARGIN_POINTS = 12f
+
+/** Space left on each side of a column zoomed to by a double-tap (F-ACAD-1). */
+const val COLUMN_MARGIN_POINTS = 8f
+
+private const val DOUBLE_TAP_ZOOM_MILLIS = 250
 
 /** Relative tolerance for "the scale is at fit-width" when the viewport resizes. */
 private const val FIT_WIDTH_EPSILON = 1e-3f
