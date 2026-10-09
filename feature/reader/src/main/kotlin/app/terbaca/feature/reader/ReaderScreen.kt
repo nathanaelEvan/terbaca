@@ -44,11 +44,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.OutlineItem
+import app.terbaca.core.model.PageColumnLayout
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.PageLink
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
+import app.terbaca.feature.reader.column.ColumnDetector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -95,6 +97,11 @@ fun ReaderScreen(
     val pageLinks = remember(renderer, docHandle) { HashMap<Int, List<PageLink>>() }
     val jumpHistory = remember(docHandle) { JumpHistory() }
     var externalUri by remember { mutableStateOf<String?>(null) }
+
+    // Column-aware double-tap zoom (F-ACAD-1): columns are detected once per page, on its first
+    // double-tap. The position before a double-tap zoom is kept, so the next double-tap returns.
+    val pageColumns = remember(renderer, docHandle) { HashMap<Int, PageColumnLayout>() }
+    var beforeDoubleTap by remember(docHandle) { mutableStateOf<ReaderViewport?>(null) }
 
     // Following a link or outline entry saves the position first, for the back chip.
     val jumpTo: (Int, Float?) -> Unit = { page, pageY ->
@@ -168,7 +175,33 @@ fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(state, renderer, docHandle) {
-                            detectTapGestures(onTap = { position ->
+                            detectTapGestures(onDoubleTap = { position ->
+                                val previous = beforeDoubleTap
+                                if (previous != null) {
+                                    beforeDoubleTap = null
+                                    scope.launch { state.restoreViewport(previous, animated = true) }
+                                    return@detectTapGestures
+                                }
+                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                beforeDoubleTap = state.viewport
+                                scope.launch {
+                                    val page = pages[point.pageIndex]
+                                    val columns = pageColumns[point.pageIndex] ?: renderer?.let { r ->
+                                        val boxes = extractOrEmpty { r.getPageText(docHandle, point.pageIndex).charBoxes }
+                                        ColumnDetector.detect(point.pageIndex, page.widthPoints, page.heightPoints, boxes)
+                                            .also { pageColumns[point.pageIndex] = it }
+                                    }
+                                    val column = columns?.findColumn(point.x, point.y)
+                                    if (column != null) {
+                                        state.zoomToSpan(point.pageIndex, column.left, column.right, point.y, position.y)
+                                    } else {
+                                        // Full-width region (title, abstract, wide figure): fit the page width.
+                                        state.zoomToSpan(
+                                            point.pageIndex, 0f, page.widthPoints, point.y, position.y, marginPoints = 0f
+                                        )
+                                    }
+                                }
+                            }, onTap = { position ->
                                 val r = renderer ?: return@detectTapGestures
                                 val point = state.pagePointAt(position) ?: return@detectTapGestures
                                 scope.launch {
