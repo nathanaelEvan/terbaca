@@ -107,6 +107,9 @@ fun ReaderScreen(
     var externalUri by remember { mutableStateOf<String?>(null) }
     var peek by remember(docHandle) { mutableStateOf<PeekTarget?>(null) }
 
+    // Text selection (F-ACAD-6): a long-press selects the word under the finger.
+    var selection by remember(docHandle) { mutableStateOf<TextSelection?>(null) }
+
     // Column-aware double-tap zoom (F-ACAD-1): columns are detected once per page, on its first
     // double-tap. The position before a double-tap zoom is kept, so the next double-tap returns.
     val pageColumns = remember(renderer, docHandle) { HashMap<Int, PageColumnLayout>() }
@@ -289,7 +292,22 @@ fun ReaderScreen(
                                         )
                                     }
                                 }
+                            }, onLongPress = { position ->
+                                val r = renderer ?: return@detectTapGestures
+                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                scope.launch {
+                                    val text = extractOrEmpty { listOf(r.getPageText(docHandle, point.pageIndex)) }
+                                        .firstOrNull() ?: return@launch
+                                    val index = charIndexAt(text.charBoxes, point.x, point.y) ?: return@launch
+                                    val word = wordAt(text.text, index)
+                                    if (!word.isEmpty()) selection = TextSelection(text, word.first, word.last + 1)
+                                }
                             }, onTap = { position ->
+                                // A tap with a selection only clears it.
+                                if (selection != null) {
+                                    selection = null
+                                    return@detectTapGestures
+                                }
                                 val r = renderer ?: return@detectTapGestures
                                 val point = state.pagePointAt(position) ?: return@detectTapGestures
                                 scope.launch {
@@ -318,6 +336,32 @@ fun ReaderScreen(
                 if (showResults) {
                     SearchHighlights(state, hitsByPage, hits.getOrNull(activeHit))
                     SearchMarkers(state, hits)
+                }
+                selection?.let { current ->
+                    SelectionLayer(state, current) { movingStart, index ->
+                        selection = moveHandle(current, movingStart, index)
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 16.dp, end = 56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.reader_selection_copy),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clickable {
+                                    copyToClipboard(context, current.text)
+                                    selection = null
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+                    }
                 }
                 FastScrollbar(state)
                 PageIndicator(state)
