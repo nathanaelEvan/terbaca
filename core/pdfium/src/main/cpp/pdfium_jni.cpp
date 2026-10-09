@@ -863,6 +863,12 @@ Java_app_terbaca_core_pdfium_PdfiumNative_nativeGetPageLinks(
                                 auto* uri_buf = static_cast<char*>(malloc(uri_len));
                                 if (uri_buf) {
                                     FPDFAction_GetURIPath(doc_handle->doc, action, uri_buf, uri_len);
+                                    uri_buf[uri_len - 1] = ' ';
+                                    // URIs are 7-bit ASCII (PDF 32000 12.6.4.7); other bytes would be
+                                    // invalid modified UTF-8 and abort NewStringUTF.
+                                    for (unsigned long k = 0; k + 1 < uri_len; ++k) {
+                                        if (static_cast<unsigned char>(uri_buf[k]) > 0x7F) uri_buf[k] = '?';
+                                    }
                                     juri = env->NewStringUTF(uri_buf);
                                     free(uri_buf);
                                 }
@@ -931,7 +937,8 @@ static void TraverseBookmarksHelper(
         jfieldID fY,
         jfieldID fDepth) {
     if (depth > 16 || *count >= 2000) return;
-    while (current) {
+    // The limit is checked per sibling too: a malformed /Next chain can loop back on itself.
+    while (current && *count < 2000) {
         (*count)++;
         jobject obj = env->NewObject(parcelClass, parcelInit);
         if (obj) {
