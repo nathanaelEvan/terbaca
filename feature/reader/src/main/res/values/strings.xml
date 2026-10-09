@@ -15,4 +15,12 @@
     <string name="reader_peek_description">Link destination on page %1$d</string>
     <string name="reader_peek_go">Go there</string>
     <string name="reader_peek_close">Close</string>
+    <string name="reader_search_toggle">Search</string>
+    <string name="reader_search_hint">Search in document</string>
+    <string name="reader_search_searching">Searching…</string>
+    <string name="reader_search_none">No matches</string>
+    <string name="reader_search_count">%1$d matches</string>
+    <string name="reader_search_position">%1$d / %2$d</string>
+    <string name="reader_search_page">Page %1$d</string>
+    <string name="reader_search_close">Close</string>
 </resources>
