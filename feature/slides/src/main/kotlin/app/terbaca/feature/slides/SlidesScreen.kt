@@ -11,6 +11,8 @@ import androidx.compose.animation.splineBasedDecay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
@@ -135,6 +137,8 @@ fun SlidesScreen(
     val coroutineScope = rememberCoroutineScope()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isSidebarOpen by rememberSaveable { mutableStateOf(false) }
+    // Presentation mode (F-DECK-2/3): no chrome, tap zones, clicker and volume keys, screen on.
+    var isPresenting by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -185,7 +189,10 @@ fun SlidesScreen(
     val density = LocalDensity.current
     val decay = remember(density) { splineBasedDecay<Float>(density) }
 
-    if (isSidebarOpen && !isLandscape) {
+    if (isPresenting) {
+        PresentationWindowEffect()
+        BackHandler { isPresenting = false }
+    } else if (isSidebarOpen && !isLandscape) {
         BackHandler { isSidebarOpen = false }
     }
     // Only changes when the slide does.
@@ -209,7 +216,9 @@ fun SlidesScreen(
                     pages.size,
                     coroutineScope,
                     onSearch = onSearchRequested,
-                    onNavigate = zoomState::reset
+                    onNavigate = zoomState::reset,
+                    presenting = isPresenting,
+                    onExitPresentation = { isPresenting = false }
                 )
             }
             .background(TerbacaDarkBackground)
@@ -217,7 +226,7 @@ fun SlidesScreen(
         // One layout for both orientations, so the pager keeps its composition position (and its
         // rendered slides) on rotation: docked sidebar in this Row, portrait overlay below.
         Row(modifier = Modifier.fillMaxSize()) {
-            if (isLandscape && isSidebarOpen) {
+            if (isLandscape && isSidebarOpen && !isPresenting) {
                 ThumbnailsSidebar(
                     pages = pages,
                     currentPage = currentPage,
@@ -227,7 +236,21 @@ fun SlidesScreen(
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            // Presentation tap zones (F-DECK-2) on the pager's parent: the pager consumes swipes, so
+            // only taps reach this handler.
+            val tapZones = if (isPresenting && !isZoomed) {
+                Modifier.pointerInput(pagerState, pages.size) {
+                    detectTapGestures { position ->
+                        val action = presentationTapAction(position.x, size.width.toFloat())
+                        slideNavTargetPage(action, pagerState.targetPage, pages.size)?.let { page ->
+                            coroutineScope.launch { pagerState.animateScrollToPage(page) }
+                        }
+                    }
+                }
+            } else {
+                Modifier
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight().then(tapZones)) {
                 HorizontalPager(
                     state = pagerState,
                     beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
@@ -251,7 +274,7 @@ fun SlidesScreen(
                     )
                 }
 
-                if (!isSidebarOpen) {
+                if (!isSidebarOpen && !isPresenting) {
                     SidebarToggleChip(
                         onClick = { isSidebarOpen = true },
                         modifier = Modifier
@@ -260,15 +283,21 @@ fun SlidesScreen(
                     )
                 }
 
-                SlideOverlay(
-                    currentPage = currentPage,
-                    pageCount = pages.size,
-                    onModeToggle = onModeToggle,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
+                if (!isPresenting) {
+                    SlideOverlay(
+                        currentPage = currentPage,
+                        pageCount = pages.size,
+                        onModeToggle = onModeToggle,
+                        onPresent = {
+                            isSidebarOpen = false
+                            isPresenting = true
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
             }
         }
-        if (!isLandscape && isSidebarOpen) {
+        if (!isLandscape && isSidebarOpen && !isPresenting) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -540,6 +569,7 @@ private fun SlideOverlay(
     currentPage: Int,
     pageCount: Int,
     onModeToggle: (() -> Unit)?,
+    onPresent: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -561,6 +591,27 @@ private fun SlideOverlay(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "•",
+                color = TerbacaDarkTextSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clickable(role = Role.Button, onClick = onPresent)
+                    .padding(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.slides_present),
+                    color = TerbacaDarkAccent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
             if (onModeToggle != null) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
