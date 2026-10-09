@@ -11,4 +11,8 @@
     <string name="reader_link_title">Open link in another app?</string>
     <string name="reader_link_open">Open</string>
     <string name="reader_link_unsupported">This link can\'t be opened from Terbaca: %1$s</string>
+    <string name="reader_peek_page">Page %1$d</string>
+    <string name="reader_peek_description">Link destination on page %1$d</string>
+    <string name="reader_peek_go">Go there</string>
+    <string name="reader_peek_close">Close</string>
 </resources>
