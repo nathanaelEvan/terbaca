@@ -24,7 +24,7 @@ fun MacrobenchmarkScope.exerciseReader() {
     val dx = w / 4
     val dy = h / 4
 
-    device.findObject(By.pkg(TARGET_PACKAGE))?.pinchOpen(0.6f, PINCH_SPEED_PX_PER_SEC)
+    readerRoot()?.pinchOpen(0.6f, PINCH_SPEED_PX_PER_SEC)
     Thread.sleep(SETTLE_MS)
 
     device.swipe(cx + dx, cy, cx - dx, cy, PAN_STEPS)
@@ -38,6 +38,12 @@ fun MacrobenchmarkScope.exerciseReader() {
     device.swipe(cx, cy - dy, cx, cy + dy, FLING_STEPS)
     Thread.sleep(SETTLE_MS)
 
-    device.findObject(By.pkg(TARGET_PACKAGE))?.pinchClose(0.6f, PINCH_SPEED_PX_PER_SEC)
+    readerRoot()?.pinchClose(0.6f, PINCH_SPEED_PX_PER_SEC)
     Thread.sleep(SETTLE_MS)
 }
+
+/**
+ * The window's root view. A bare By.pkg can match a small clickable such as the page indicator
+ * pill, and a pinch on a tiny object is a tap: it opened the jump-to-page dialog mid-benchmark.
+ */
+private fun MacrobenchmarkScope.readerRoot() = device.findObject(By.pkg(TARGET_PACKAGE).depth(0))
