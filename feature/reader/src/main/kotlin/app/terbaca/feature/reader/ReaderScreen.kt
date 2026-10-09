@@ -2,6 +2,7 @@ package app.terbaca.feature.reader
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.RuntimeShader
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -38,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -49,6 +53,7 @@ import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageColumnLayout
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.PageLink
+import app.terbaca.core.model.PageRect
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
@@ -106,6 +111,24 @@ fun ReaderScreen(
     val jumpHistory = remember(docHandle) { JumpHistory() }
     var externalUri by remember { mutableStateOf<String?>(null) }
     var peek by remember(docHandle) { mutableStateOf<PeekTarget?>(null) }
+
+    // Page theme (F-THEME-2/3/4/5): a shader over the surface, so switching needs no re-render.
+    var pageTheme by remember { mutableStateOf(loadPageTheme(context)) }
+    var invertImages by rememberSaveable(docHandle) { mutableStateOf(false) }
+    val themeShader = remember { RuntimeShader(PAGE_THEME_AGSL) }
+    val imageBounds = remember(renderer, docHandle) { mutableStateMapOf<Int, List<PageRect>>() }
+    LaunchedEffect(pageTheme, renderer, docHandle) {
+        val r = renderer ?: return@LaunchedEffect
+        if (pageTheme == PageTheme.ORIGINAL) return@LaunchedEffect
+        // Image bounds for the pages coming into view, once per page.
+        snapshotFlow { if (state.hasViewport) state.layout.pagesIn(state.getVisibleRectPoints()) else IntRange.EMPTY }
+            .distinctUntilChanged()
+            .collect { visible ->
+                for (index in visible) {
+                    if (index !in imageBounds) imageBounds[index] = extractOrEmpty { r.getImageBounds(docHandle, index) }
+                }
+            }
+    }
 
     // Text selection (F-ACAD-6): a long-press selects the word under the finger.
     var selection by remember(docHandle) { mutableStateOf<TextSelection?>(null) }
@@ -265,6 +288,16 @@ fun ReaderScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        // Read in the layer block only, so scrolling updates the shader's page and
+                        // image rectangles without recomposing (§4.6).
+                        .graphicsLayer {
+                            renderEffect = pageThemeEffect(
+                                themeShader,
+                                pageTheme,
+                                invertImages,
+                                themeRects(state, state.layout.pagesIn(state.getVisibleRectPoints()), imageBounds)
+                            )
+                        }
                         .pointerInput(state, renderer, docHandle) {
                             detectTapGestures(onDoubleTap = { position ->
                                 val previous = beforeDoubleTap
@@ -460,6 +493,35 @@ fun ReaderScreen(
                     }
                 }
 
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(bottom = 16.dp, start = 16.dp)
+                ) {
+                    ReaderChip(
+                        text = stringResource(
+                            when (pageTheme) {
+                                PageTheme.ORIGINAL -> R.string.reader_theme_original
+                                PageTheme.DARK -> R.string.reader_theme_dark
+                                PageTheme.SEPIA -> R.string.reader_theme_sepia
+                            }
+                        ),
+                        onClick = {
+                            pageTheme = pageTheme.next()
+                            savePageTheme(context, pageTheme)
+                        }
+                    )
+                    if (pageTheme != PageTheme.ORIGINAL) {
+                        Spacer(Modifier.width(8.dp))
+                        ReaderChip(
+                            text = stringResource(
+                                if (invertImages) R.string.reader_images_themed else R.string.reader_images_original
+                            ),
+                            onClick = { invertImages = !invertImages }
+                        )
+                    }
+                }
+
                 if (onModeToggle != null) {
                     Surface(
                         modifier = Modifier
@@ -543,4 +605,23 @@ private suspend fun <T> extractOrEmpty(block: suspend () -> List<T>): List<T> = 
 } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
     android.util.Log.w("ReaderScreen", "Extraction failed", e)
     emptyList()
+}
+
+@Composable
+private fun ReaderChip(text: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+        tonalElevation = 2.dp
+    ) {
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        )
+    }
 }
