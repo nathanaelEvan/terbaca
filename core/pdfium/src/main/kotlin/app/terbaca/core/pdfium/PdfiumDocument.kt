@@ -56,6 +56,37 @@ class PdfiumDocument internal constructor(
         PdfiumNative.nativeGetDocumentTitle(nativePtr)
     }
 
+    fun getPageText(pageIndex: Int): String? = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) return null
+        PdfiumNative.nativeGetPageText(nativePtr, pageIndex)
+    }
+
+    fun getPageCharBoxes(pageIndex: Int): FloatArray? = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) return null
+        PdfiumNative.nativeGetPageCharBoxes(nativePtr, pageIndex)
+    }
+
+    fun getPageLinks(pageIndex: Int): List<PageLinkParcel> = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) return emptyList()
+        val raw = PdfiumNative.nativeGetPageLinks(nativePtr, pageIndex) ?: return emptyList()
+        raw.toList()
+    }
+
+    fun getOutline(): List<OutlineItemParcel> = synchronized(lock) {
+        checkNotClosed()
+        val raw = PdfiumNative.nativeGetOutline(nativePtr) ?: return emptyList()
+        raw.toList()
+    }
+
+    fun getImageBounds(pageIndex: Int): FloatArray? = synchronized(lock) {
+        checkNotClosed()
+        if (pageIndex < 0 || pageIndex >= pageCount) return null
+        PdfiumNative.nativeGetImageBounds(nativePtr, pageIndex)
+    }
+
     companion object {
         const val MAX_TILE_DIMENSION = 4096
         const val MAX_PAGE_DIMENSION = 65536

@@ -1267,5 +1267,74 @@ class PdfiumRemoteServiceTest {
             testRenderer.close()
         }
     }
+
+    @Test
+    fun testRemoteService_extractionApis_paperTwoColumn() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/paper_two_column.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val pageText = renderer.getPageText(handle, 0)
+            assertEquals(0, pageText.pageIndex)
+            assertTrue("Page 0 text should not be empty", pageText.text.isNotEmpty())
+            assertTrue("Page 0 should have char boxes", pageText.charBoxes.isNotEmpty())
+
+            val links = renderer.getPageLinks(handle, 0)
+            assertNotNull("Links should not be null", links)
+
+            val outline = renderer.getOutline(handle)
+            assertNotNull("Outline should not be null", outline)
+            assertTrue("paper_two_column.pdf has no outline items", outline.isEmpty())
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteService_extractionApis_withOutline() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/with_outline.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val outline = renderer.getOutline(handle)
+            assertEquals(2, outline.size)
+            assertEquals("Chapter 1: Intro", outline[0].title)
+            assertEquals(0, outline[0].pageIndex)
+            assertEquals(1, outline[0].children.size)
+            assertEquals("Section 1.1: Background", outline[0].children[0].title)
+            assertEquals(0, outline[0].children[0].pageIndex)
+
+            assertEquals("Chapter 2: Methods", outline[1].title)
+            assertEquals(1, outline[1].pageIndex)
+            assertTrue(outline[1].children.isEmpty())
+
+            renderer.closeDocument(handle)
+        }
+    }
+
+    @Test
+    fun testRemoteService_extractionApis_scannedDocImageBounds() {
+        runBlocking {
+            val file = copyAssetToTempFile("fixtures/scanned_doc.pdf")
+            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                renderer.openDocument(pfd)
+            }
+            assertTrue(handle > 0L)
+
+            val imageBounds = renderer.getImageBounds(handle, 0)
+            assertTrue("Scanned doc page 0 must have image bounds", imageBounds.isNotEmpty())
+            val first = imageBounds[0]
+            assertTrue("first.left (${first.left}) <= first.right (${first.right})", first.left <= first.right)
+            assertTrue("first.top (${first.top}) <= first.bottom (${first.bottom})", first.top <= first.bottom)
+
+            renderer.closeDocument(handle)
+        }
+    }
 }
 

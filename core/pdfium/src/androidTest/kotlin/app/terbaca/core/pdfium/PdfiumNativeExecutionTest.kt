@@ -458,6 +458,93 @@ class PdfiumNativeExecutionTest {
         }
     }
 
+    @Test
+    fun testExtraction_paperTwoColumn_extractsTextBoxesAndLinks() {
+        val file = copyAssetToTempFile("fixtures/paper_two_column.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val text = doc.getPageText(0)
+                assertNotNull("Page 0 text should not be null", text)
+                assertTrue("Page 0 text should not be empty", text!!.isNotEmpty())
+
+                val charBoxes = doc.getPageCharBoxes(0)
+                assertNotNull("Page 0 char boxes should not be null", charBoxes)
+                assertTrue("Page 0 char boxes should have elements", charBoxes!!.isNotEmpty())
+                assertEquals("Char box array size must be multiple of 4", 0, charBoxes.size % 4)
+
+                for (i in charBoxes.indices step 4) {
+                    val left = charBoxes[i]
+                    val top = charBoxes[i + 1]
+                    val right = charBoxes[i + 2]
+                    val bottom = charBoxes[i + 3]
+                    assertTrue("Box left ($left) <= right ($right)", left <= right + 0.01f)
+                    assertTrue("Box top ($top) <= bottom ($bottom)", top <= bottom + 0.01f)
+                }
+
+                val links = doc.getPageLinks(0)
+                assertNotNull("Page 0 links should not be null", links)
+
+                val outline = doc.getOutline()
+                assertNotNull("Outline should not be null", outline)
+                assertTrue("paper_two_column.pdf has no outline items", outline.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun testExtraction_withOutline_extractsBookmarksHierarchy() {
+        val file = copyAssetToTempFile("fixtures/with_outline.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val outlineParcels = doc.getOutline()
+                assertNotNull("Outline parcels should not be null", outlineParcels)
+                assertEquals(3, outlineParcels.size)
+                assertEquals("Chapter 1: Intro", outlineParcels[0].title)
+                assertEquals(0, outlineParcels[0].pageIndex)
+                assertEquals(0, outlineParcels[0].depth)
+
+                assertEquals("Section 1.1: Background", outlineParcels[1].title)
+                assertEquals(0, outlineParcels[1].pageIndex)
+                assertEquals(1, outlineParcels[1].depth)
+
+                assertEquals("Chapter 2: Methods", outlineParcels[2].title)
+                assertEquals(1, outlineParcels[2].pageIndex)
+                assertEquals(0, outlineParcels[2].depth)
+
+                val tree = buildOutlineTree(outlineParcels)
+                assertEquals(2, tree.size)
+                assertEquals("Chapter 1: Intro", tree[0].title)
+                assertEquals(0, tree[0].pageIndex)
+                assertEquals(1, tree[0].children.size)
+                assertEquals("Section 1.1: Background", tree[0].children[0].title)
+                assertEquals(0, tree[0].children[0].pageIndex)
+
+                assertEquals("Chapter 2: Methods", tree[1].title)
+                assertEquals(1, tree[1].pageIndex)
+                assertTrue(tree[1].children.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun testExtraction_scannedDoc_extractsImageBounds() {
+        val file = copyAssetToTempFile("fixtures/scanned_doc.pdf")
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            PdfiumEngine.openDocument(pfd).use { doc ->
+                val bounds = doc.getImageBounds(0)
+                assertNotNull("Image bounds should not be null", bounds)
+                assertTrue("Scanned doc page 0 must have image bounds", bounds!!.isNotEmpty())
+                assertEquals("Image bounds array size must be multiple of 4", 0, bounds.size % 4)
+                val left = bounds[0]
+                val top = bounds[1]
+                val right = bounds[2]
+                val bottom = bounds[3]
+                assertTrue("Image left ($left) <= right ($right)", left <= right)
+                assertTrue("Image top ($top) <= bottom ($bottom)", top <= bottom)
+            }
+        }
+    }
+
     private companion object {
         const val STRESS_ITERATIONS = 200
 

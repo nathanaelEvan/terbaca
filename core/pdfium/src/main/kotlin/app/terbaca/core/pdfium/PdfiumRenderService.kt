@@ -423,6 +423,86 @@ class PdfiumRenderService : Service() {
                 null
             }
         }
+
+        override fun getPageText(docHandle: Long, pageIndex: Int): String? {
+            return try {
+                renderExecutor.submit<String?> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getPageText(pageIndex)
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting page text for handle $docHandle", e)
+                null
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get page text for handle $docHandle", t)
+                null
+            }
+        }
+
+        override fun getPageCharBoxes(docHandle: Long, pageIndex: Int): FloatArray? {
+            return try {
+                renderExecutor.submit<FloatArray?> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getPageCharBoxes(pageIndex)
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting page char boxes for handle $docHandle", e)
+                null
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get page char boxes for handle $docHandle", t)
+                null
+            }
+        }
+
+        override fun getPageLinks(docHandle: Long, pageIndex: Int): List<PageLinkParcel> {
+            return try {
+                renderExecutor.submit<List<PageLinkParcel>> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getPageLinks(pageIndex)
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting page links for handle $docHandle", e)
+                emptyList()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get page links for handle $docHandle", t)
+                emptyList()
+            }
+        }
+
+        override fun getOutline(docHandle: Long): List<OutlineItemParcel> {
+            return try {
+                renderExecutor.submit<List<OutlineItemParcel>> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getOutline()
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting outline for handle $docHandle", e)
+                emptyList()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get outline for handle $docHandle", t)
+                emptyList()
+            }
+        }
+
+        override fun getImageBounds(docHandle: Long, pageIndex: Int): FloatArray? {
+            return try {
+                renderExecutor.submit<FloatArray?> {
+                    val doc = getDocumentOrThrow(docHandle)
+                    doc.getImageBounds(pageIndex)
+                }.get()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.w(TAG, "Interrupted while getting image bounds for handle $docHandle", e)
+                null
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to get image bounds for handle $docHandle", t)
+                null
+            }
+        }
     }
 
 
