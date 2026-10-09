@@ -23,4 +23,5 @@
     <string name="reader_search_position">%1$d / %2$d</string>
     <string name="reader_search_page">Page %1$d</string>
     <string name="reader_search_close">Close</string>
+    <string name="reader_selection_copy">Copy</string>
 </resources>
