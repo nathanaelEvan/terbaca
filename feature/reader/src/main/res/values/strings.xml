@@ -7,4 +7,8 @@
     <string name="reader_jump_go">Go</string>
     <string name="reader_jump_cancel">Cancel</string>
     <string name="reader_sidebar_toggle">Thumbnails</string>
+    <string name="reader_back_to_page">← Back to page %1$d</string>
+    <string name="reader_link_title">Open link in another app?</string>
+    <string name="reader_link_open">Open</string>
+    <string name="reader_link_unsupported">This link can\'t be opened from Terbaca: %1$s</string>
 </resources>
