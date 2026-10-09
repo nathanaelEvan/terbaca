@@ -94,12 +94,24 @@ fun ReaderScreen(
     onModeToggle: (() -> Unit)? = null,
     onSearchRequested: (() -> Unit)? = null
 ) {
-    val layout = remember(pages) { DocumentLayout(pages) }
-    val state = rememberDocumentTransformState(layout, initialPage, initialViewport)
-    val focusRequester = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // Two-page spread (F-MODE-2): offered in landscape for portrait pages, cover alone by default.
+    val canSpread = isLandscape && pages.first().heightPoints > pages.first().widthPoints
+    var spreadWanted by rememberSaveable { mutableStateOf(false) }
+    var coverAlone by rememberSaveable { mutableStateOf(true) }
+    val spread = canSpread && spreadWanted
+    val layout = remember(pages, spread, coverAlone) { DocumentLayout(pages, spread = spread, coverAlone = coverAlone) }
+    // A layout switch rebuilds the state; it reopens at the page being read, not the initial one.
+    val firstLayout = remember { layout }
+    var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
+    val state = rememberDocumentTransformState(
+        layout,
+        if (layout === firstLayout) initialPage else lastPage,
+        initialViewport.takeIf { layout === firstLayout }
+    )
+    val focusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
     var isSidebarOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -233,6 +245,7 @@ fun ReaderScreen(
             .filterNotNull()
             .distinctUntilChanged()
             .collect { page ->
+                lastPage = page
                 onPageChange?.invoke(page)
             }
     }
@@ -511,6 +524,22 @@ fun ReaderScreen(
                             savePageTheme(context, pageTheme)
                         }
                     )
+                    if (canSpread) {
+                        Spacer(Modifier.width(8.dp))
+                        ReaderChip(
+                            text = stringResource(if (spread) R.string.reader_layout_spread else R.string.reader_layout_single),
+                            onClick = { spreadWanted = !spreadWanted }
+                        )
+                        if (spread) {
+                            Spacer(Modifier.width(8.dp))
+                            ReaderChip(
+                                text = stringResource(
+                                    if (coverAlone) R.string.reader_cover_alone else R.string.reader_cover_paired
+                                ),
+                                onClick = { coverAlone = !coverAlone }
+                            )
+                        }
+                    }
                     if (pageTheme != PageTheme.ORIGINAL) {
                         Spacer(Modifier.width(8.dp))
                         ReaderChip(
