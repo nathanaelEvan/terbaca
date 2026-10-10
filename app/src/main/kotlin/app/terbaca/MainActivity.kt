@@ -59,7 +59,8 @@ class MainActivity : ComponentActivity() {
         val initialPage: Int = 0,
         val savedMode: ReadingMode? = null,
         val contentHash: String? = null,
-        val savedViewport: ReaderViewport? = null
+        val savedViewport: ReaderViewport? = null,
+        val title: String = ""
     )
 
     private sealed interface OpenResult {
@@ -162,6 +163,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // The pages run under the gesture bar: no scrim behind it, so it floats over the page.
+        window.isNavigationBarContrastEnforced = false
         requestHighestRefreshRate()
 
         if (savedInstanceState != null) {
@@ -248,7 +251,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                BackHandler(enabled = opened != null || currentDocumentError != null || openUriString != null || loading) {
+                val backToLibrary: () -> Unit = {
                     opened?.let { doc ->
                         lifecycleScope.launch {
                             withContext(NonCancellable) {
@@ -262,6 +265,10 @@ class MainActivity : ComponentActivity() {
                     userModeOverride = null
                     loading = false
                 }
+                BackHandler(
+                    enabled = opened != null || currentDocumentError != null || openUriString != null || loading,
+                    onBack = backToLibrary
+                )
 
                 val doc = opened
                 val err = currentDocumentError
@@ -281,6 +288,8 @@ class MainActivity : ComponentActivity() {
                                 initialPage = position.entryPage,
                                 contentHash = doc.contentHash,
                                 thumbnailPipeline = thumbnailPipeline,
+                                title = doc.title,
+                                onBack = backToLibrary,
                                 onPageSettled = { page ->
                                     position.onPageChanged(page)
                                     saveState(doc, position, userModeOverride ?: doc.savedMode)
@@ -302,6 +311,8 @@ class MainActivity : ComponentActivity() {
                                 initialViewport = position.entryViewport,
                                 contentHash = doc.contentHash,
                                 thumbnailPipeline = thumbnailPipeline,
+                                title = doc.title,
+                                onBack = backToLibrary,
                                 onPageChange = { page ->
                                     position.onPageChanged(page)
                                     saveState(doc, position, userModeOverride ?: doc.savedMode)
@@ -387,8 +398,8 @@ class MainActivity : ComponentActivity() {
                 // before recordOpened, which replaces this URI's entry (the edited-in-place fallback).
                 val state = recents.loadState(uri, hash)
                 val initialPage = (state?.page ?: 0).coerceIn(0, opened.pages.lastIndex)
+                val displayName = resolveOpenedTitle(renderer(), opened.handle, recents.displayName(uri))
                 if (persisted) {
-                    val displayName = resolveOpenedTitle(renderer(), opened.handle, recents.displayName(uri))
                     // Once the row exists the grant must survive, so a cancel can't split the two.
                     withContext(NonCancellable) {
                         recents.recordOpened(uri, displayName, hash, opened.pages.size, initialPage, state?.readingMode)
@@ -399,7 +410,9 @@ class MainActivity : ComponentActivity() {
                     runCatching { ReadingMode.valueOf(it) }.getOrNull()
                 }
                 OpenResult.Success(
-                    OpenedDocument(opened.handle, opened.pages, initialPage, savedMode, hash, state?.readerViewport())
+                    OpenedDocument(
+                        opened.handle, opened.pages, initialPage, savedMode, hash, state?.readerViewport(), displayName
+                    )
                 )
             }
         } catch (e: CancellationException) {
@@ -424,7 +437,7 @@ class MainActivity : ComponentActivity() {
             val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
             val opened = openPfd(pfd)
             handle = opened.handle
-            OpenResult.Success(opened)
+            OpenResult.Success(OpenedDocument(opened.handle, opened.pages, title = asset))
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
                 handle?.let { renderer().closeDocument(it) }

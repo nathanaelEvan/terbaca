@@ -1,6 +1,7 @@
 <resources>
     <string name="library_title">Library</string>
     <string name="library_open">Open PDF</string>
+    <string name="library_recents">Recent</string>
     <string name="library_empty_title">No recent documents</string>
     <string name="library_empty_body">Open a PDF from your files, Downloads, an SD card or a USB drive.</string>
     <string name="library_page_of">Page %1$d of %2$d</string>

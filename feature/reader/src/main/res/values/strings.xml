@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="reader_page_indicator">%1$d / %2$d</string>
-    <string name="reader_mode_slides">Slides</string>
     <string name="reader_jump_title">Go to page</string>
     <string name="reader_jump_label">Page (1–%1$d)</string>
     <string name="reader_jump_go">Go</string>
     <string name="reader_jump_cancel">Cancel</string>
-    <string name="reader_sidebar_toggle">Thumbnails</string>
-    <string name="reader_back_to_page">← Back to page %1$d</string>
+    <string name="reader_back_to_page">Back to page %1$d</string>
     <string name="reader_link_title">Open link in another app?</string>
     <string name="reader_link_open">Open</string>
     <string name="reader_link_unsupported">This link can\'t be opened from Terbaca: %1$s</string>
@@ -25,15 +23,19 @@
     </plurals>
     <string name="reader_search_position">%1$d / %2$d</string>
     <string name="reader_search_page">Page %1$d</string>
-    <string name="reader_search_close">Close</string>
+    <string name="reader_search_close">Done</string>
     <string name="reader_selection_copy">Copy</string>
-    <string name="reader_theme_original">Theme: Original</string>
-    <string name="reader_theme_dark">Theme: Dark</string>
-    <string name="reader_theme_sepia">Theme: Sepia</string>
-    <string name="reader_images_original">Images: original</string>
-    <string name="reader_images_themed">Images: themed</string>
-    <string name="reader_layout_single">Single pages</string>
-    <string name="reader_layout_spread">Two-page spread</string>
-    <string name="reader_cover_alone">Cover alone</string>
-    <string name="reader_cover_paired">Cover paired</string>
+    <string name="reader_back">Back to library</string>
+    <string name="reader_sidebar">Sidebar</string>
+    <string name="reader_search_previous">Previous match</string>
+    <string name="reader_search_next">Next match</string>
+    <string name="reader_view_settings">View Settings</string>
+    <string name="reader_layout_vertical">Vertical Scroll</string>
+    <string name="reader_layout_two_pages">Two Pages</string>
+    <string name="reader_layout_slides">Slides</string>
+    <string name="reader_first_page_alone">First Page Alone</string>
+    <string name="reader_theme_day">Day</string>
+    <string name="reader_theme_sepia">Sepia</string>
+    <string name="reader_theme_night">Night</string>
+    <string name="reader_theme_images">Theme Images Too</string>
 </resources>

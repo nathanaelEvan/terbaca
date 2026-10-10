@@ -5,35 +5,39 @@ import android.graphics.Bitmap
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.splineBasedDecay
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Slideshow
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.ViewDay
+import androidx.compose.material.icons.outlined.ViewSidebar
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,13 +63,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -74,13 +78,18 @@ import androidx.compose.ui.unit.sp
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.chrome.FloatingPill
+import app.terbaca.core.ui.chrome.LayoutOption
+import app.terbaca.core.ui.chrome.LayoutOptions
+import app.terbaca.core.ui.chrome.SystemBarsEffect
+import app.terbaca.core.ui.chrome.ToolbarIconButton
+import app.terbaca.core.ui.chrome.ToolbarTextSettingsButton
+import app.terbaca.core.ui.chrome.TopToolbar
+import app.terbaca.core.ui.chrome.ViewSettingsPopover
+import app.terbaca.core.ui.chrome.onDragStarted
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
-import app.terbaca.core.ui.theme.TerbacaDarkAccent
 import app.terbaca.core.ui.theme.TerbacaDarkBackground
-import app.terbaca.core.ui.theme.TerbacaDarkBorder
-import app.terbaca.core.ui.theme.TerbacaDarkSurface
 import app.terbaca.core.ui.theme.TerbacaDarkTextPrimary
-import app.terbaca.core.ui.theme.TerbacaDarkTextSecondary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -122,7 +131,9 @@ fun SlidesScreen(
     onPageSettled: ((Int) -> Unit)? = null,
     onHapticFeedback: (() -> Unit)? = null,
     onModeToggle: (() -> Unit)? = null,
-    onSearchRequested: (() -> Unit)? = null
+    onSearchRequested: (() -> Unit)? = null,
+    title: String = "",
+    onBack: (() -> Unit)? = null
 ) {
     if (pages.isEmpty()) {
         Box(
@@ -146,6 +157,11 @@ fun SlidesScreen(
     // Slide 2-up stacked (F-MODE-4): portrait only; presenting always shows one slide.
     var twoUpWanted by rememberSaveable { mutableStateOf(false) }
     val twoUp = !isLandscape && twoUpWanted && !isPresenting
+    // Chrome (toolbar, slide number) hides on a tap or a swipe; the grid, sidebar and settings
+    // keep it up. The system bars go with it, and presenting hides everything.
+    var chromeVisible by rememberSaveable { mutableStateOf(true) }
+    var showSettings by remember { mutableStateOf(false) }
+    val chromeShown = !isPresenting && (chromeVisible || isGrid || isSidebarOpen || showSettings)
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -196,6 +212,7 @@ fun SlidesScreen(
     val density = LocalDensity.current
     val decay = remember(density) { splineBasedDecay<Float>(density) }
 
+    if (!isPresenting) SystemBarsEffect(hidden = !chromeShown)
     if (isPresenting) {
         PresentationWindowEffect()
         BackHandler { isPresenting = false }
@@ -240,7 +257,6 @@ fun SlidesScreen(
                     pages = pages,
                     currentPage = currentPage,
                     onPageClick = jumpToPage,
-                    onClose = { isSidebarOpen = false },
                     thumbnailLoader = thumbnailLoader,
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
@@ -257,7 +273,10 @@ fun SlidesScreen(
                     }
                 }
             } else {
+                // Not presenting: a tap shows or hides the chrome, a swipe hides it.
                 Modifier
+                    .pointerInput(Unit) { detectTapGestures { chromeVisible = !chromeVisible } }
+                    .onDragStarted { if (!isSidebarOpen && !isGrid) chromeVisible = false }
             }
             Box(modifier = Modifier.weight(1f).fillMaxHeight().then(tapZones)) {
                 // The grid and the pager share each slide's image, so opening the grid shrinks the
@@ -329,34 +348,11 @@ fun SlidesScreen(
                     }
                 }
 
-                if (!isSidebarOpen && !isPresenting && !isGrid) {
-                    SidebarToggleChip(
-                        onClick = { isSidebarOpen = true },
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .safeDrawingPadding()
-                    )
-                }
-
-                if (!isPresenting && !isGrid) {
-                    SlideOverlay(
-                        currentPage = currentPage,
-                        pageCount = pages.size,
-                        onModeToggle = onModeToggle,
-                        onPresent = {
-                            isSidebarOpen = false
-                            isPresenting = true
-                        },
-                        onGrid = {
-                            zoomState.reset()
-                            twoUpWanted = false
-                            isGrid = true
-                        },
-                        twoUp = twoUp,
-                        onTwoUp = if (isLandscape) null else ({ twoUpWanted = !twoUpWanted }),
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
-                }
+                PagePill(
+                    visible = chromeShown && !isGrid,
+                    text = "${currentPage + 1} / ${pages.size}",
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
         if (!isLandscape && isSidebarOpen && !isPresenting) {
@@ -373,13 +369,100 @@ fun SlidesScreen(
                     isSidebarOpen = false
                     jumpToPage(page)
                 },
-                onClose = { isSidebarOpen = false },
                 thumbnailLoader = thumbnailLoader,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .width(SIDEBAR_WIDTH)
                     .fillMaxHeight()
             )
+        }
+
+        TopToolbar(
+            visible = chromeShown,
+            title = title,
+            modifier = Modifier.align(Alignment.TopCenter),
+            leading = {
+                if (onBack != null) {
+                    ToolbarIconButton(
+                        icon = Icons.AutoMirrored.Rounded.ArrowBackIos,
+                        contentDescription = stringResource(R.string.slides_back),
+                        onClick = onBack
+                    )
+                }
+                ToolbarIconButton(
+                    icon = Icons.Outlined.ViewSidebar,
+                    contentDescription = stringResource(R.string.slides_sidebar_toggle),
+                    onClick = { isSidebarOpen = !isSidebarOpen },
+                    selected = isSidebarOpen,
+                    // The icon draws its panel on the right; the sidebar opens on the left.
+                    modifier = Modifier.graphicsLayer { scaleX = -1f }
+                )
+            },
+            trailing = {
+                ToolbarIconButton(
+                    icon = Icons.Outlined.GridView,
+                    contentDescription = stringResource(R.string.slides_grid),
+                    onClick = {
+                        zoomState.reset()
+                        twoUpWanted = false
+                        isGrid = !isGrid
+                    },
+                    selected = isGrid
+                )
+                ToolbarIconButton(
+                    icon = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.slides_present),
+                    onClick = {
+                        isSidebarOpen = false
+                        isGrid = false
+                        isPresenting = true
+                    }
+                )
+                ToolbarTextSettingsButton(
+                    contentDescription = stringResource(R.string.slides_view_settings),
+                    onClick = { showSettings = !showSettings },
+                    selected = showSettings
+                )
+            }
+        )
+
+        if (showSettings) {
+            ViewSettingsPopover(
+                title = stringResource(R.string.slides_view_settings),
+                onDismiss = { showSettings = false }
+            ) {
+                LayoutOptions {
+                    if (onModeToggle != null) {
+                        LayoutOption(
+                            icon = Icons.Outlined.ViewDay,
+                            label = stringResource(R.string.slides_mode_scroll),
+                            selected = false,
+                            onClick = {
+                                showSettings = false
+                                onModeToggle()
+                            }
+                        )
+                    }
+                    LayoutOption(
+                        icon = Icons.Outlined.Slideshow,
+                        label = stringResource(R.string.slides_one_up),
+                        selected = !twoUp,
+                        onClick = { twoUpWanted = false }
+                    )
+                    // Stacked pairs only fit in portrait (F-MODE-4).
+                    if (!isLandscape) {
+                        LayoutOption(
+                            icon = Icons.Outlined.ViewAgenda,
+                            label = stringResource(R.string.slides_two_up),
+                            selected = twoUp,
+                            onClick = {
+                                isGrid = false
+                                twoUpWanted = true
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -602,135 +685,17 @@ private suspend fun renderSlideRegion(
     }
 }
 
+/** The slide number at the bottom, shown with the toolbar. */
 @Composable
-private fun SidebarToggleChip(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.padding(top = 16.dp, start = 16.dp),
-        color = TerbacaDarkSurface.copy(alpha = 0.90f),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, TerbacaDarkBorder)
+private fun PagePill(visible: Boolean, text: String, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier.navigationBarsPadding().padding(bottom = 16.dp),
+        enter = fadeIn(),
+        exit = fadeOut()
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = 14.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.slides_sidebar_toggle),
-                color = TerbacaDarkAccent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-private fun SlideOverlay(
-    currentPage: Int,
-    pageCount: Int,
-    onModeToggle: (() -> Unit)?,
-    onPresent: () -> Unit,
-    onGrid: () -> Unit,
-    twoUp: Boolean,
-    onTwoUp: (() -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.padding(bottom = 24.dp),
-        color = TerbacaDarkSurface.copy(alpha = 0.90f),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, TerbacaDarkBorder)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .heightIn(min = 32.dp)
-                // The ≥48dp mode chip carries its own end padding.
-                .padding(start = 14.dp, end = if (onModeToggle != null) 6.dp else 14.dp)
-        ) {
-            Text(
-                text = "${currentPage + 1} / $pageCount",
-                color = TerbacaDarkTextPrimary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = "•",
-                color = TerbacaDarkTextSecondary,
-                fontSize = 12.sp
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable(role = Role.Button, onClick = onPresent)
-                    .padding(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.slides_present),
-                    color = TerbacaDarkAccent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable(role = Role.Button, onClick = onGrid)
-                    .padding(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.slides_grid),
-                    color = TerbacaDarkAccent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            if (onTwoUp != null) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .clickable(role = Role.Button, onClick = onTwoUp)
-                        .padding(horizontal = 8.dp)
-                ) {
-                    Text(
-                        text = stringResource(if (twoUp) R.string.slides_one_up else R.string.slides_two_up),
-                        color = TerbacaDarkAccent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            if (onModeToggle != null) {
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "•",
-                    color = TerbacaDarkTextSecondary,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .clickable(role = Role.Button, onClick = onModeToggle)
-                        .padding(horizontal = 8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.slides_mode_scroll),
-                        color = TerbacaDarkAccent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
+        FloatingPill {
+            Text(text = text, color = TerbacaDarkTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

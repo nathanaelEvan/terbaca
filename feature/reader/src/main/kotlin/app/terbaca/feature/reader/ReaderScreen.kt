@@ -11,15 +11,24 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
+import androidx.compose.material.icons.outlined.ViewSidebar
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,7 +57,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageColumnLayout
@@ -57,7 +65,15 @@ import app.terbaca.core.model.PageLink
 import app.terbaca.core.model.PageRect
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.chrome.FloatingPill
+import app.terbaca.core.ui.chrome.SystemBarsEffect
+import app.terbaca.core.ui.chrome.ToolbarHeight
+import app.terbaca.core.ui.chrome.ToolbarIconButton
+import app.terbaca.core.ui.chrome.ToolbarTextSettingsButton
+import app.terbaca.core.ui.chrome.TopToolbar
+import app.terbaca.core.ui.chrome.onDragStarted
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
+import app.terbaca.core.ui.theme.TerbacaDarkBackground
 import app.terbaca.feature.reader.column.ColumnDetector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -66,10 +82,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 private val SIDEBAR_WIDTH = 240.dp
-private val SEARCH_BAR_CLEARANCE = 88.dp
 
-/** The back chip's top padding, height and a small gap: link destinations land below it. */
-private val BACK_CHIP_CLEARANCE = 72.dp
+/** The back chip under the toolbar, with its gaps: link destinations land below it. */
+private val BACK_CHIP_CLEARANCE = 56.dp
 private const val SEARCH_DEBOUNCE_MS = 250L
 
 /** A search hit lands this far below the viewport top (plus the destination margin). */
@@ -96,7 +111,9 @@ fun ReaderScreen(
     onPageChange: ((Int) -> Unit)? = null,
     onViewportChange: ((ReaderViewport) -> Unit)? = null,
     onModeToggle: (() -> Unit)? = null,
-    onSearchRequested: (() -> Unit)? = null
+    onSearchRequested: (() -> Unit)? = null,
+    title: String = "",
+    onBack: (() -> Unit)? = null
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -156,7 +173,10 @@ fun ReaderScreen(
 
     // Following a link or outline entry saves the position first, for the back chip. The
     // destination lands below the chip that then appears, not under it.
-    val backChipClearancePx = with(LocalDensity.current) { BACK_CHIP_CLEARANCE.toPx() }
+    // The pages run under the toolbar, so a destination or a search hit lands below it.
+    val density = LocalDensity.current
+    val toolbarClearancePx = WindowInsets.statusBars.getTop(density) + with(density) { ToolbarHeight.toPx() }
+    val backChipClearancePx = toolbarClearancePx + with(density) { BACK_CHIP_CLEARANCE.toPx() }
     val jumpTo: (Int, Float?) -> Unit = { page, pageY ->
         jumpHistory.push(JumpEntry(state.viewport, state.currentPage))
         scope.launch { state.scrollToDestination(page, pageY, backChipClearancePx) }
@@ -194,7 +214,7 @@ fun ReaderScreen(
         hits.getOrNull(index)?.let { hit ->
             activeHit = index
             val y = hit.rects.firstOrNull()?.top ?: 0f
-            scope.launch { state.scrollToDestination(hit.pageIndex, y - SEARCH_HIT_LEAD_POINTS) }
+            scope.launch { state.scrollToDestination(hit.pageIndex, y - SEARCH_HIT_LEAD_POINTS, toolbarClearancePx) }
         }
     }
     // The first next/previous starts from the current page rather than the document start.
@@ -266,6 +286,13 @@ fun ReaderScreen(
             }
     }
 
+    // Chrome (toolbar, page pill) hides on a tap or a drag, so only the page is left; while the
+    // sidebar, search or the settings are open it stays. The system bars go with it.
+    var chromeVisible by rememberSaveable { mutableStateOf(true) }
+    var showSettings by remember { mutableStateOf(false) }
+    val chromeShown = chromeVisible || isSidebarOpen || isSearchOpen || showSettings
+    SystemBarsEffect(hidden = !chromeShown)
+
     if (isSidebarOpen && !isLandscape) {
         BackHandler { isSidebarOpen = false }
     } else if (isSearchOpen) {
@@ -274,12 +301,15 @@ fun ReaderScreen(
 
     // Only changes when the page does; reading state.currentPage here recomposed every scroll frame.
     val currentPage by remember(state) { derivedStateOf { state.currentPage } }
+    // Overlays under the toolbar (back chip, Copy) sit this far below the status bar.
+    val overlayTop = if (chromeShown) ToolbarHeight + 8.dp else 8.dp
 
-    // System bars inset the whole reader, like the library screen, so pages never draw under them.
+    // Edge to edge: the pages run under the system bars, so hiding them never resizes the page.
+    // Only the chrome keeps clear of the bars.
     Box(
         modifier = modifier
             .fillMaxSize()
-            .safeDrawingPadding()
+            .background(TerbacaDarkBackground)
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
@@ -294,7 +324,6 @@ fun ReaderScreen(
                     pages = pages,
                     currentPage = currentPage,
                     onPageClick = { page -> scope.launch { state.scrollToPage(page) } },
-                    onClose = { isSidebarOpen = false },
                     thumbnailLoader = thumbnailLoader,
                     outline = outline,
                     onOutlineClick = onOutlineClick,
@@ -302,8 +331,13 @@ fun ReaderScreen(
                     modifier = Modifier.width(SIDEBAR_WIDTH).fillMaxHeight()
                 )
             }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                // A tap that isn't a drag follows the link under it (the surface consumes drags).
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .onDragStarted { if (!isSidebarOpen && !isSearchOpen) chromeVisible = false }
+            ) {
+                // A tap that isn't a drag follows the link under it, or shows/hides the chrome.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -355,25 +389,30 @@ fun ReaderScreen(
                                     if (!word.isEmpty()) selection = TextSelection(text, word.first, word.last + 1)
                                 }
                             }, onTap = { position ->
-                                // A tap with a selection only clears it.
-                                if (selection != null) {
+                                // A tap with a selection or a peek card open only closes it.
+                                if (selection != null || peek != null) {
                                     selection = null
+                                    peek = null
                                     return@detectTapGestures
                                 }
-                                val r = renderer ?: return@detectTapGestures
-                                val point = state.pagePointAt(position) ?: return@detectTapGestures
+                                val point = state.pagePointAt(position)
+                                val r = renderer
+                                if (point == null || r == null) {
+                                    chromeVisible = !chromeVisible
+                                    return@detectTapGestures
+                                }
                                 scope.launch {
                                     val links = pageLinks[point.pageIndex]
                                         ?: extractOrEmpty { r.getPageLinks(docHandle, point.pageIndex) }
                                             .also { pageLinks[point.pageIndex] = it }
-                                    val link = linkAt(links, point.x, point.y) ?: return@launch
-                                    if (link.isInternal) {
+                                    val link = linkAt(links, point.x, point.y)
+                                    when {
+                                        link == null -> chromeVisible = !chromeVisible
                                         // Peek first (F-ACAD-3); "Go there" on the card follows the link.
-                                        if (link.targetPageIndex in pages.indices) {
+                                        link.isInternal -> if (link.targetPageIndex in pages.indices) {
                                             peek = PeekTarget(link.targetPageIndex, link.targetY)
                                         }
-                                    } else {
-                                        externalUri = link.uri
+                                        else -> externalUri = link.uri
                                     }
                                 }
                             })
@@ -393,44 +432,32 @@ fun ReaderScreen(
                     SelectionLayer(state, current) { movingStart, index ->
                         selection = moveHandle(current, movingStart, index)
                     }
-                    Surface(
+                    FloatingPill(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 16.dp, end = 56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        tonalElevation = 2.dp
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = overlayTop),
+                        onClick = {
+                            copyToClipboard(context, current.text)
+                            selection = null
+                        }
                     ) {
+                        Icon(
+                            Icons.Rounded.ContentCopy,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.reader_selection_copy),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable {
-                                    copyToClipboard(context, current.text)
-                                    selection = null
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 FastScrollbar(state)
-                PageIndicator(state)
-
-                if (isSearchOpen) {
-                    SearchBar(
-                        query = query,
-                        onQueryChange = { query = it },
-                        hitCount = hits.size,
-                        activeHit = activeHit,
-                        searching = isSearching,
-                        onPrevious = previousHit,
-                        onNext = nextHit,
-                        onClose = closeSearch,
-                        modifier = Modifier.align(Alignment.TopCenter)
-                    )
-                }
+                PageIndicator(state, visible = chromeShown)
 
                 peek?.let { target ->
                     PeekCard(
@@ -443,138 +470,34 @@ fun ReaderScreen(
                             jumpTo(target.pageIndex, target.pageY)
                         },
                         onDismiss = { peek = null },
-                        modifier = Modifier.align(Alignment.BottomCenter)
+                        modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
                     )
                 }
 
-                jumpHistory.latest?.let { entry ->
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = if (isSearchOpen) SEARCH_BAR_CLEARANCE else 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        tonalElevation = 2.dp
-                    ) {
-                        Text(
-                            text = stringResource(R.string.reader_back_to_page, entry.page + 1),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
+                if (selection == null) {
+                    jumpHistory.latest?.let { entry ->
+                        FloatingPill(
                             modifier = Modifier
-                                .clickable {
-                                    jumpHistory.pop()?.let { scope.launch { state.restoreViewport(it.viewport) } }
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
-                        )
-                    }
-                }
-
-                if (!isSidebarOpen) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(top = 16.dp, start = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                        tonalElevation = 2.dp
-                    ) {
-                        Text(
-                            text = stringResource(R.string.reader_sidebar_toggle),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable { isSidebarOpen = true }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-
-                if (!isSearchOpen) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(top = if (isSidebarOpen) 16.dp else 64.dp, start = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                        tonalElevation = 2.dp
-                    ) {
-                        Text(
-                            text = stringResource(R.string.reader_search_toggle),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable { isSearchOpen = true }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(bottom = 16.dp, start = 16.dp)
-                ) {
-                    ReaderChip(
-                        text = stringResource(
-                            when (pageTheme) {
-                                PageTheme.ORIGINAL -> R.string.reader_theme_original
-                                PageTheme.DARK -> R.string.reader_theme_dark
-                                PageTheme.SEPIA -> R.string.reader_theme_sepia
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = overlayTop),
+                            onClick = {
+                                jumpHistory.pop()?.let { scope.launch { state.restoreViewport(it.viewport) } }
                             }
-                        ),
-                        onClick = {
-                            pageTheme = pageTheme.next()
-                            savePageTheme(context, pageTheme)
-                        }
-                    )
-                    if (canSpread) {
-                        Spacer(Modifier.width(8.dp))
-                        ReaderChip(
-                            text = stringResource(if (spread) R.string.reader_layout_spread else R.string.reader_layout_single),
-                            onClick = { spreadWanted = !spreadWanted }
-                        )
-                        if (spread) {
-                            Spacer(Modifier.width(8.dp))
-                            ReaderChip(
-                                text = stringResource(
-                                    if (coverAlone) R.string.reader_cover_alone else R.string.reader_cover_paired
-                                ),
-                                onClick = { coverAlone = !coverAlone }
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.reader_back_to_page, entry.page + 1),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-                    }
-                    if (pageTheme != PageTheme.ORIGINAL) {
-                        Spacer(Modifier.width(8.dp))
-                        ReaderChip(
-                            text = stringResource(
-                                if (invertImages) R.string.reader_images_themed else R.string.reader_images_original
-                            ),
-                            onClick = { invertImages = !invertImages }
-                        )
-                    }
-                }
-
-                if (onModeToggle != null) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 16.dp, end = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                        tonalElevation = 2.dp
-                    ) {
-                        Text(
-                            text = stringResource(R.string.reader_mode_slides),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable { onModeToggle() }
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
                     }
                 }
             }
@@ -593,7 +516,6 @@ fun ReaderScreen(
                     isSidebarOpen = false
                     scope.launch { state.scrollToPage(page) }
                 },
-                onClose = { isSidebarOpen = false },
                 thumbnailLoader = thumbnailLoader,
                 outline = outline,
                 onOutlineClick = { item ->
@@ -605,6 +527,83 @@ fun ReaderScreen(
                     .align(Alignment.CenterStart)
                     .width(SIDEBAR_WIDTH)
                     .fillMaxHeight()
+            )
+        }
+
+        TopToolbar(
+            visible = chromeShown,
+            title = title,
+            modifier = Modifier.align(Alignment.TopCenter),
+            leading = {
+                if (onBack != null) {
+                    ToolbarIconButton(
+                        icon = Icons.AutoMirrored.Rounded.ArrowBackIos,
+                        contentDescription = stringResource(R.string.reader_back),
+                        onClick = onBack
+                    )
+                }
+                ToolbarIconButton(
+                    icon = Icons.Outlined.ViewSidebar,
+                    contentDescription = stringResource(R.string.reader_sidebar),
+                    onClick = { isSidebarOpen = !isSidebarOpen },
+                    selected = isSidebarOpen,
+                    // The icon draws its panel on the right; the sidebar opens on the left.
+                    modifier = Modifier.graphicsLayer { scaleX = -1f }
+                )
+            },
+            center = if (isSearchOpen) {
+                {
+                    SearchToolbarContent(
+                        query = query,
+                        onQueryChange = { query = it },
+                        hitCount = hits.size,
+                        activeHit = activeHit,
+                        searching = isSearching,
+                        onPrevious = previousHit,
+                        onNext = nextHit,
+                        onClose = closeSearch
+                    )
+                }
+            } else {
+                null
+            },
+            trailing = {
+                if (!isSearchOpen) {
+                    ToolbarIconButton(
+                        icon = Icons.Rounded.Search,
+                        contentDescription = stringResource(R.string.reader_search_toggle),
+                        onClick = { isSearchOpen = true }
+                    )
+                    ToolbarTextSettingsButton(
+                        contentDescription = stringResource(R.string.reader_view_settings),
+                        onClick = { showSettings = !showSettings },
+                        selected = showSettings
+                    )
+                }
+            }
+        )
+
+        if (showSettings) {
+            ReaderViewSettings(
+                spread = spread,
+                canSpread = canSpread,
+                onSpreadChange = { spreadWanted = it },
+                coverAlone = coverAlone,
+                onCoverAloneChange = { coverAlone = it },
+                onSlides = onModeToggle?.let { toggle ->
+                    {
+                        showSettings = false
+                        toggle()
+                    }
+                },
+                pageTheme = pageTheme,
+                onPageThemeChange = { theme ->
+                    pageTheme = theme
+                    savePageTheme(context, theme)
+                },
+                invertImages = invertImages,
+                onInvertImagesChange = { invertImages = it },
+                onDismiss = { showSettings = false }
             )
         }
     }
@@ -640,23 +639,4 @@ private suspend fun <T> extractOrEmpty(block: suspend () -> List<T>): List<T> = 
 } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
     android.util.Log.w("ReaderScreen", "Extraction failed", e)
     emptyList()
-}
-
-@Composable
-private fun ReaderChip(text: String, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-        tonalElevation = 2.dp
-    ) {
-        Text(
-            text = text,
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-        )
-    }
 }
