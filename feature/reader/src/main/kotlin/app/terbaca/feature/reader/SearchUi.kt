@@ -36,6 +36,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -67,6 +69,7 @@ internal fun SearchBar(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Surface(
         modifier = modifier.widthIn(max = 560.dp).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -83,14 +86,18 @@ internal fun SearchBar(
                 singleLine = true,
                 placeholder = { Text(stringResource(R.string.reader_search_hint)) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onNext() })
+                keyboardActions = KeyboardActions(onSearch = {
+                    // Enter goes to the next hit and puts the keyboard away, so the page shows.
+                    keyboard?.hide()
+                    onNext()
+                })
             )
             Text(
                 text = when {
                     hitCount == 0 && searching -> stringResource(R.string.reader_search_searching)
                     activeHit >= 0 -> stringResource(R.string.reader_search_position, activeHit + 1, hitCount) +
                         if (searching) "+" else ""
-                    else -> stringResource(R.string.reader_search_count, hitCount) + if (searching) "+" else ""
+                    else -> pluralStringResource(R.plurals.reader_search_count, hitCount, hitCount) + if (searching) "+" else ""
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

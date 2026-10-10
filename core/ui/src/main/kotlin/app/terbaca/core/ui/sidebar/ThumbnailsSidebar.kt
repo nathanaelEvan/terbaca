@@ -26,7 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,10 +122,13 @@ fun ThumbnailsSidebar(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PrimaryTabRow(
+                // Scrollable, so each tab is as wide as its label: three fixed tabs in the
+                // narrow sidebar wrapped "Thumbnails" onto two lines.
+                PrimaryScrollableTabRow(
                     selectedTabIndex = tabs.indexOf(tab),
                     modifier = Modifier.weight(1f),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    edgePadding = 0.dp
                 ) {
                     Tab(
                         selected = tab == TAB_THUMBNAILS,
@@ -133,7 +136,8 @@ fun ThumbnailsSidebar(
                         text = {
                             Text(
                                 text = stringResource(R.string.reader_tab_thumbnails),
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1
                             )
                         }
                     )
@@ -144,7 +148,8 @@ fun ThumbnailsSidebar(
                             text = {
                                 Text(
                                     text = stringResource(R.string.reader_tab_outline),
-                                    style = MaterialTheme.typography.titleSmall
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 1
                                 )
                             }
                         )
@@ -156,7 +161,8 @@ fun ThumbnailsSidebar(
                             text = {
                                 Text(
                                     text = stringResource(R.string.reader_tab_search),
-                                    style = MaterialTheme.typography.titleSmall
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 1
                                 )
                             }
                         )

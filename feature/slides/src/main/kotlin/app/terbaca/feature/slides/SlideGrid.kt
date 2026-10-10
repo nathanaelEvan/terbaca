@@ -9,10 +9,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -27,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
@@ -42,6 +48,7 @@ import app.terbaca.core.ui.theme.TerbacaDarkTextSecondary
 private const val MIN_GRID_COLUMNS = 3
 private const val MAX_GRID_COLUMNS = 5
 private val GRID_CELL_TARGET_WIDTH = 220.dp
+private val GRID_PADDING = 16.dp
 
 /** Columns for a grid [width] wide (F-DECK-1): about one per 220 dp, between 3 and 5. */
 fun gridColumns(width: Dp): Int =
@@ -63,11 +70,19 @@ internal fun SlideGrid(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val columns = gridColumns(maxWidth)
         val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = currentPage.coerceIn(0, pages.lastIndex))
+        // The grid is full-screen: keep the cells clear of the status and navigation bars.
+        val insets = WindowInsets.safeDrawing.asPaddingValues()
+        val direction = LocalLayoutDirection.current
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(
+                start = insets.calculateStartPadding(direction) + GRID_PADDING,
+                top = insets.calculateTopPadding() + GRID_PADDING,
+                end = insets.calculateEndPadding(direction) + GRID_PADDING,
+                bottom = insets.calculateBottomPadding() + GRID_PADDING
+            ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
