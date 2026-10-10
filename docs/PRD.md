@@ -185,10 +185,23 @@ Priority: **P0** = required for v1, **P1** = should ship in v1, **P2** = post-v1
 | ID | Requirement | Pri |
 |---|---|---|
 | F-THEME-1 | App chrome follows system light/dark (Material 3, dynamic color optional). | P0 |
-| F-THEME-2 | **Page themes:** Original, Dark, Sepia. Selectable from the bottom bar; remembered globally with per-document override. | P0 |
+| F-THEME-2 | **Page themes:** Original, Dark, Sepia. Selectable in the View Settings popover (F-UI-2); remembered globally with per-document override. | P0 |
 | F-THEME-3 | **Dark page theme** must keep diagrams readable: perceptual lightness inversion (e.g. in OKLab) that preserves hue, so black text becomes off-white and colored plot lines keep their color identity. Raster images (photos, embedded bitmaps) are excluded from the transform using image bounding boxes from the PDF object model. Target page background ~`#121214`, text ~`#E4E4E7`. | P0 |
 | F-THEME-4 | Sepia uses the same pipeline with a warm tone curve. | P0 |
 | F-THEME-5 | Optional per-document "invert images too" toggle for scanned documents. | P1 |
+
+### 3.8 Chrome and layout (owner-approved 2026-10-11)
+
+The chrome follows Preview, Books and PDF Expert on iPad: one thin toolbar, icons rather than text buttons, nothing floating over the page while reading.
+
+| ID | Requirement | Pri |
+|---|---|---|
+| F-UI-1 | **Toolbar:** back to library and sidebar on the left, the document title in the middle, search and "aA" on the right (slides add grid and present). It extends under the status bar as one strip. | P0 |
+| F-UI-2 | **View Settings popover** ("aA"): layout tiles (Vertical Scroll, Two Pages, Slides, Two Stacked as each applies), First Page Alone, Day/Sepia/Night swatches, Theme Images Too. | P0 |
+| F-UI-3 | **Focus:** a tap on the page (not on a link) or a scroll/swipe hides the toolbar, the page pill and the system bars; another tap brings them back. They stay while the sidebar, search or settings are open. Pages draw edge to edge, so hiding the bars never resizes the page. | P0 |
+| F-UI-4 | **Search** lives in the toolbar: field, hit counter, previous/next, Done. The sidebar uses a segmented control (Pages / Outline / Results). | P0 |
+| F-UI-5 | **Titles** are cut in the middle when too long, so a file name keeps its format (`…Experiences.pptx.pdf`). | P1 |
+| F-UI-6 | **Library:** large title, covers in their own shape on a shared baseline with a soft shadow, one-line title and "Page N of M · time". | P1 |
 
 ---
 

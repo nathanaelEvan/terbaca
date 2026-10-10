@@ -3,6 +3,7 @@ package app.terbaca.core.ui.sidebar
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,12 +23,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,9 +36,10 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -53,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.ui.chrome.ToolbarHeight
 import app.terbaca.core.ui.R
 
 private const val THUMBNAIL_WIDTH_FRACTION = 0.85f
@@ -70,7 +69,6 @@ fun ThumbnailsSidebar(
     pages: List<PageInfo>,
     currentPage: Int,
     onPageClick: (Int) -> Unit,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailLoader: (suspend (PageInfo) -> Bitmap?)? = null,
     outline: List<OutlineItem> = emptyList(),
@@ -107,74 +105,33 @@ fun ThumbnailsSidebar(
 
     Surface(
         modifier = modifier.fillMaxHeight(),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 2.dp
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Opens below the toolbar, which stays up while the sidebar is open.
                 .statusBarsPadding()
+                .padding(top = ToolbarHeight)
                 .navigationBarsPadding()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Scrollable, so each tab is as wide as its label: three fixed tabs in the
-                // narrow sidebar wrapped "Thumbnails" onto two lines.
-                PrimaryScrollableTabRow(
-                    selectedTabIndex = tabs.indexOf(tab),
-                    modifier = Modifier.weight(1f),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    edgePadding = 0.dp
-                ) {
-                    Tab(
-                        selected = tab == TAB_THUMBNAILS,
-                        onClick = { selectedTab = TAB_THUMBNAILS },
-                        text = {
-                            Text(
-                                text = stringResource(R.string.reader_tab_thumbnails),
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1
-                            )
-                        }
-                    )
-                    if (outline.isNotEmpty()) {
-                        Tab(
-                            selected = tab == TAB_OUTLINE,
-                            onClick = { selectedTab = TAB_OUTLINE },
-                            text = {
-                                Text(
-                                    text = stringResource(R.string.reader_tab_outline),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 1
-                                )
+            if (tabs.size > 1) {
+                SegmentedControl(
+                    options = tabs.map { t ->
+                        stringResource(
+                            when (t) {
+                                TAB_OUTLINE -> R.string.reader_tab_outline
+                                TAB_SEARCH -> R.string.reader_tab_search
+                                else -> R.string.reader_tab_thumbnails
                             }
                         )
-                    }
-                    if (searchResults != null) {
-                        Tab(
-                            selected = tab == TAB_SEARCH,
-                            onClick = { selectedTab = TAB_SEARCH },
-                            text = {
-                                Text(
-                                    text = stringResource(R.string.reader_tab_search),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 1
-                                )
-                            }
-                        )
-                    }
-                }
-                IconButton(onClick = onClose) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_close),
-                        contentDescription = stringResource(R.string.reader_sidebar_close),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                    },
+                    selectedIndex = tabs.indexOf(tab),
+                    onSelect = { selectedTab = tabs[it] },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
             }
 
             if (tab == TAB_SEARCH && searchResults != null) {
@@ -334,6 +291,46 @@ private fun OutlineList(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+/** An iOS-style segmented control: equal segments, the selected one raised. */
+@Composable
+private fun SegmentedControl(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .height(32.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(2.dp)
+    ) {
+        options.forEachIndexed { index, label ->
+            val selected = index == selectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
+                    .semantics { this.selected = selected }
+                    .clickable(role = Role.Tab) { onSelect(index) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

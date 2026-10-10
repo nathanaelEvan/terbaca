@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.terbaca.core.model.PageInfo
+import app.terbaca.core.ui.chrome.ToolbarHeight
 import app.terbaca.core.ui.theme.TerbacaDarkAccent
 import app.terbaca.core.ui.theme.TerbacaDarkBorder
 import app.terbaca.core.ui.theme.TerbacaDarkTextSecondary
@@ -79,7 +80,8 @@ internal fun SlideGrid(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = insets.calculateStartPadding(direction) + GRID_PADDING,
-                top = insets.calculateTopPadding() + GRID_PADDING,
+                // The toolbar stays up over the grid.
+                top = insets.calculateTopPadding() + ToolbarHeight + GRID_PADDING,
                 end = insets.calculateEndPadding(direction) + GRID_PADDING,
                 bottom = insets.calculateBottomPadding() + GRID_PADDING
             ),

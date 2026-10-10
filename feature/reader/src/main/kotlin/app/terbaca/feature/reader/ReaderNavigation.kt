@@ -1,8 +1,10 @@
 package app.terbaca.feature.reader
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -19,7 +21,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import app.terbaca.core.ui.chrome.FloatingPill
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
@@ -138,33 +139,32 @@ fun BoxScope.FastScrollbar(state: DocumentTransformState, modifier: Modifier = M
 }
 
 /**
- * "12 / 30" pill at the bottom (F-NAV-2). Recomposes only when the page changes. Tapping it opens
- * a dialog to jump to a page number.
+ * "12 / 30" pill at the bottom (F-NAV-2), shown with the rest of the chrome. Recomposes only when
+ * the page changes. Tapping it opens a dialog to jump to a page number.
  */
 @Composable
-fun BoxScope.PageIndicator(state: DocumentTransformState, modifier: Modifier = Modifier) {
+fun BoxScope.PageIndicator(state: DocumentTransformState, visible: Boolean, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val currentPage by remember(state) { derivedStateOf { state.currentPage } }
     var showJump by remember { mutableStateOf(false) }
     val pageCount = state.layout.pageCount
 
-    Surface(
+    AnimatedVisibility(
+        visible = visible,
         modifier = modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 16.dp)
-            .alpha(0.9f),
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp
+            .padding(bottom = 16.dp),
+        enter = fadeIn(),
+        exit = fadeOut()
     ) {
-        Text(
-            text = stringResource(R.string.reader_page_indicator, currentPage + 1, pageCount),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .clickable { showJump = true }
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        FloatingPill(onClick = { showJump = true }) {
+            Text(
+                text = stringResource(R.string.reader_page_indicator, currentPage + 1, pageCount),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 
     if (showJump) {
