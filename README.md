@@ -11,10 +11,12 @@ Under active development. Progress follows the milestones in [`docs/PRD.md`](doc
 | Milestone | Scope | State |
 |---|---|---|
 | M1 — Engine core | PDFium JNI, `:render` process, HardwareBuffer transport, tile pyramid, caches, crash recovery, benchmarks | Done |
-| M2 — Navigation core | Library and recents, intent handling, continuous vertical mode, slide mode, thumbnails, sidebar, state restore, keyboard navigation | In progress |
-| M3 — Paper features | Outline and links, column-aware zoom, citation peek, search, text selection | Planned |
-| M4 — Deck features and themes | Grid overview, presentation mode, 2-up/spread, Dark and Sepia themes | Planned |
-| M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Planned |
+| M2 — Navigation core | Library and recents, intent handling, continuous vertical mode, slide mode, thumbnails, sidebar, state restore, keyboard navigation | Done |
+| M3 — Paper features | Outline and links, column-aware zoom, citation peek, search, text selection | Done |
+| M4 — Deck features and themes | Grid overview, presentation mode, 2-up/spread, Dark and Sepia themes | Done |
+| M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Next |
+
+M2–M4 were checked on a Xiaomi Pad 7 (Android 16) on 2026-10-11: all instrumented tests pass on the device, and the reader, paper and deck features were walked through by hand in landscape.
 
 ## Architecture
 
@@ -77,7 +79,12 @@ Feature modules depend on core modules, never on each other.
 
 # Same, on an x86_64 emulator as CI does
 ./gradlew :core:pdfium:connectedDebugAndroidTest -Pterbaca.abis=x86_64
+
+# Install the debug build on a connected tablet (USB debugging on)
+./gradlew :app:installDebug
 ```
+
+`adb` lives in the SDK's `platform-tools` folder (for example `%LOCALAPPDATA%\Android\Sdk\platform-tools` on Windows); add it to `PATH`, or call it by full path, to check that the tablet is visible with `adb devices`. On HyperOS, each install from USB shows a prompt on the tablet that has to be accepted by hand.
 
 The Macrobenchmark and baseline profile generator live in `:benchmark` and need a physical device for meaningful numbers.
 
