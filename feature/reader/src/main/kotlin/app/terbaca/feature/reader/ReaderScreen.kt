@@ -46,6 +46,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,6 +67,9 @@ import kotlinx.coroutines.launch
 
 private val SIDEBAR_WIDTH = 240.dp
 private val SEARCH_BAR_CLEARANCE = 88.dp
+
+/** The back chip's top padding, height and a small gap: link destinations land below it. */
+private val BACK_CHIP_CLEARANCE = 72.dp
 private const val SEARCH_DEBOUNCE_MS = 250L
 
 /** A search hit lands this far below the viewport top (plus the destination margin). */
@@ -150,10 +154,12 @@ fun ReaderScreen(
     val pageColumns = remember(renderer, docHandle) { HashMap<Int, PageColumnLayout>() }
     var beforeDoubleTap by remember(docHandle) { mutableStateOf<ReaderViewport?>(null) }
 
-    // Following a link or outline entry saves the position first, for the back chip.
+    // Following a link or outline entry saves the position first, for the back chip. The
+    // destination lands below the chip that then appears, not under it.
+    val backChipClearancePx = with(LocalDensity.current) { BACK_CHIP_CLEARANCE.toPx() }
     val jumpTo: (Int, Float?) -> Unit = { page, pageY ->
         jumpHistory.push(JumpEntry(state.viewport, state.currentPage))
-        scope.launch { state.scrollToDestination(page, pageY) }
+        scope.launch { state.scrollToDestination(page, pageY, backChipClearancePx) }
     }
     val onOutlineClick: (OutlineItem) -> Unit = { item ->
         if (item.pageIndex >= 0) jumpTo(item.pageIndex, item.destY)

@@ -329,15 +329,17 @@ class DocumentTransformState(
      * Jumps to a link or outline destination (F-NAV-5): page [index], with the destination's
      * [pageY] (points from the page top) a little below the viewport top when given. The zoom and
      * horizontal position stay, so a reader zoomed into a column keeps reading at that zoom.
+     * [topClearancePx] keeps the destination below overlays at the viewport top (the back chip).
      */
-    suspend fun scrollToDestination(index: Int, pageY: Float? = null) = mutex.mutate(MutatePriority.UserInput) {
-        val rect = layout.pageRect(index.coerceIn(0, layout.pageCount - 1))
-        val y = pageY?.takeIf { it.isFinite() }?.coerceIn(0f, rect.height)
-            ?.let { rect.top + it - DESTINATION_MARGIN_POINTS }
-            ?: rect.top
-        offsetY = -max(0f, y) * scale
-        clampOffsets()
-    }
+    suspend fun scrollToDestination(index: Int, pageY: Float? = null, topClearancePx: Float = 0f) =
+        mutex.mutate(MutatePriority.UserInput) {
+            val rect = layout.pageRect(index.coerceIn(0, layout.pageCount - 1))
+            val y = pageY?.takeIf { it.isFinite() }?.coerceIn(0f, rect.height)
+                ?.let { rect.top + it - DESTINATION_MARGIN_POINTS }
+                ?: rect.top
+            offsetY = -max(0f, y) * scale + topClearancePx
+            clampOffsets()
+        }
 
     /** Returns to a saved [viewport] (the back chip, F-NAV-5), cancelling any fling. */
     suspend fun restoreViewport(viewport: ReaderViewport, animated: Boolean = false) =

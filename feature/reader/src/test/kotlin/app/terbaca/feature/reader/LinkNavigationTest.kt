@@ -38,6 +38,14 @@ class LinkNavigationTest {
     }
 
     @Test
+    fun scrollToDestination_withTopClearance_landsBelowTheOverlay() = runTest {
+        val state = state()
+        state.scrollToDestination(1, pageY = 400f, topClearancePx = 200f)
+        // Same destination as without clearance, shifted 200 px down the screen.
+        assertEquals(-(808f + 400f - 12f) * 2f + 200f, state.offsetY, 0.01f)
+    }
+
+    @Test
     fun scrollToDestination_outOfRangePage_isClamped() = runTest {
         val state = state()
         state.scrollToDestination(99)
