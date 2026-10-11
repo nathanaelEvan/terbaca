@@ -3,7 +3,9 @@ package app.terbaca.core.ui.chrome
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,7 +85,7 @@ fun ViewSettingsPopover(
             Column(modifier = Modifier.padding(vertical = 12.dp)) {
                 Text(
                     text = title,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).semantics { heading() },
                     color = TerbacaDarkTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -110,7 +113,7 @@ fun SettingsDivider() {
 @Composable
 fun LayoutOptions(content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).selectableGroup(),
         horizontalArrangement = Arrangement.SpaceEvenly,
         content = content
     )
@@ -128,8 +131,7 @@ fun RowScope.LayoutOption(
         modifier = Modifier
             .weight(1f)
             .clip(RoundedCornerShape(10.dp))
-            .semantics { this.selected = selected }
-            .clickable(role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -176,15 +178,14 @@ class ThemeSwatch(
 @Composable
 fun ThemeSwatches(swatches: List<ThemeSwatch>) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).selectableGroup(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         for (swatch in swatches) {
             Column(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .semantics { selected = swatch.selected }
-                    .clickable(role = Role.RadioButton, onClick = swatch.onClick)
+                    .selectable(selected = swatch.selected, role = Role.RadioButton, onClick = swatch.onClick)
                     .padding(6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -198,7 +199,14 @@ fun ThemeSwatches(swatches: List<ThemeSwatch>) {
                         .border(0.5.dp, TerbacaDarkBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Aa", color = swatch.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Aa",
+                        // The swatch is read by its label ("Sepia"), not by this sample.
+                        modifier = Modifier.clearAndSetSemantics { },
+                        color = swatch.text,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -223,7 +231,7 @@ fun SettingsToggle(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clickable(role = Role.Switch) { onCheckedChange(!checked) }
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

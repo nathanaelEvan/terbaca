@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -114,6 +115,7 @@ fun LibraryScreen(
 private fun OpenButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(role = Role.Button, onClick = onClick)
@@ -182,9 +184,16 @@ private fun RecentCard(
         if (thumbnailBitmap == null) thumbnailBitmap = thumbnailLoader?.invoke(doc.contentHash)
     }
 
+    val openLabel = stringResource(R.string.library_open_document)
     Column(
         modifier = Modifier
-            .then(if (entry.isAvailable) Modifier.clickable { onRecentClick(doc) } else Modifier)
+            .then(
+                if (entry.isAvailable) {
+                    Modifier.clickable(role = Role.Button, onClickLabel = openLabel) { onRecentClick(doc) }
+                } else {
+                    Modifier
+                }
+            )
             .alpha(if (entry.isAvailable) 1f else UNAVAILABLE_ALPHA)
     ) {
         // A portrait-shaped slot; the cover keeps its own shape inside it, on the bottom edge, so

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +45,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -59,10 +63,11 @@ import app.terbaca.core.ui.theme.TerbacaDarkBorder
 import app.terbaca.core.ui.theme.TerbacaDarkSurfaceHigh
 import app.terbaca.core.ui.theme.TerbacaDarkTextPrimary
 
-/** Height of the toolbar row, below the status bar. */
+/** Height of the toolbar row, below the status bar; it only grows when a large font needs it. */
 val ToolbarHeight = 52.dp
 
-private val ToolbarButtonSize = 44.dp
+// The 48 dp minimum touch target from the Android accessibility guidelines.
+private val ToolbarButtonSize = 48.dp
 private val ToolbarIconSize = 22.dp
 
 /** Left and right insets the chrome keeps clear of: cutouts and a side navigation bar. */
@@ -95,7 +100,7 @@ fun TopToolbar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ToolbarHeight)
+                    .heightIn(min = ToolbarHeight)
                     .windowInsetsPadding(SideInsets)
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -106,7 +111,7 @@ fun TopToolbar(
                 } else {
                     Text(
                         text = title,
-                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp).semantics { heading() },
                         color = TerbacaDarkTextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -152,6 +157,8 @@ fun ToolbarTextSettingsButton(
     ToolbarButton(contentDescription, onClick, modifier, selected) {
         Text(
             text = "aA",
+            // The button's own description is read instead of "aA".
+            modifier = Modifier.clearAndSetSemantics { },
             color = if (selected) TerbacaDarkAccent else TerbacaDarkTextPrimary,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold
@@ -181,22 +188,32 @@ private fun ToolbarButton(
     ) { content() }
 }
 
-/** A small floating pill over the page: the page number, the back-to-page chip. */
+/**
+ * A small floating pill over the page: the page number, the back-to-page chip. A tappable pill
+ * reserves a 48 dp touch target around itself; [onClickLabel] tells TalkBack what a tap does.
+ */
 @Composable
 fun FloatingPill(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.then(if (onClick != null) Modifier.minimumInteractiveComponentSize() else Modifier),
         shape = RoundedCornerShape(50),
         color = TerbacaChrome,
         shadowElevation = 4.dp
     ) {
         Row(
             modifier = Modifier
-                .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content

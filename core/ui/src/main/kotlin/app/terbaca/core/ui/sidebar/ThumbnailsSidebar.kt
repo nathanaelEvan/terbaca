@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -306,7 +307,8 @@ private fun SegmentedControl(
 ) {
     Row(
         modifier = modifier
-            .height(32.dp)
+            .heightIn(min = 32.dp)
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(9.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(2.dp)

@@ -41,16 +41,19 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.ui.chrome.FloatingPill
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 private const val SCROLLBAR_HIDE_DELAY_MS = 1500L
 private val THUMB_HEIGHT = 56.dp
@@ -158,9 +161,15 @@ fun BoxScope.PageIndicator(state: DocumentTransformState, visible: Boolean, modi
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        FloatingPill(onClick = { showJump = true }) {
+        val description = stringResource(R.string.reader_page_indicator_description, currentPage + 1, pageCount)
+        FloatingPill(
+            onClick = { showJump = true },
+            onClickLabel = stringResource(R.string.reader_jump_title),
+            modifier = Modifier.semantics { contentDescription = description }
+        ) {
             Text(
                 text = stringResource(R.string.reader_page_indicator, currentPage + 1, pageCount),
+                modifier = Modifier.clearAndSetSemantics { },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
