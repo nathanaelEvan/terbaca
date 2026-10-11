@@ -47,6 +47,7 @@ import app.terbaca.feature.slides.SlidesScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -80,7 +81,7 @@ class MainActivity : ComponentActivity() {
         @VisibleForTesting internal set
 
     // Bound on first open, so a cold start into the library doesn't spin up the :render process.
-    private var renderer: PdfiumRemotePageRenderer? = null
+    // Retained on TerbacaApp across activity recreation (M6-05).
     private val recents by lazy { (application as TerbacaApp).recentsRepository }
     private val thumbnailDiskCache by lazy { (application as TerbacaApp).thumbnailDiskCache }
 
@@ -88,13 +89,12 @@ class MainActivity : ComponentActivity() {
     private val stateWriter by lazy {
         DocumentStateWriter((application as TerbacaApp).appScope) { recents.saveState(it) }
     }
-    private val thumbnailPipelineLazy = lazy {
-        ThumbnailPipeline(diskCache = thumbnailDiskCache, renderer = renderer())
+    private val thumbnailPipeline by lazy {
+        (application as TerbacaApp).thumbnailPipeline
     }
-    private val thumbnailPipeline by thumbnailPipelineLazy
 
     private fun renderer(): PdfiumRemotePageRenderer =
-        renderer ?: PdfiumRemotePageRenderer(applicationContext).also { renderer = it }
+        (application as TerbacaApp).getOrCreateRenderer()
 
     private fun closeCurrentDocument() {
         val doc = opened
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
         loading = false
         if (doc != null) {
             lifecycleScope.launch(NonCancellable) {
-                renderer?.closeDocument(doc.handle)
+                renderer().closeDocument(doc.handle)
             }
         }
     }
@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (thumbnailPipelineLazy.isInitialized()) thumbnailPipeline.onTrimMemory(level)
+        thumbnailPipeline.onTrimMemory(level)
     }
 
     /** Queues the reading state of [doc] for a debounced save, keyed by content hash (F-LIB-2). */
@@ -260,7 +260,7 @@ class MainActivity : ComponentActivity() {
                     opened?.let { doc ->
                         lifecycleScope.launch {
                             withContext(NonCancellable) {
-                                renderer?.closeDocument(doc.handle)
+                                renderer().closeDocument(doc.handle)
                             }
                         }
                     }
@@ -480,6 +480,10 @@ class MainActivity : ComponentActivity() {
         if (firstPage == null) return
         if (thumbnailDiskCache.contains(contentHash, firstPage.index, ThumbnailDiskCache.DEFAULT_THUMBNAIL_WIDTH_PX)) return
         lifecycleScope.launch(Dispatchers.IO) {
+            // PRD M6-05: render the first page's visible tiles before any thumbnail render.
+            while (PerfTrace.isOpenPending) {
+                delay(50)
+            }
             try {
                 thumbnailPipeline.getThumbnail(docHandle, contentHash, firstPage)
             } catch (e: Exception) {
@@ -503,8 +507,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        renderer?.close()
-        renderer = null
+        // Renderer and IPC binding are retained on TerbacaApp across activity recreation (M6-05).
+        if (isFinishing) {
+            closeCurrentDocument()
+        }
     }
 
     companion object {

@@ -77,7 +77,8 @@ class PdfiumRemotePageRenderer(
 
     private val appContext = context.applicationContext
     private val lock = Any()
-    private val isClosed = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false)
+    val isClosed: Boolean get() = closed.get()
     private val isDeadNotified = AtomicBoolean(false)
     private val isRecovering = AtomicBoolean(false)
 
@@ -199,7 +200,7 @@ class PdfiumRemotePageRenderer(
             return
         }
 
-        if (autoRecover && !isClosed.get() && isRecovering.compareAndSet(false, true)) {
+        if (autoRecover && !isClosed && isRecovering.compareAndSet(false, true)) {
             scope.launch {
                 val backoffMs = if (crashes > 1) {
                     minOf(500L * (1L shl (crashes - 2)), 5000L)
@@ -216,7 +217,7 @@ class PdfiumRemotePageRenderer(
 
     private fun triggerRecovery() {
         synchronized(lock) {
-            if (isClosed.get()) return
+            if (isClosed) return
             activeBinder?.unlinkToDeath(deathRecipient, 0)
             activeBinder = null
             serviceBinder = null
@@ -317,7 +318,7 @@ class PdfiumRemotePageRenderer(
 
     fun rebind() {
         synchronized(lock) {
-            check(!isClosed.get()) { "PageRenderer is closed" }
+            check(!isClosed) { "PageRenderer is closed" }
             activeBinder?.unlinkToDeath(deathRecipient, 0)
             activeBinder = null
             serviceBinder = null
@@ -334,7 +335,7 @@ class PdfiumRemotePageRenderer(
     }
 
     private suspend fun getService(): IPdfiumRenderService {
-        check(!isClosed.get()) { "PageRenderer is closed" }
+        check(!isClosed) { "PageRenderer is closed" }
         serviceBinder?.let { return it }
         return withTimeoutOrNull(DEFAULT_CONNECT_TIMEOUT_MS) {
             connectionDeferred.await()
@@ -395,7 +396,7 @@ class PdfiumRemotePageRenderer(
                         }
                     } catch (e: RemoteException) {
                         handleProcessDeath(service.asBinder())
-                        if (autoRecover && !isClosed.get() && savedPfd != null && attempts <= MAX_RENDER_RETRIES) {
+                        if (autoRecover && !isClosed && savedPfd != null && attempts <= MAX_RENDER_RETRIES) {
                             continue
                         }
                         throw PdfiumException(
@@ -428,7 +429,7 @@ class PdfiumRemotePageRenderer(
                 return block(service)
             } catch (e: RemoteException) {
                 handleProcessDeath(service.asBinder())
-                if (autoRecover && !isClosed.get() && attempts <= MAX_RENDER_RETRIES) {
+                if (autoRecover && !isClosed && attempts <= MAX_RENDER_RETRIES) {
                     continue
                 }
                 throw PdfiumException("Render service IPC failure: ${e.message}", PdfiumException.ERROR_UNKNOWN, e)
@@ -713,7 +714,7 @@ class PdfiumRemotePageRenderer(
                             t
                         )
                     }
-                    if (autoRecover && !isClosed.get() && attempts <= MAX_RENDER_RETRIES) {
+                    if (autoRecover && !isClosed && attempts <= MAX_RENDER_RETRIES) {
                         continue
                     }
                     throw PdfiumException("Render service IPC failure: ${t.message}", PdfiumException.ERROR_UNKNOWN, t)
@@ -790,7 +791,7 @@ class PdfiumRemotePageRenderer(
     }
 
     fun close() {
-        if (isClosed.compareAndSet(false, true)) {
+        if (closed.compareAndSet(false, true)) {
             scope.cancel()
             synchronized(lock) {
                 openSessions.values.forEach { session ->

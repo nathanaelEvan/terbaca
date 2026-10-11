@@ -89,6 +89,7 @@ private const val FAST_SCROLL_SETTLE_MS = 100L
 const val TILE_UNREVEALED = Long.MAX_VALUE
 private const val NO_PENDING_REVEAL = -1L
 private const val RENDER_SCHEDULER_CONCURRENCY = 2
+private const val OPEN_SETTLE_POLL_MS = 50L
 
 /** Drawn where a page has no content yet, so a fast fling shows page shapes, not a void. */
 private val PAGE_PLACEHOLDER_COLOR = Color.White
@@ -613,6 +614,10 @@ private fun DocumentTileCollector(
             if (zooming) return@collectLatest
             visibleDetail.forEach { (tile, dist) ->
                 requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
+            }
+            // PRD M6-05: render the first page's visible tiles before any prefetch.
+            while (PerfTrace.isOpenPending) {
+                delay(OPEN_SETTLE_POLL_MS)
             }
             prefetch.forEach { (tile, dist) ->
                 requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
