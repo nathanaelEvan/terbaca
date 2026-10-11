@@ -36,6 +36,7 @@ val copyLicenseAssets by tasks.registering(CopyLicensesTask::class) {
 android {
     namespace = "app.terbaca"
     compileSdk = 36
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "app.terbaca"
