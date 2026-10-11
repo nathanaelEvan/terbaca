@@ -57,6 +57,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.terbaca.core.model.OutlineItem
 import app.terbaca.core.model.PageColumnLayout
@@ -65,6 +68,7 @@ import app.terbaca.core.model.PageLink
 import app.terbaca.core.model.PageRect
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.R as UiR
 import app.terbaca.core.ui.chrome.FloatingPill
 import app.terbaca.core.ui.chrome.SystemBarsEffect
 import app.terbaca.core.ui.chrome.ToolbarHeight
@@ -502,12 +506,15 @@ fun ReaderScreen(
                 }
             }
         }
+        val closeSidebar = stringResource(UiR.string.reader_sidebar_close)
         if (!isLandscape && isSidebarOpen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = SCRIM_ALPHA))
-                    .clickable { isSidebarOpen = false }
+                    // TalkBack users get a "Close sidebar" button here, like the tap outside.
+                    .semantics { contentDescription = closeSidebar }
+                    .clickable(role = Role.Button) { isSidebarOpen = false }
             )
             ThumbnailsSidebar(
                 pages = pages,

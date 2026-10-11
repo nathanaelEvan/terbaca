@@ -4,6 +4,7 @@
     <string name="slides_sidebar_toggle">Sidebar</string>
     <string name="slides_slide_description">Slide %1$d</string>
     <string name="slides_present">Present</string>
+    <string name="slides_position">Slide %1$d of %2$d</string>
     <string name="slides_grid">Grid</string>
     <string name="slides_two_up">Two Stacked</string>
     <string name="slides_one_up">Slides</string>

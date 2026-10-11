@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -47,7 +48,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -85,11 +90,12 @@ internal fun RowScope.SearchToolbarContent(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val hint = stringResource(R.string.reader_search_hint)
     Row(
         modifier = Modifier
             .weight(1f)
             .padding(horizontal = 8.dp)
-            .height(36.dp)
+            .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(horizontal = 10.dp),
@@ -105,6 +111,8 @@ internal fun RowScope.SearchToolbarContent(
             if (query.isEmpty()) {
                 Text(
                     stringResource(R.string.reader_search_hint),
+                    // The field below carries the hint for TalkBack.
+                    modifier = Modifier.clearAndSetSemantics { },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 15.sp,
                     maxLines = 1
@@ -113,7 +121,10 @@ internal fun RowScope.SearchToolbarContent(
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .semantics { contentDescription = hint },
                 singleLine = true,
                 textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -137,7 +148,9 @@ internal fun RowScope.SearchToolbarContent(
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
-                maxLines = 1
+                maxLines = 1,
+                // TalkBack announces the count as the search finds more.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
             )
         }
     }
@@ -157,6 +170,7 @@ internal fun RowScope.SearchToolbarContent(
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .clip(RoundedCornerShape(10.dp))
             .clickable(role = Role.Button, onClick = onClose)
             .padding(horizontal = 12.dp, vertical = 12.dp)

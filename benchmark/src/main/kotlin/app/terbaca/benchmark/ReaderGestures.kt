@@ -46,4 +46,4 @@ fun MacrobenchmarkScope.exerciseReader() {
  * The window's root view. A bare By.pkg can match a small clickable such as the page indicator
  * pill, and a pinch on a tiny object is a tap: it opened the jump-to-page dialog mid-benchmark.
  */
-private fun MacrobenchmarkScope.readerRoot() = device.findObject(By.pkg(TARGET_PACKAGE).depth(0))
+internal fun MacrobenchmarkScope.readerRoot() = device.findObject(By.pkg(TARGET_PACKAGE).depth(0))
