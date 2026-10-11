@@ -129,7 +129,8 @@ Three automated harnesses ensure ongoing enforcement:
   and an `onProcessDied` hook. Any `:render` death, or an IPC failure caused by a `RemoteException`,
   fails the test. Before this change, a crash was silently recovered and counted as a "clean
   rejection". A temporary negative-control commit that killed `:render` mid-loop made the test fail on
-  CI (recorded in the review PR).
+  CI: "The :render process died during fuzz_flip_10_"
+  ([run 38148561475](https://github.com/nathanaelEvan/terbaca/actions/runs/38148561475)).
 - Runs on the CI x86_64 emulator on every PR. The first version of this report claimed a Pad 7 run;
   no log backs that claim.
 
