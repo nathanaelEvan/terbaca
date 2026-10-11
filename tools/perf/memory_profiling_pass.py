@@ -2,7 +2,8 @@
 """
 Terbaca M5-02: Memory Profiling & Leak Check Harness.
 Profiles memory footprint on the 100+ page document (memory_100plus.pdf)
-and verifies compliance with PRD §5 and §7 budgets (PSS <= 250 MB).
+as an engine-only baseline. It measures this Python process's RSS with pypdfium2, not the
+app's PSS, so it cannot check the PRD §7 budget; use tools/perf/measure_pss.sh on a device for that.
 """
 
 import os
@@ -119,12 +120,10 @@ def run_memory_profile():
     print("\n" + "=" * 70)
     print("MEMORY PROFILING SUMMARY & BUDGET VERIFICATION")
     print("=" * 70)
-    budget_limit_mb = 250.0  # PRD §7 budget
-    passed = peak_mb <= budget_limit_mb and abs(true_leak_delta) < 10.0
+    passed = abs(true_leak_delta) < 10.0
 
-    print(f"PRD §7 Budget Target:          <= {budget_limit_mb:.1f} MB PSS")
-    print(f"Measured Peak Memory:          {peak_mb:.2f} MB (Margin: {budget_limit_mb - peak_mb:.2f} MB)")
-    print(f"Leak Delta Across 20 Cycles:   {true_leak_delta:+.2f} MB (Negligible)")
+    print(f"Engine-only peak RSS:          {peak_mb:.2f} MB (not the PRD §7 PSS budget; see measure_pss.sh)")
+    print(f"Leak Delta Across 20 Cycles:   {true_leak_delta:+.2f} MB (limit 10 MB)")
     print(f"Status:                        {'PASS' if passed else 'FAIL'}")
     print("=" * 70)
 
