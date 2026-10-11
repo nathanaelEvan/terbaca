@@ -46,8 +46,9 @@ peak.
 - **Leak test:** 3 warm-up cycles, a baseline sample, then 20 open → render two 2x tiles → close
   cycles, then a second sample. The test fails if PSS grew by 12 MB or more, or if the `:render`
   pid changed.
-- **Negative control:** a temporary commit that skipped `closeDocument` made this test fail on CI.
-  The PR for the review fix records the run.
+- **Negative control:** a temporary commit that skipped `closeDocument` made this test fail on the
+  CI emulator: "render PSS grew 40720 KB over 20 open/close cycles (limit 12288 KB)"
+  ([run 38148397100](https://github.com/nathanaelEvan/terbaca/actions/runs/38148397100)).
 - The UI-process tile cache is covered separately by
   `core/render/src/test/.../MemoryBudgetProfilingUnitTest.kt`. It runs 105 pages through
   `TileCache` with the PRD §5 default budgets and asserts that each tier stays within budget, that
