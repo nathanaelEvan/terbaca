@@ -48,4 +48,38 @@ class DetailLayerOpaqueTest {
     fun noVisibleTiles_isNotOpaque() {
         assertFalse(isDetailLayerOpaque(emptyList(), { true }, emptyMap(), now))
     }
+
+    // isViewSharp: where the PRD §7 "sharp" trace sections end (crossfade included).
+
+    @Test
+    fun viewSharp_onlyOnceEveryPageHasFinishedItsFade() {
+        val loadedNow = tiles.associate { it.key to now }
+        assertFalse("loaded but fade just started", isViewSharp(listOf(tiles), { true }, loadedNow, now))
+        assertFalse(
+            "one frame before the fade ends",
+            isViewSharp(listOf(tiles), { true }, loadedNow, now + TILE_CROSSFADE_DURATION_MS - 1)
+        )
+        assertTrue(isViewSharp(listOf(tiles), { true }, loadedNow, now + TILE_CROSSFADE_DURATION_MS))
+    }
+
+    @Test
+    fun viewSharp_unrevealedTileIsNotSharp() {
+        val fades = mapOf(tiles[0].key to faded, tiles[1].key to TILE_UNREVEALED)
+        assertFalse(isViewSharp(listOf(tiles), { true }, fades, now))
+    }
+
+    @Test
+    fun viewSharp_oneFadingPageKeepsTheWholeViewNotSharp() {
+        val otherPage = listOf(
+            TileBounds(TileKey(pageIndex = 1, level = 1, col = 0, row = 0), ViewportRect(0f, 0f, 100f, 100f), 512, 512)
+        )
+        val fades = tiles.associate { it.key to faded } + (otherPage[0].key to now - 1)
+        assertFalse(isViewSharp(listOf(tiles, otherPage), { true }, fades, now))
+        assertTrue(isViewSharp(listOf(tiles), { true }, fades, now))
+    }
+
+    @Test
+    fun viewSharp_noPagesIsNotSharp() {
+        assertFalse(isViewSharp(emptyList(), { true }, emptyMap(), now))
+    }
 }

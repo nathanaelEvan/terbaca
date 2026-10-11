@@ -205,6 +205,7 @@ class MainActivity : ComponentActivity() {
                             is OpenResult.Failure -> {
                                 opened = null
                                 currentDocumentError = result.error
+                                PerfTrace.abandonOpen()
                             }
                         }
                         loading = false
@@ -237,6 +238,7 @@ class MainActivity : ComponentActivity() {
                                 is OpenResult.Failure -> {
                                     opened = null
                                     currentDocumentError = result.error
+                                    PerfTrace.abandonOpen()
                                 }
                             }
                             loading = false
@@ -267,6 +269,7 @@ class MainActivity : ComponentActivity() {
                     openUriString = null
                     userModeOverride = null
                     loading = false
+                    PerfTrace.abandonOpen()
                 }
                 BackHandler(
                     enabled = opened != null || currentDocumentError != null || openUriString != null || loading,
@@ -283,6 +286,9 @@ class MainActivity : ComponentActivity() {
                         // Keyed by the opened document, so a newly opened file starts at its own page.
                         val position = remember(doc) { ReadingPosition(doc.initialPage, doc.savedViewport) }
                         if (currentMode == ReadingMode.SLIDE) {
+                            // The open section times the reader's first sharp page, which a deck
+                            // in slide mode never shows; a later switch to scroll mustn't close it.
+                            LaunchedEffect(doc) { PerfTrace.abandonOpen() }
                             SlidesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 pages = doc.pages,

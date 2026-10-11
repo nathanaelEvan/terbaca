@@ -358,6 +358,8 @@ Measured on a Xiaomi Pad 7 (or Pro), release build with baseline profile, using 
 | APK (arm64) size | ≤ 15 MB |
 | Crash on malformed corpus PDFs | UI process never crashes |
 
+"Sharp" means every visible detail tile is loaded **and** its crossfade (F-REN-3, 150 ms) has finished, so the detail layer is fully opaque (owner decision, 2026-10-11).
+
 If a budget is missed, the PR must say so explicitly, with the measured number and a plan. Do not quietly relax budgets.
 
 ### 7.1 Test corpus
