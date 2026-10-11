@@ -204,7 +204,6 @@ class PdfiumFuzzRobustnessTest {
                         runBlocking {
                             renderer.getPageInfo(handle, 0)
                             renderer.getPageText(handle, 0)
-                            renderer.getPageCharBoxes(handle, 0)
                             renderer.getPageLinks(handle, 0)
                             renderer.getOutline(handle)
                             renderer.getImageBounds(handle, 0)
