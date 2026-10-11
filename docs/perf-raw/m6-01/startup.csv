@@ -1,0 +1,7 @@
+"run","case","metric","n","min","median","max"
+"startup","startupCompilationBaselineProfile","timeToInitialDisplayMs","5","455.6","508.6","551.8"
+"startup","startupCompilationNone","timeToInitialDisplayMs","5","381.5","426.1","495.9"
+"startup-2","startupCompilationBaselineProfile","timeToInitialDisplayMs","5","367.2","459.7","489.6"
+"startup-2","startupCompilationNone","timeToInitialDisplayMs","5","364.0","470.6","517.2"
+"startup-3","startupCompilationBaselineProfile","timeToInitialDisplayMs","5","419.6","439.7","511.3"
+"startup-3","startupCompilationNone","timeToInitialDisplayMs","5","380.9","464.5","496.1"
