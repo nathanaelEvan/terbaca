@@ -443,6 +443,98 @@ Each task = one PR (or a short sequence of `a/b/c` PRs). Order within a mileston
 - **M5-05** Final §7 measurement report in `docs/perf-report.md`.
 - **M5-06** Signed release build instructions (no keys committed).
 
+### M6 — Smoothness and speed polish (target: 3–4 weeks)
+
+Added 2026-10-12, after v0.1.0 shipped as a GitHub release. The owner decided to release with the
+§7 misses and fix them afterwards. Sources: the "Misses and plans" and "Not verified" sections of
+[`docs/perf-report.md`](perf-report.md), and [`docs/competitor-benchmark.md`](competitor-benchmark.md).
+Against Acrobat, Google Drive, WPS and the Xiaomi viewer, Terbaca wins on memory and size and comes
+second on opening speed. **It loses badly on smoothness:** 34.6 % of frames are late while
+scrolling (the others are at 1–5 %), and 29.4 % while pinching. The owner's priority is closing
+that gap.
+
+Rules for this milestone, on top of AGENTS.md:
+- Every performance number comes from a run on the Pad 7 with raw output committed (or the exact
+  command and a summary). No estimates in Met/Missed columns. M1 and M5 both had numbers nothing
+  backed, so reviewers will check this.
+- A new test or metric must be shown to fail on a deliberately broken commit (negative control),
+  then reverted, with both CI runs linked in the PR.
+- Changes to how the reader *feels* (crossfade length, tile reveal order, scroll physics) need an
+  owner check on the Pad 7 before merge. Install the `benchmark` build (`./gradlew
+  :app:installBenchmark`; debug builds are janky) and ask. The owner has already chosen these, on
+  the device, in 2026-10:
+  - The tile level is frozen while pinching, with one sharpen on release. Don't bring back level
+    swaps mid-pinch: they shimmer.
+  - Tiles are revealed in one batched fade (no "square loading").
+  - The fast-scroll bar sits 8 dp from the edge.
+  Keep these unless the owner agrees to change them.
+- If a budget can't be met, bring it to the owner in a PRD PR. Never relax it quietly.
+
+Tasks, in order:
+
+- **M6-01** Baseline re-measure on current `main`, on the Pad 7.
+  - Re-run `LatencyBenchmarks` with the crossfade-inclusive trace end (since #73) and replace every
+    "≈" estimate row in `perf-report.md`.
+  - Re-run the frame benchmarks.
+  - Re-run `tools/perf/competitor/frames.sh` for Terbaca only.
+  - Record the device state (battery, temperature, HyperOS version). Paper frames swing ±4 points
+    between runs, so take ≥ 3 runs.
+- **M6-02** Scroll smoothness investigation. No fix yet, report only.
+  - Trace M2's commit (paper frames were 99.5 %) against current `main`, on the same device state.
+  - Find what adds RenderThread/GPU work on paper pages. Suspects: M3/M4 overlays (search
+    highlights, theme shader, selection layer), the #63 chrome, and the larger #68 pills.
+  - Use Perfetto, GPU overdraw view, and `dumpsys gfxinfo`.
+  - Deliver `docs/smoothness-investigation.md`: the ranked causes with trace evidence, and a fix
+    plan.
+  - If a rendering-backend change (e.g. SurfaceView/GL, PRD §9) is needed, write an ADR (`proposed`).
+- **M6-03** Scroll smoothness fixes (`a/b/c` PRs as needed), in the order of M6-02's ranking.
+  - Each PR reports `competitor/frames.sh` scroll late-frame % and the §7 paper-frame % before and
+    after.
+- **M6-04** Pinch smoothness: the same investigate-then-fix loop for pinch (29.4 % late; Drive is
+  at 5.2 %).
+- **M6-05** Open path (§7 "open → first page sharp", and heavy-plot open).
+  - Keep the render-service binding alive across activity recreation, by binding from the
+    Application or a retained holder.
+  - Render the first page's visible tiles before any prefetch.
+  - **Risky (AGENTS §3: IPC/Binder lifecycle):** open the PR and wait for review.
+- **M6-06** Sharpening after a pinch at fit width (p95 budget 150 ms).
+  - Render the centre tiles first.
+  - If needed, shorten the crossfade. F-REN-3 allows 100 ms.
+  - Needs an owner feel check. If 150 ms isn't reachable with a visible fade, return the budget to
+    the owner.
+- **M6-07** Slide flip: cut the pager's per-frame layout work during a drag (see ADR 0004). Add an
+  instrumented check for "next slide sharp on arrival", which isn't measured today.
+- **M6-08** Cold start (510 ms, budget 500): profile the library's first frame and show the grid
+  before the per-file availability checks finish.
+- **M6-09** Verification gaps from the M5 review:
+  - A smoke test on a minified build that opens the outline and taps a link, in CI or documented
+    as a manual step.
+  - A TalkBack walkthrough of the reader, slides and library on the Pad 7.
+  - Portrait layouts on the Pad 7.
+  - Check the ~6 dp position shift of the floating pills since #68.
+  - Screenshots or a recording in the PR.
+- **M6-10** Regenerate the baseline profile on the Pad 7.
+  - Add a library-tap or `VIEW`-intent open path to `BaselineProfileGenerator`.
+  - Final §7 re-measure and `perf-report.md` update.
+  - Full `tools/perf/competitor/` re-run, and update the README "How Terbaca compares" table.
+  - Bump the version to `versionCode 2` / `0.2.0` and draft the release notes.
+  - **Stop before releasing.** Signing and publishing the GitHub release are the owner's step (the
+    key never leaves their machine).
+
+**Exit criteria:**
+- Scrolling the paper in `competitor/frames.sh` has ≤ 5 % late frames, in line with Acrobat and
+  Drive.
+- Pinch has ≤ 10 % late frames.
+- Every §7 row is measured, not estimated. Each one is Met, or Missed with an owner-approved plan.
+- The owner has done a feel check on the Pad 7.
+
+Deferred (not in M6 unless time allows):
+- Run each case of the Python fuzz harness in a subprocess.
+- De-duplicate `memory_100plus.pdf` between androidTest assets and `testdata/corpus/`.
+- A PSS measurement on a ≤ 1080p device.
+- Time to sharp after zoom compared with other apps (not measurable from screen recordings).
+- The Play Store release (the owner's decision, 2026-10-12).
+
 ---
 
 ## 9. Key Risks
