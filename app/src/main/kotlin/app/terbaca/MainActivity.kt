@@ -36,6 +36,7 @@ import app.terbaca.core.model.ReadingMode
 import app.terbaca.core.model.autoDetectReadingMode
 import app.terbaca.core.pdfium.PdfiumRemotePageRenderer
 import app.terbaca.core.render.PageRenderer
+import app.terbaca.core.render.PerfTrace
 import app.terbaca.core.render.cache.ThumbnailDiskCache
 import app.terbaca.core.render.cache.ThumbnailPipeline
 import app.terbaca.core.ui.theme.TerbacaTheme
@@ -177,6 +178,7 @@ class MainActivity : ComponentActivity() {
         // Benchmarks and baseline-profile generation open a bundled corpus file directly.
         val corpusAsset = intent?.getStringExtra(EXTRA_CORPUS_FILE)
         loading = corpusAsset != null || (openUriString != null && currentDocumentError == null)
+        if (corpusAsset != null) PerfTrace.beginOpen()
 
         setContent {
             TerbacaTheme {
@@ -222,6 +224,7 @@ class MainActivity : ComponentActivity() {
                     }
                     loading = true
                     currentDocumentError = null
+                    PerfTrace.beginOpen()
                     try {
                         Log.d(TAG, "Opening document: $uriStr (request #$openRequestCount)")
                         val result = openFromUri(Uri.parse(uriStr))

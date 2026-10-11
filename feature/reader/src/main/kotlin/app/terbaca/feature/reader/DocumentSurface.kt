@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntSize
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.TileKey
 import app.terbaca.core.render.PageRenderer
+import app.terbaca.core.render.PerfTrace
 import app.terbaca.core.render.cache.TileCache
 import app.terbaca.core.render.cache.TileMemoryBudget
 import app.terbaca.core.render.pyramid.PyramidLevel
@@ -161,7 +162,11 @@ fun DocumentSurface(
             viewportGeneration = viewportGeneration
         )
     }
-    val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay)
+    val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay) {
+        // Gesture over: time the sharpening (PRD §7), and draw a frame in case it's sharp already.
+        PerfTrace.beginSharpen()
+        tileArrivals.intValue++
+    }
 
     if (scheduler != null) {
         DocumentTileCollector(
@@ -221,6 +226,13 @@ fun DocumentSurface(
                     now,
                     timeoutMs = if (basesShown) TILE_REVEAL_TIMEOUT_OVER_BASE_MS else TILE_REVEAL_TIMEOUT_MS
                 ) ?: NO_PENDING_REVEAL
+                if (PerfTrace.isSharpenPending || PerfTrace.isOpenPending) {
+                    val sharp = pages.isNotEmpty() && pages.all { frame -> frame.tiles.all { tileCache.get(it.key) != null } }
+                    if (sharp) {
+                        PerfTrace.endSharpen()
+                        PerfTrace.endOpen()
+                    }
+                }
                 for (frame in pages) {
                     val pageRect = layout.pageRect(frame.index)
                     hasActiveFade = drawTilePyramid(
@@ -386,12 +398,14 @@ private fun SetupLifecycleEffects(
 private fun Modifier.documentGestures(
     state: DocumentTransformState,
     coroutineScope: CoroutineScope,
-    decay: DecayAnimationSpec<Float>
+    decay: DecayAnimationSpec<Float>,
+    onMotionEnd: () -> Unit
 ): Modifier = pointerInput(state) {
     val velocityTracker = PanVelocityTracker()
     var flingJob: Job? = null
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        PerfTrace.cancelSharpen()
         flingJob?.cancel()
         flingJob = null
         velocityTracker.reset(down.uptimeMillis)
@@ -446,6 +460,8 @@ private fun Modifier.documentGestures(
             val velocity = velocityTracker.velocity()
             flingJob = coroutineScope.launch {
                 state.fling(velocity.x, velocity.y, decay)
+                // Not reached when a new touch or a jump cancels the fling.
+                onMotionEnd()
             }
         }
     }
