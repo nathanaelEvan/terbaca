@@ -42,8 +42,11 @@ terbaca.keyAlias=terbaca
 terbaca.keyPassword=...
 ```
 
+On Windows, write the path with forward slashes (`C:/Users/you/keys/terbaca-upload.jks`). In a
+`.properties` file a backslash is an escape character, so `C:\Users\...` would be read as `C:Users...`.
+
 If any of the four is missing, the release build still works but is **unsigned**
-(`app-release-unsigned.apk`). That's what CI produces.
+(`app-release-unsigned.apk`). That's what CI produces. If only some are set, Gradle prints a warning.
 
 ## 3. Build
 

@@ -40,6 +40,11 @@ val releaseStorePassword = releaseSigningValue("storePassword")
 val releaseKeyAlias = releaseSigningValue("keyAlias")
 val releaseKeyPassword = releaseSigningValue("keyPassword")
 val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it != null }
+if (!hasReleaseSigning &&
+    listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).any { it != null }
+) {
+    logger.warn("Terbaca: only some release signing values are set; the release build will be unsigned.")
+}
 
 val copyLicenseAssets by tasks.registering(CopyLicensesTask::class) {
     inputDir.set(file("${project(":core:pdfium").projectDir}/src/main/cpp"))
