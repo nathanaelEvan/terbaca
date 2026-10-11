@@ -96,4 +96,12 @@ class RecentsRepositoryTest {
         assertEquals(6, entry.lastPage)
         assertEquals("SLIDE", entry.readingMode)
     }
+
+    @Test
+    fun recents_emitsInitialStateImmediately() = runTest {
+        repository.recordOpened(uriA, "a.pdf", "hash", pageCount = 40)
+        val firstEmission = kotlinx.coroutines.flow.first(repository.recents)
+        assertEquals(1, firstEmission.size)
+        assertEquals(uriA.toString(), firstEmission.first().document.uri)
+    }
 }

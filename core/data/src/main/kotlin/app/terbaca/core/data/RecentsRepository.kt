@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 
 /** A library entry plus whether its file can still be opened (F-OPEN-4). */
 data class RecentEntry(val document: RecentDocument, val isAvailable: Boolean)
@@ -27,7 +27,16 @@ class RecentsRepository(
     private val resolver = context.applicationContext.contentResolver
 
     val recents: Flow<List<RecentEntry>> = dao.observeAll()
-        .map { documents -> documents.map { RecentEntry(it, isAvailable(Uri.parse(it.uri))) } }
+        .transform { documents ->
+            val initial = documents.map { RecentEntry(it, isPermissionPersisted(Uri.parse(it.uri))) }
+            emit(initial)
+            if (documents.isNotEmpty()) {
+                val checked = documents.map { RecentEntry(it, isAvailable(Uri.parse(it.uri))) }
+                if (checked != initial) {
+                    emit(checked)
+                }
+            }
+        }
         .flowOn(Dispatchers.IO)
 
     /** Returns true if read access to [uri] is already held among persisted permissions. */
