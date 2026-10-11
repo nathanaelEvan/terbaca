@@ -64,7 +64,7 @@ Each run is one instrumentation invocation, e.g.
 ```sh
 adb shell am instrument -w \
   -e class app.terbaca.benchmark.SharpenLatencyBenchmark \
-  -e androidx.benchmark.suppressErrors 'EMULATOR,DEBUGGABLE,LOW-BATTERY' \\
+  -e androidx.benchmark.suppressErrors 'EMULATOR,DEBUGGABLE,LOW-BATTERY' \
   app.terbaca.benchmark/androidx.test.runner.AndroidJUnitRunner
 adb pull /sdcard/Android/media/app.terbaca.benchmark/app.terbaca.benchmark-benchmarkData.json <name>.json
 ```
