@@ -70,6 +70,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -78,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.render.PageRenderer
 import app.terbaca.core.render.cache.ThumbnailPipeline
+import app.terbaca.core.ui.R as UiR
 import app.terbaca.core.ui.chrome.FloatingPill
 import app.terbaca.core.ui.chrome.LayoutOption
 import app.terbaca.core.ui.chrome.LayoutOptions
@@ -90,6 +95,7 @@ import app.terbaca.core.ui.chrome.onDragStarted
 import app.terbaca.core.ui.sidebar.ThumbnailsSidebar
 import app.terbaca.core.ui.theme.TerbacaDarkBackground
 import app.terbaca.core.ui.theme.TerbacaDarkTextPrimary
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -98,7 +104,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 private val SIDEBAR_WIDTH = 240.dp
 private const val SCRIM_ALPHA = 0.5f
@@ -351,16 +356,20 @@ fun SlidesScreen(
                 PagePill(
                     visible = chromeShown && !isGrid,
                     text = "${currentPage + 1} / ${pages.size}",
+                    description = stringResource(R.string.slides_position, currentPage + 1, pages.size),
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
         }
+        val closeSidebar = stringResource(UiR.string.reader_sidebar_close)
         if (!isLandscape && isSidebarOpen && !isPresenting) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = SCRIM_ALPHA))
-                    .clickable { isSidebarOpen = false }
+                    // TalkBack users get a "Close sidebar" button here, like the tap outside.
+                    .semantics { contentDescription = closeSidebar }
+                    .clickable(role = Role.Button) { isSidebarOpen = false }
             )
             ThumbnailsSidebar(
                 pages = pages,
@@ -687,14 +696,14 @@ private suspend fun renderSlideRegion(
 
 /** The slide number at the bottom, shown with the toolbar. */
 @Composable
-private fun PagePill(visible: Boolean, text: String, modifier: Modifier = Modifier) {
+private fun PagePill(visible: Boolean, text: String, description: String, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = visible,
         modifier = modifier.navigationBarsPadding().padding(bottom = 16.dp),
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        FloatingPill {
+        FloatingPill(modifier = Modifier.clearAndSetSemantics { contentDescription = description }) {
             Text(text = text, color = TerbacaDarkTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
