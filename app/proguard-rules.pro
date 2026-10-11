@@ -9,3 +9,8 @@
 -keepclasseswithmembers class app.terbaca.core.pdfium.PdfiumNative {
     native <methods>;
 }
+
+# pdfium_jni.cpp builds these parcels itself (FindClass + GetMethodID("<init>") + GetFieldID).
+# R8 can't see those lookups, so keep the no-arg constructor and every field by name.
+-keep class app.terbaca.core.pdfium.PageLinkParcel { <init>(); <fields>; }
+-keep class app.terbaca.core.pdfium.OutlineItemParcel { <init>(); <fields>; }
