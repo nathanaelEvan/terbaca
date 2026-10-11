@@ -354,7 +354,7 @@ Measured on a Xiaomi Pad 7 (or Pro), release build with baseline profile, using 
 | Heavy vector page (corpus "heavy-plot") | No UI jank; sharp within 1 s |
 | Cold start → library visible | ≤ 500 ms |
 | Open 30-page paper → first page sharp | ≤ 400 ms |
-| Total PSS (UI + render process), 100-page paper, active zooming | ≤ 250 MB |
+| Total PSS (UI + render process), 100-page paper, active zooming | ≤ 350 MB on ≥ 2.5K displays (≤ 250 MB on ≤ 1080p; accounts for ~82 MB triple-buffered display buffers on 3.2K displays alongside §5 180 MB TileCache) |
 | APK (arm64) size | ≤ 15 MB |
 | Crash on malformed corpus PDFs | UI process never crashes |
 
