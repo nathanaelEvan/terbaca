@@ -202,7 +202,9 @@ fun FloatingPill(
     val shape = RoundedCornerShape(50)
     // The click sits on the Surface's own node, together with any semantics in [modifier], so
     // TalkBack reads a caller's contentDescription and offers the tap as one stop.
-    Surface(
+    // Wrap in Box with minimumInteractiveComponentSize so the 48 dp touch target does not
+    // inflate the visual Surface height from 36 dp to 48 dp (fixing the ~6 dp shift from #68).
+    Box(
         modifier = modifier.then(
             if (onClick != null) {
                 Modifier
@@ -213,15 +215,19 @@ fun FloatingPill(
                 Modifier
             }
         ),
-        shape = shape,
-        color = TerbacaChrome,
-        shadowElevation = 4.dp
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            content = content
-        )
+        Surface(
+            shape = shape,
+            color = TerbacaChrome,
+            shadowElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = content
+            )
+        }
     }
 }
 
