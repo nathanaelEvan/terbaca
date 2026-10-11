@@ -30,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -62,7 +63,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-const val MAX_TILES_SWAPPED_PER_FRAME = 4
+const val MAX_TILES_SWAPPED_PER_FRAME = 2
 const val TILE_CROSSFADE_DURATION_MS = 100L // F-REN-3: 100-150 ms (M6-06)
 
 /** Longest a loaded tile waits for the rest of the visible set before it is revealed anyway. */
@@ -720,9 +721,47 @@ private fun DrawScope.drawTilePyramid(
 
     // Skip the full-page base layer when opaque detail tiles cover the visible page: on a
     // full-screen page it is a whole extra screen of GPU fill per frame (ADR 0004).
-    val detailOpaque = isDetailLayerOpaque(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)
+    // If only some tiles are fading or missing, only draw the base layer clipped to those tiles (M6-03).
+    val nonOpaque = nonOpaqueTiles(visibleTiles, { tileCache.get(it) != null }, tileFadeStartTimes, now)
+    val detailOpaque = visibleTiles.isNotEmpty() && nonOpaque.isEmpty()
     if (!detailOpaque) {
-        drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
+        if (visibleTiles.isEmpty() || nonOpaque.size == visibleTiles.size) {
+            val left = (offsetX + pageVisible.left * scale).roundToInt().toFloat()
+            val top = (offsetY + pageVisible.top * scale).roundToInt().toFloat()
+            val right = (offsetX + pageVisible.right * scale).roundToInt().toFloat()
+            val bottom = (offsetY + pageVisible.bottom * scale).roundToInt().toFloat()
+            if (right > left && bottom > top) {
+                clipRect(left, top, right, bottom) {
+                    drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
+                }
+            }
+        } else if (nonOpaque.size <= 4) {
+            for (tile in nonOpaque) {
+                val left = (offsetX + tile.pageRect.left * scale).roundToInt().toFloat()
+                val top = (offsetY + tile.pageRect.top * scale).roundToInt().toFloat()
+                val right = (offsetX + tile.pageRect.right * scale).roundToInt().toFloat()
+                val bottom = (offsetY + tile.pageRect.bottom * scale).roundToInt().toFloat()
+                if (right > left && bottom > top) {
+                    clipRect(left, top, right, bottom) {
+                        drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
+                    }
+                }
+            }
+        } else {
+            val minLeft = nonOpaque.minOf { it.pageRect.left }
+            val minTop = nonOpaque.minOf { it.pageRect.top }
+            val maxRight = nonOpaque.maxOf { it.pageRect.right }
+            val maxBottom = nonOpaque.maxOf { it.pageRect.bottom }
+            val left = (offsetX + minLeft * scale).roundToInt().toFloat()
+            val top = (offsetY + minTop * scale).roundToInt().toFloat()
+            val right = (offsetX + maxRight * scale).roundToInt().toFloat()
+            val bottom = (offsetY + maxBottom * scale).roundToInt().toFloat()
+            if (right > left && bottom > top) {
+                clipRect(left, top, right, bottom) {
+                    drawBaseLayer(tileCache, page, offsetX, offsetY, scale)
+                }
+            }
+        }
     }
 
     // Keep the previous level underneath until the current one has fully faded in: dropping it
@@ -792,6 +831,16 @@ internal fun isDetailLayerOpaque(
     now: Long
 ): Boolean = visibleTiles.isNotEmpty() && visibleTiles.all { tile ->
     isLoaded(tile.key) && now - (fadeStartTimes[tile.key] ?: now) >= TILE_CROSSFADE_DURATION_MS
+}
+
+/** Returns the subset of [visibleTiles] that are missing or still crossfading. */
+internal fun nonOpaqueTiles(
+    visibleTiles: List<TileBounds>,
+    isLoaded: (TileKey) -> Boolean,
+    fadeStartTimes: Map<TileKey, Long>,
+    now: Long
+): List<TileBounds> = visibleTiles.filter { tile ->
+    !isLoaded(tile.key) || now - (fadeStartTimes[tile.key] ?: now) < TILE_CROSSFADE_DURATION_MS
 }
 
 @Suppress("LongParameterList")

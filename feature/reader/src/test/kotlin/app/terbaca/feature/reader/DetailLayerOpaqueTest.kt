@@ -3,6 +3,7 @@ package app.terbaca.feature.reader
 import app.terbaca.core.model.TileKey
 import app.terbaca.core.render.pyramid.TileBounds
 import app.terbaca.core.render.pyramid.ViewportRect
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,6 +48,27 @@ class DetailLayerOpaqueTest {
     @Test
     fun noVisibleTiles_isNotOpaque() {
         assertFalse(isDetailLayerOpaque(emptyList(), { true }, emptyMap(), now))
+    }
+
+    @Test
+    fun nonOpaqueTiles_allLoadedAndFaded_isEmpty() {
+        val fades = tiles.associate { it.key to faded }
+        val nonOpaque = nonOpaqueTiles(tiles, { true }, fades, now)
+        assertTrue(nonOpaque.isEmpty())
+    }
+
+    @Test
+    fun nonOpaqueTiles_oneMissing_returnsMissingTile() {
+        val fades = tiles.associate { it.key to faded }
+        val nonOpaque = nonOpaqueTiles(tiles, { it != tiles[1].key }, fades, now)
+        assertEquals(listOf(tiles[1]), nonOpaque)
+    }
+
+    @Test
+    fun nonOpaqueTiles_oneStillFading_returnsFadingTile() {
+        val fades = mapOf(tiles[0].key to faded, tiles[1].key to now - 1)
+        val nonOpaque = nonOpaqueTiles(tiles, { true }, fades, now)
+        assertEquals(listOf(tiles[1]), nonOpaque)
     }
 
     // isViewSharp: where the PRD §7 "sharp" trace sections end (crossfade included).

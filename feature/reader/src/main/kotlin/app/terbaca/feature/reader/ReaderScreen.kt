@@ -342,19 +342,24 @@ fun ReaderScreen(
                     .onDragStarted { if (!isSidebarOpen && !isSearchOpen) chromeVisible = false }
             ) {
                 // A tap that isn't a drag follows the link under it, or shows/hides the chrome.
+                // Read in the layer block only, so scrolling updates the shader's page and
+                // image rectangles without recomposing (§4.6). Only attached when a theme is active (M6-03).
+                val themeModifier = if (pageTheme != PageTheme.ORIGINAL) {
+                    Modifier.graphicsLayer {
+                        renderEffect = pageThemeEffect(
+                            themeShader,
+                            pageTheme,
+                            invertImages,
+                            themeRects(state, state.layout.pagesIn(state.getVisibleRectPoints()), imageBounds)
+                        )
+                    }
+                } else {
+                    Modifier
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        // Read in the layer block only, so scrolling updates the shader's page and
-                        // image rectangles without recomposing (§4.6).
-                        .graphicsLayer {
-                            renderEffect = pageThemeEffect(
-                                themeShader,
-                                pageTheme,
-                                invertImages,
-                                themeRects(state, state.layout.pagesIn(state.getVisibleRectPoints()), imageBounds)
-                            )
-                        }
+                        .then(themeModifier)
                         .pointerInput(state, renderer, docHandle) {
                             detectTapGestures(onDoubleTap = { position ->
                                 val previous = beforeDoubleTap
