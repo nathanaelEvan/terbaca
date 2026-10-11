@@ -319,35 +319,43 @@ fun SlidesScreen(
                                 }
                             )
                         } else {
-                            HorizontalPager(
-                                state = pagerState,
-                                beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
-                                flingBehavior = flingBehavior,
-                                // Zoomed in, a drag pans the slide instead of paging (F-NAV-1).
-                                userScrollEnabled = !isZoomed,
+                            BoxWithConstraints(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     // A resize or rotation refits the slide.
                                     .onSizeChanged { zoomState.reset() }
-                            ) { pageIndex ->
-                                SlideItem(
-                                    page = pages[pageIndex],
-                                    renderer = renderer,
-                                    docHandle = docHandle,
-                                    slideCache = slideCache,
-                                    zoomState = zoomState,
-                                    isActive = { pagerState.currentPage == pageIndex },
-                                    coroutineScope = coroutineScope,
-                                    decay = decay,
-                                    imageModifier = if (pageIndex == currentPage) {
-                                        Modifier.sharedElement(
-                                            rememberSharedContentState(key = slideSharedKey(pageIndex)),
-                                            animatedVisibilityScope = this@AnimatedContent
-                                        )
-                                    } else {
-                                        Modifier
-                                    }
-                                )
+                            ) {
+                                val viewportW = constraints.maxWidth
+                                val viewportH = constraints.maxHeight
+                                HorizontalPager(
+                                    state = pagerState,
+                                    beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
+                                    flingBehavior = flingBehavior,
+                                    // Zoomed in, a drag pans the slide instead of paging (F-NAV-1).
+                                    userScrollEnabled = !isZoomed,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { pageIndex ->
+                                    SlideItem(
+                                        page = pages[pageIndex],
+                                        renderer = renderer,
+                                        docHandle = docHandle,
+                                        slideCache = slideCache,
+                                        zoomState = zoomState,
+                                        viewportWidth = viewportW,
+                                        viewportHeight = viewportH,
+                                        isActive = { pagerState.currentPage == pageIndex },
+                                        coroutineScope = coroutineScope,
+                                        decay = decay,
+                                        imageModifier = if (pageIndex == currentPage) {
+                                            Modifier.sharedElement(
+                                                rememberSharedContentState(key = slideSharedKey(pageIndex)),
+                                                animatedVisibilityScope = this@AnimatedContent
+                                            )
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -487,88 +495,156 @@ internal fun SlideItem(
     coroutineScope: CoroutineScope,
     decay: DecayAnimationSpec<Float>,
     modifier: Modifier = Modifier,
+    imageModifier: Modifier = Modifier,
+    viewportWidth: Int = 0,
+    viewportHeight: Int = 0
+) {
+    if (viewportWidth > 0 && viewportHeight > 0) {
+        SlideContent(
+            page = page,
+            renderer = renderer,
+            docHandle = docHandle,
+            slideCache = slideCache,
+            zoomState = zoomState,
+            viewportW = viewportWidth,
+            viewportH = viewportHeight,
+            isActive = isActive,
+            coroutineScope = coroutineScope,
+            decay = decay,
+            modifier = modifier,
+            imageModifier = imageModifier
+        )
+    } else {
+        BoxWithConstraints(
+            modifier = modifier
+                .fillMaxSize()
+                .background(TerbacaDarkBackground),
+            contentAlignment = Alignment.Center
+        ) {
+            SlideContent(
+                page = page,
+                renderer = renderer,
+                docHandle = docHandle,
+                slideCache = slideCache,
+                zoomState = zoomState,
+                viewportW = constraints.maxWidth,
+                viewportH = constraints.maxHeight,
+                isActive = isActive,
+                coroutineScope = coroutineScope,
+                decay = decay,
+                modifier = Modifier.fillMaxSize(),
+                imageModifier = imageModifier
+            )
+        }
+    }
+}
+
+@Composable
+private fun SlideContent(
+    page: PageInfo,
+    renderer: PageRenderer?,
+    docHandle: Long,
+    slideCache: SlideCache<SlideKey, Bitmap>,
+    zoomState: SlideZoomState,
+    viewportW: Int,
+    viewportH: Int,
+    isActive: () -> Boolean,
+    coroutineScope: CoroutineScope,
+    decay: DecayAnimationSpec<Float>,
+    modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
+    val (targetW, targetH) = calculateAspectFit(
+        viewportWidth = viewportW,
+        viewportHeight = viewportH,
+        pageWidthPoints = page.widthPoints,
+        pageHeightPoints = page.heightPoints
+    )
+    val cacheKey = SlideKey(page.index, targetW, targetH)
+    // Not keyed by size: after a resize the old bitmap stays up until the sharp one replaces it.
+    var bitmap by remember(page.index, docHandle) {
+        mutableStateOf(slideCache.get(cacheKey))
+    }
+
+    LaunchedEffect(cacheKey, docHandle, renderer) {
+        val cached = slideCache.get(cacheKey)
+        if (cached != null) {
+            bitmap = cached
+            return@LaunchedEffect
+        }
+
+        if (renderer != null && docHandle > 0L && targetW > 0 && targetH > 0) {
+            val rendered = renderSlideRegion(
+                renderer,
+                docHandle,
+                page.index,
+                SlideDetailRegion(targetW, targetH, 0, 0, targetW, targetH)
+            )
+            if (rendered != null) {
+                slideCache.put(cacheKey, rendered)
+                bitmap = rendered
+            }
+        }
+    }
+
+    // Instrumented check for "next slide sharp on arrival" (PRD §7, M6-07).
+    val currentBitmap = bitmap
+    val isSharp = currentBitmap != null && !currentBitmap.isRecycled
+    DisposableEffect(page.index, isSharp) {
+        if (isActive()) {
+            if (isSharp) {
+                app.terbaca.core.render.PerfTrace.mark(app.terbaca.core.render.PerfTrace.SLIDE_SHARP_ON_ARRIVAL)
+            } else {
+                app.terbaca.core.render.PerfTrace.mark(app.terbaca.core.render.PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL)
+            }
+        }
+        onDispose {}
+    }
+
+    val detail = rememberSlideDetail(
+        zoomState = zoomState,
+        isActive = isActive,
+        renderer = renderer,
+        docHandle = docHandle,
+        pageIndex = page.index,
+        viewport = IntSize(viewportW, viewportH),
+        content = IntSize(targetW, targetH)
+    )
+
+    // The gesture handler outlives recompositions; read the size through state so it follows resizes.
+    val contentSize = rememberUpdatedState(targetW to targetH)
+    val slideModifier = Modifier
+        .fillMaxSize()
+        .slideZoomGestures(
+            zoomState = zoomState,
+            isActive = isActive,
+            contentSize = { contentSize.value },
+            coroutineScope = coroutineScope,
+            decay = decay
+        )
+        // Transform read in the layer lambda only: pinch and pan never recompose (PRD §4.6).
+        .graphicsLayer {
+            if (isActive()) {
+                scaleX = zoomState.scale
+                scaleY = zoomState.scale
+                translationX = zoomState.offsetX
+                translationY = zoomState.offsetY
+            }
+        }
+        .drawWithContent {
+            drawContent()
+            val sharp = detail.value
+            if (sharp != null && isActive() && zoomState.isZoomed) {
+                drawSlideDetail(sharp, targetW, targetH)
+            }
+        }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(TerbacaDarkBackground),
         contentAlignment = Alignment.Center
     ) {
-        val viewportW = constraints.maxWidth
-        val viewportH = constraints.maxHeight
-        val (targetW, targetH) = calculateAspectFit(
-            viewportWidth = viewportW,
-            viewportHeight = viewportH,
-            pageWidthPoints = page.widthPoints,
-            pageHeightPoints = page.heightPoints
-        )
-        val cacheKey = SlideKey(page.index, targetW, targetH)
-        // Not keyed by size: after a resize the old bitmap stays up until the sharp one replaces it.
-        var bitmap by remember(page.index, docHandle) {
-            mutableStateOf(slideCache.get(cacheKey))
-        }
-
-        LaunchedEffect(cacheKey, docHandle, renderer) {
-            val cached = slideCache.get(cacheKey)
-            if (cached != null) {
-                bitmap = cached
-                return@LaunchedEffect
-            }
-
-            if (renderer != null && docHandle > 0L && targetW > 0 && targetH > 0) {
-                val rendered = renderSlideRegion(
-                    renderer,
-                    docHandle,
-                    page.index,
-                    SlideDetailRegion(targetW, targetH, 0, 0, targetW, targetH)
-                )
-                if (rendered != null) {
-                    slideCache.put(cacheKey, rendered)
-                    bitmap = rendered
-                }
-            }
-        }
-
-        val detail = rememberSlideDetail(
-            zoomState = zoomState,
-            isActive = isActive,
-            renderer = renderer,
-            docHandle = docHandle,
-            pageIndex = page.index,
-            viewport = IntSize(viewportW, viewportH),
-            content = IntSize(targetW, targetH)
-        )
-
-        // The gesture handler outlives recompositions; read the size through state so it follows resizes.
-        val contentSize = rememberUpdatedState(targetW to targetH)
-        val slideModifier = Modifier
-            .fillMaxSize()
-            .slideZoomGestures(
-                zoomState = zoomState,
-                isActive = isActive,
-                contentSize = { contentSize.value },
-                coroutineScope = coroutineScope,
-                decay = decay
-            )
-            // Transform read in the layer lambda only: pinch and pan never recompose (PRD §4.6).
-            .graphicsLayer {
-                if (isActive()) {
-                    scaleX = zoomState.scale
-                    scaleY = zoomState.scale
-                    translationX = zoomState.offsetX
-                    translationY = zoomState.offsetY
-                }
-            }
-            .drawWithContent {
-                drawContent()
-                val sharp = detail.value
-                if (sharp != null && isActive() && zoomState.isZoomed) {
-                    drawSlideDetail(sharp, targetW, targetH)
-                }
-            }
-
-        val currentBitmap = bitmap
         if (currentBitmap != null && !currentBitmap.isRecycled) {
             Image(
                 bitmap = currentBitmap.asImageBitmap(),

@@ -20,6 +20,12 @@ object PerfTrace {
     /** Marks a [SHARPEN] section cut short by a new touch before the view became sharp. */
     const val SHARPEN_CANCELLED = "TerbacaSharpenCancelled"
 
+    /** Marks a slide flip where the arriving slide is already rendered and sharp (PRD §7). */
+    const val SLIDE_SHARP_ON_ARRIVAL = "TerbacaSlideSharpOnArrival"
+
+    /** Marks a slide flip where the arriving slide was not rendered and had to show a placeholder. */
+    const val SLIDE_NOT_SHARP_ON_ARRIVAL = "TerbacaSlideNotSharpOnArrival"
+
     /** The platform trace calls; swapped in unit tests, where `android.os.Trace` is a stub. */
     internal interface Tracer {
         val isEnabled: Boolean
@@ -96,5 +102,11 @@ object PerfTrace {
         if (!isSharpenPending) return
         endSharpen()
         tracer.mark(SHARPEN_CANCELLED)
+    }
+
+    /** Emits a point trace mark when tracing is enabled. */
+    fun mark(name: String) {
+        if (!tracer.isEnabled) return
+        tracer.mark(name)
     }
 }
