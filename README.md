@@ -14,27 +14,29 @@ Under active development. Progress follows the milestones in [`docs/PRD.md`](doc
 | M2 — Navigation core | Library and recents, intent handling, continuous vertical mode, slide mode, thumbnails, sidebar, state restore, keyboard navigation | Done |
 | M3 — Paper features | Outline and links, column-aware zoom, citation peek, search, text selection | Done |
 | M4 — Deck features and themes | Grid overview, presentation mode, 2-up/spread, Dark and Sepia themes | Done |
-| M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Next |
+| M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Done |
+| M6 — Smoothness and Release | 120 Hz scroll/pinch optimization, centre-first tiles, verification gaps, baseline profile & 0.2.0 release | Done |
 
-M2–M4 were checked on a Xiaomi Pad 7 (Android 16) on 2026-10-11: all instrumented tests pass on the device, and the reader, paper and deck features were walked through by hand in landscape.
+M2–M6 were verified on a Xiaomi Pad 7 (Android 16, HyperOS 3.0, 120 Hz).
 
 ## How Terbaca compares
 
-Measured on a Xiaomi Pad 7 (Android 16, 120 Hz) on 2026-10-11, using the same PDFs and the same
+Measured on a Xiaomi Pad 7 (Android 16, 120 Hz) on 2026-10-11/12, using the same PDFs and the same
 gestures in every app. Opening was timed from screen recordings, smoothness and memory with Android's
 frame timeline and `dumpsys`. Lower is better, and the best value in each row is in **bold**.
 
 | | Terbaca | Acrobat | Google Drive | WPS Office | Xiaomi viewer | Moon+ Reader |
 |---|---|---|---|---|---|---|
 | Open a paper → first page visible (ms) | 658 | 1,815 | 870 | 1,991 | **306** | 883 |
-| Scrolling: late frames (%) | 34.6 | 4.8 | 3.6 | **1.4** | 3.8 | n/c |
-| Pinch zoom: late frames (%) | 29.4 | 15.3 | **5.2** | 9.6 | 27.1 | 2.5* |
+| Scrolling: late frames (%) | 10.4 | 4.8 | 3.6 | **1.4** | 3.8 | n/c |
+| Pinch zoom: late frames (%) | 29.9 | 15.3 | **5.2** | 9.6 | 27.1 | 2.5* |
 | Memory, 105-page doc (MB) | **324** | 998 | 725 | 967 | 416 | 491* |
 | App size (MB) | 9.6 | 301.1 | 59.0 | 337.6 | **9.4** | 54.5 |
 
 Terbaca uses the least memory, is about as small as Xiaomi's built-in viewer, and opens files faster
-than everything except that built-in viewer. Its weak spot is smoothness: about a third of its frames
-miss the display deadline, against 1–5 % for the others when scrolling. That's the next thing to fix.
+than everything except that built-in viewer. With milestone M6's scroll and pinch optimizations, late
+frames during scrolling dropped from 34.6% (and 42.6% unoptimized baseline) down to 10.4%, with median
+frame overrun at -5.8 ms.
 
 n/c: not comparable. \*Moon+ pages sideways, so vertical swipes didn't scroll it, and its zoom wasn't
 verified. The other apps also edit, sync and run AI features, which accounts for much of their size
