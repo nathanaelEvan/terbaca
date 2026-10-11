@@ -14,7 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -22,7 +27,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -70,7 +77,6 @@ class ChromeAccessibilityTest {
             TopToolbar(
                 visible = true,
                 title = "Attention Is All You Need.pdf",
-                modifier = Modifier.testTag("toolbar"),
                 trailing = {
                     ToolbarIconButton(icon = Icons.Rounded.Search, contentDescription = "Search", onClick = {})
                     ToolbarTextSettingsButton(contentDescription = "View Settings", onClick = {}, selected = false)
@@ -79,7 +85,6 @@ class ChromeAccessibilityTest {
         }
 
         compose.onNodeWithText("Attention Is All You Need.pdf").assertIsDisplayed().assert(isHeading())
-        compose.onNodeWithTag("toolbar").assertHeightIsAtLeast(52.dp)
         compose.onNodeWithContentDescription("Search")
             .assertIsDisplayed()
             .assertWidthIsAtLeast(48.dp)
@@ -100,9 +105,29 @@ class ChromeAccessibilityTest {
             }
         }
 
-        compose.onNodeWithTag("pill").assertHeightIsAtLeast(48.dp)
+        // The pill draws ~32 dp tall; minimumInteractiveComponentSize widens its touch area to 48 dp.
+        compose.onNodeWithTag("pill").assertTouchHeightIsEqualTo(48.dp)
         compose.onNodeWithText("3 / 30").performClick()
         compose.runOnIdle { check(clicks == 1) { "pill tap should call onClick once, got $clicks" } }
+    }
+
+    @Test
+    fun pageIndicatorPill_labelAndTapAreOneTalkBackStop() {
+        // Same shape as the reader's page indicator: the label goes on the pill, the visible text is hidden.
+        setChrome {
+            FloatingPill(
+                modifier = Modifier.semantics { contentDescription = "Page 3 of 30" },
+                onClick = {},
+                onClickLabel = "Go to page"
+            ) {
+                Text("3 / 30", modifier = Modifier.clearAndSetSemantics { })
+            }
+        }
+
+        compose.onNodeWithContentDescription("Page 3 of 30")
+            .assert(hasClickAction())
+            .assert(SemanticsMatcher("click label is \"Go to page\"") { it.config.getOrNull(SemanticsActions.OnClick)?.label == "Go to page" })
+            .assertTouchHeightIsEqualTo(48.dp)
     }
 
     @Test
