@@ -226,13 +226,6 @@ class PdfiumFuzzRobustnessTest {
                 }
             }
 
-            // NEGATIVE CONTROL (temporary): simulate a native crash in :render; the test must fail.
-            if (i == 10) {
-                val am = context.getSystemService(android.app.ActivityManager::class.java)
-                am.runningAppProcesses.orEmpty().filter { it.processName.endsWith(":render") }
-                    .forEach { android.os.Process.killProcess(it.pid) }
-                Thread.sleep(500)
-            }
             probeBoth(mutated, "fuzz_flip_${i}_")
         }
     }
