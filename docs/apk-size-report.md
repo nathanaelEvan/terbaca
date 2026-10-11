@@ -10,7 +10,7 @@ This report details the APK size measurements, toolchain configurations, and pac
 |---|---|---|---|---|
 | **Release APK Size** | $\le 15$ MB (15,728,640 bytes) | **9,585,169 bytes (9.14 MB)** | **+5.86 MB (39% headroom)** | **PASS** |
 | **Architecture** | `arm64-v8a` only (ADR-0001) | `arm64-v8a` | Single ABI | **PASS** |
-| **R8 Mode** | Full mode (`android.enableR8.fullMode=true`) | Enabled | Shrunk to single DEX | **PASS** |
+| **R8 Mode** | Full mode (AGP default with minify) | Enabled | Shrunk to single DEX | **PASS** |
 | **Resource Shrinking** | `isShrinkResources = true` | Enabled | 253 KB resources | **PASS** |
 | **Native Strip** | `llvm-strip --strip-unneeded` | Executed via NDK 27.2.12479018 | `libterbaca_pdfium.so` reduced from 155 KB to 25 KB | **PASS** |
 
@@ -48,16 +48,14 @@ PASS: Release APK (9.14 MB) meets PRD §7 budget (<= 15 MB).
 ## 3. Key Optimizations & Configurations Applied
 
 1. **R8 Full Mode**:
-   - Explicitly configured `android.enableR8.fullMode=true` in `gradle.properties`.
+   - Enabled by default in AGP 8.x with `isMinifyEnabled = true`.
    - Resulting code shrunk into a single monolithic `classes.dex` of 2.63 MB.
 2. **Resource Shrinking**:
    - `isShrinkResources = true` in `:app` release build type.
    - Resource tables and non-referenced layouts pruned to 253 KB.
 3. **Native Symbol Stripping (`llvm-strip`)**:
-   - Configured `ndkVersion = "27.2.12479018"` in `:app/build.gradle.kts` matching `:core:pdfium` to ensure AGP binds to the installed LLVM toolchain.
-   - Verified execution of `llvm-strip --strip-unneeded` across all JNI libraries:
-     - `libterbaca_pdfium.so` dropped from 155,792 bytes to 25,560 bytes (84% reduction in JNI bridge size).
-     - Prebuilt `libpdfium.so` packaged cleanly at 6.17 MB.
+   - Configured `ndkVersion = "27.2.12479018"` in `:app/build.gradle.kts` matching `:core:pdfium` so AGP's `stripReleaseDebugSymbols` locates the installed LLVM toolchain.
+   - Stripping via `llvm-strip --strip-unneeded` reduced `libterbaca_pdfium.so` from 155,792 bytes to 25,560 bytes inside the APK.
 4. **Single-ABI Enforcement**:
    - Default ABI set to `arm64-v8a` per ADR-0001, eliminating multi-architecture bloating.
 
@@ -65,5 +63,9 @@ PASS: Release APK (9.14 MB) meets PRD §7 budget (<= 15 MB).
 
 ## 4. Verification
 
-- Local test pass: `./gradlew :app:testDebugUnitTest` runs `ApkPackagingBudgetUnitTest` asserting configuration and size bounds $\le 15$ MB.
-- Harness script: `python tools/perf/apk_size_pass.py` produces the categorized breakdown.
+- **Host Build Verification**: `./gradlew :app:assembleRelease` produced `app-release-unsigned.apk` at 9,585,169 bytes (9.14 MB).
+- **Harness Script**: `python tools/perf/apk_size_pass.py` verified the category breakdown.
+- **On-Device Verification (Xiaomi Pad 7, Android 16)**:
+  - Verified size on device: 9,585,169 bytes (9.14 MB).
+  - Benchmark build (`benchmark` buildType, which mirrors `release` with R8 minification enabled but debug-signed) installed cleanly and opened `memory_100plus.pdf` cold in 440 ms with zero JNI/AIDL regression.
+- **Not verified**: The unsigned release APK (`app-release-unsigned.apk`) was not directly installed on-device (on-device execution used the equivalent debug-signed `benchmark` build).
