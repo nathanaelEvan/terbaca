@@ -2,11 +2,13 @@ package app.terbaca.core.pdfium
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
+import android.os.RemoteException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -24,6 +26,10 @@ import java.util.Random
  *
  * Subjecting PDFium engine, JNI layer, and isolated render service to progressive truncations,
  * bit/byte corruption mutations, structural/header damage, and malformed extraction requests.
+ * Every mutated document that opens is also rendered, at engine and IPC level.
+ *
+ * The IPC renderer runs with `autoRecover = false` and an `onProcessDied` hook, so a `:render`
+ * crash fails the test instead of being retried and reported as a clean rejection.
  */
 @RunWith(AndroidJUnit4::class)
 class PdfiumFuzzRobustnessTest {
@@ -32,11 +38,18 @@ class PdfiumFuzzRobustnessTest {
     private lateinit var renderer: PdfiumRemotePageRenderer
     private val tempFiles = mutableListOf<File>()
 
+    @Volatile
+    private var renderProcessDied = false
+
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         PdfiumEngine.initialize()
-        renderer = PdfiumRemotePageRenderer(context)
+        renderer = PdfiumRemotePageRenderer(
+            context,
+            onProcessDied = { renderProcessDied = true },
+            autoRecover = false
+        )
     }
 
     @After
@@ -58,6 +71,73 @@ class PdfiumFuzzRobustnessTest {
         FileOutputStream(file).use { it.write(data) }
         tempFiles.add(file)
         return file
+    }
+
+
+    private fun assertRenderProcessAlive(case: String) {
+        assertFalse("The :render process died during $case", renderProcessDied)
+        assertTrue("Renderer must remain connected after $case", renderer.isServiceConnected)
+    }
+
+    /** A clean rejection is fine; an IPC failure means `:render` died, which is not. */
+    private fun rethrowIfProcessDeath(e: PdfiumException) {
+        if (e.cause is RemoteException || renderProcessDied) throw AssertionError("The :render process died", e)
+    }
+
+    /** Opens [pfd] in the test process and runs every per-page entry point, including a tile render. */
+    private fun probeEngine(pfd: ParcelFileDescriptor) {
+        var doc: PdfiumDocument? = null
+        try {
+            doc = PdfiumEngine.openDocument(pfd)
+            assertTrue("If document opened, pageCount must be non-negative", doc.pageCount >= 0)
+            if (doc.pageCount > 0) {
+                assertTrue(doc.getPageSize(0).widthPoints >= 0f)
+                doc.getPageText(0)
+                doc.getPageCharBoxes(0)
+                doc.getPageLinks(0)
+                doc.getOutline()
+                doc.getImageBounds(0)
+                doc.renderTileToDirectBuffer(0, ByteBuffer.allocateDirect(TILE * TILE * 4), 612, 792, 0, 0, TILE, TILE)
+            }
+        } catch (_: PdfiumException) {
+            // Expected clean rejection
+        } finally {
+            doc?.close()
+        }
+    }
+
+    /** Same as [probeEngine] across Binder, in the isolated `:render` process. Closes [pfd]. */
+    private fun probeIpc(pfd: ParcelFileDescriptor) {
+        var handle: Long? = null
+        try {
+            handle = runBlocking { renderer.openDocument(pfd) }
+            assertTrue(handle > 0L)
+            val count = runBlocking { renderer.getPageCount(handle) }
+            assertTrue(count >= 0)
+            if (count > 0) {
+                runBlocking {
+                    renderer.getPageInfo(handle, 0)
+                    renderer.getPageText(handle, 0)
+                    renderer.getPageLinks(handle, 0)
+                    renderer.getOutline(handle)
+                    renderer.getImageBounds(handle, 0)
+                    renderer.renderTile(handle, 0, 612, 792, 0, 0, TILE, TILE)
+                }
+            }
+        } catch (e: PdfiumException) {
+            rethrowIfProcessDeath(e)
+        } finally {
+            handle?.let { h -> runCatching { runBlocking { renderer.closeDocument(h) } } }
+        }
+    }
+
+    private fun probeBoth(data: ByteArray, prefix: String) {
+        val file = writeBytesToTempFile(data, prefix)
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            probeEngine(pfd)
+            probeIpc(pfd)
+        }
+        assertRenderProcessAlive(prefix)
     }
 
     @Test
@@ -86,7 +166,7 @@ class PdfiumFuzzRobustnessTest {
                     runBlocking { renderer.openDocument(pfd) }
                 }
             }
-            assertTrue("Renderer must remain connected after rejecting $name", renderer.isServiceConnected)
+            assertRenderProcessAlive("non-PDF payload $name")
         }
     }
 
@@ -104,45 +184,18 @@ class PdfiumFuzzRobustnessTest {
         )
 
         for (cut in cutoffs) {
-            val truncatedData = seedBytes.copyOf(cut)
-            val file = writeBytesToTempFile(truncatedData, "trunc_${cut}_")
-
-            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-                // Engine test: must either cleanly throw PdfCorruptException or (if repairable) open cleanly
-                var openedDoc: PdfiumDocument? = null
-                try {
-                    openedDoc = PdfiumEngine.openDocument(pfd)
-                    val count = openedDoc.pageCount
-                    assertTrue("If document opened, pageCount must be non-negative", count >= 0)
-                } catch (_: PdfiumException) {
-                    // Expected clean rejection
-                } finally {
-                    openedDoc?.close()
-                }
-
-                // IPC test: must not crash the service or UI process
-                var clientHandle: Long? = null
-                try {
-                    clientHandle = runBlocking { renderer.openDocument(pfd) }
-                    assertTrue(clientHandle > 0L)
-                    val count = runBlocking { renderer.getPageCount(clientHandle) }
-                    assertTrue(count >= 0)
-                } catch (_: PdfiumException) {
-                    // Expected clean rejection
-                } finally {
-                    clientHandle?.let { runBlocking { renderer.closeDocument(it) } }
-                }
-            }
-            assertTrue("Renderer must remain operational after truncation cut=$cut", renderer.isServiceConnected)
+            probeBoth(seedBytes.copyOf(cut), "trunc_${cut}_")
         }
     }
 
     @Test
     fun testBitByteFlipping_nativeAndIpcNeverCrash() {
-        val seedBytes = readAsset("fixtures/valid_2pages.pdf")
         val rng = Random(42)
+        // A tiny text seed, and an image/stream-heavy one where decoders get exercised.
+        val seeds = listOf(readAsset("fixtures/valid_2pages.pdf"), readAsset("fixtures/heavy_plot.pdf"))
 
-        for (i in 0 until 50) {
+        for (i in 0 until 100) {
+            val seedBytes = seeds[i % 2]
             val mutated = seedBytes.clone()
             val mutationType = i % 4
             when (mutationType) {
@@ -173,49 +226,7 @@ class PdfiumFuzzRobustnessTest {
                 }
             }
 
-            val file = writeBytesToTempFile(mutated, "fuzz_flip_${i}_")
-            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-                // Engine test
-                var doc: PdfiumDocument? = null
-                try {
-                    doc = PdfiumEngine.openDocument(pfd)
-                    val count = doc.pageCount
-                    if (count > 0) {
-                        val size = doc.getPageSize(0)
-                        assertTrue(size.widthPoints >= 0f)
-                        doc.getPageText(0)
-                        doc.getPageCharBoxes(0)
-                        doc.getPageLinks(0)
-                        doc.getOutline()
-                        doc.getImageBounds(0)
-                    }
-                } catch (_: PdfiumException) {
-                    // Expected rejection
-                } finally {
-                    doc?.close()
-                }
-
-                // IPC test
-                var handle: Long? = null
-                try {
-                    handle = runBlocking { renderer.openDocument(pfd) }
-                    val count = runBlocking { renderer.getPageCount(handle) }
-                    if (count > 0) {
-                        runBlocking {
-                            renderer.getPageInfo(handle, 0)
-                            renderer.getPageText(handle, 0)
-                            renderer.getPageLinks(handle, 0)
-                            renderer.getOutline(handle)
-                            renderer.getImageBounds(handle, 0)
-                        }
-                    }
-                } catch (_: PdfiumException) {
-                    // Expected rejection
-                } finally {
-                    handle?.let { runBlocking { renderer.closeDocument(it) } }
-                }
-            }
-            assertTrue("Renderer must remain connected after mutation $i", renderer.isServiceConnected)
+            probeBoth(mutated, "fuzz_flip_${i}_")
         }
     }
 
@@ -234,30 +245,7 @@ class PdfiumFuzzRobustnessTest {
         )
 
         for ((name, data) in mutations) {
-            val file = writeBytesToTempFile(data, "struct_${name}_")
-            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-                var doc: PdfiumDocument? = null
-                try {
-                    doc = PdfiumEngine.openDocument(pfd)
-                    assertTrue("If opened, doc must have valid count", doc.pageCount >= 0)
-                } catch (_: PdfiumException) {
-                    // Expected rejection
-                } finally {
-                    doc?.close()
-                }
-
-                var handle: Long? = null
-                try {
-                    handle = runBlocking { renderer.openDocument(pfd) }
-                    val count = runBlocking { renderer.getPageCount(handle) }
-                    assertTrue(count >= 0)
-                } catch (_: PdfiumException) {
-                    // Expected rejection
-                } finally {
-                    handle?.let { runBlocking { renderer.closeDocument(it) } }
-                }
-            }
-            assertTrue("Renderer must remain operational after $name", renderer.isServiceConnected)
+            probeBoth(data, "struct_${name}_")
         }
     }
 
@@ -361,5 +349,9 @@ class PdfiumFuzzRobustnessTest {
                 runBlocking { renderer.closeDocument(handle) }
             }
         }
+    }
+
+    private companion object {
+        const val TILE = 256
     }
 }

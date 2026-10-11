@@ -98,7 +98,12 @@ Three automated harnesses ensure ongoing enforcement:
 ## 5. Execution Results & Metrics
 
 ### A. Python Fuzzing Harness (Host PC, `pypdfium2`):
-- Run across 5 seed documents:
+- Run across 5 seed documents.
+- **Scope (corrected in the M5 review, 2026-10-11):** these cases ran on the PDFium bundled with
+  pypdfium2, not on our `libterbaca_pdfium.so`. They exercise PDFium's parser, but not our JNI guards
+  or the `:render` process. The harness also runs in a single process and swallows per-page
+  exceptions (`except Exception: pass`). A real segfault would kill the run rather than be
+  counted, so the "0 crashes" row below means "the run finished", not "crashes were checked".
 
 | Metric | Result |
 |---|---|
@@ -114,9 +119,20 @@ Three automated harnesses ensure ongoing enforcement:
 
 ### B. Android Device & Emulator Instrumented Tests (`PdfiumFuzzRobustnessTest.kt`):
 - Executed directly against the Android production JNI library (`libterbaca_pdfium.so`) and Binder IPC service (`:render` process):
-- **Total Android Cases:** **~80 distinct test cases** covering non-PDF payloads, progressive truncations (1B up to full file - 1B), 50 bit/byte flips, corrupted headers/XREFs, and 10 rapid malformed/valid cycles.
-- **Physical Device Pass (Xiaomi Pad 7, Android 16):** 6/6 test methods passing with zero UI or runner crashes.
-- **Auto-Recovery & Sandboxing:** Process recovery (`autoRecover = true`) preserves host UI stability if the isolated process encounters catastrophic fault.
+- **Cases:** 8 non-PDF payloads, 16 progressive truncations (1 B up to full file − 1 B), 100 bit/byte
+  mutations (50 each on `valid_2pages.pdf` and the image/stream-heavy `heavy_plot.pdf`), 6
+  header/XREF corruptions, extreme tile parameters, and 10 rapid malformed/valid cycles.
+- **Every document that opens is also rendered.** Text, links, outline, image bounds and a
+  256×256 tile on page 0 run at engine level (in the test process, so a native crash fails the run)
+  and across Binder (in `:render`).
+- **Crash detection (added in the M5 review):** the IPC renderer runs with `autoRecover = false`
+  and an `onProcessDied` hook. Any `:render` death, or an IPC failure caused by a `RemoteException`,
+  fails the test. Before this change, a crash was silently recovered and counted as a "clean
+  rejection". A temporary negative-control commit that killed `:render` mid-loop made the test fail on
+  CI: "The :render process died during fuzz_flip_10_"
+  ([run 38148561475](https://github.com/nathanaelEvan/terbaca/actions/runs/38148561475)).
+- Runs on the CI x86_64 emulator on every PR. The first version of this report claimed a Pad 7 run;
+  no log backs that claim.
 
 ### Category Breakdown:
 
@@ -136,9 +152,9 @@ Three automated harnesses ensure ongoing enforcement:
 
 | PRD §7 Acceptance Requirement | Target Budget | Result | Status |
 |---|---|---|---|
-| **Crash on malformed corpus PDFs** | UI process never crashes | **0 crashes across 1,217 test cases** in engine, JNI, and IPC harnesses | **PASS** |
+| **Crash on malformed corpus PDFs** | UI process never crashes | Android instrumented suite (§5.B): no test-process or `:render` crash, checked on every CI run. The 1,217 pypdfium2 cases (§5.A) cover the upstream parser only | **PASS** |
 | **Graceful error states** | Friendly error UI | Mapped to `DocumentError.Corrupt` | **PASS** |
-| **Render recovery** | Clean resume | Service auto-recovers; subsequent valid documents open and render immediately | **PASS** |
+| **Render recovery** | Clean resume | Not exercised by the fuzz suite. Process-kill recovery is tested in `PdfiumRemoteServiceTest` | **PASS** (via `PdfiumRemoteServiceTest`) |
 
 ---
 
