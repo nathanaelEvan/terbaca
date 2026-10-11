@@ -3,7 +3,12 @@
 # Expects `adb` on PATH (set ADB_DIR to add a platform-tools folder) and one connected device.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash on Windows: keep /sdcard paths as they are
-if [[ -n "${ADB_DIR:-}" ]]; then export PATH="$PATH:$ADB_DIR"; fi
+if [[ -n "${ADB_DIR:-}" ]]; then
+  if command -v cygpath >/dev/null 2>&1; then
+    ADB_DIR="$(cygpath -u "$ADB_DIR")"
+  fi
+  export PATH="$PATH:$ADB_DIR"
+fi
 
 DIR=/sdcard/Download/terbaca-bench
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -21,8 +26,8 @@ declare -A VIEWER=(
 
 # MediaStore _id of a pushed file.
 media_id() {
-  adb shell "content query --uri content://media/external/file --projection _id --where \"_display_name='bench-$1'\"" |
-    sed -n 's/.*_id=\([0-9]*\).*/\1/p' | head -1
+  adb shell content query --uri content://media/external/file --projection _id:_display_name |
+    sed -n "s/.*_id=\([0-9]*\), _display_name=bench-$1.*/\1/p"
 }
 
 push_files() {

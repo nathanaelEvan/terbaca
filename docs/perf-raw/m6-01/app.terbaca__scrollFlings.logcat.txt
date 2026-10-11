@@ -1,0 +1,15 @@
+﻿E/TransitionChain( 2731):    ChangeInfo{b1a1d7e container=Task{9ca0faa #3708 type=standard A=10440:app.terbaca} flags=0x0}
+E/TransitionChain( 2731):    ChangeInfo{ae5f339 container=ActivityRecord{122606156 u0 app.terbaca/.MainActivity t3708 f} isExiting} flags=0x0}
+E/TransitionChain( 2731):    ChangeInfo{b1a1d7e container=Task{9ca0faa #3708 type=standard A=10440:app.terbaca} flags=0x0}
+E/MiuiPadHome_ActivityManagerWrapper( 4570):  mainTaskId=3708   userId=0   windowMode=1   baseIntent=Intent { act=android.intent.action.VIEW flag=268435457 cmp=ComponentInfo{app.terbaca/app.terbaca.MainActivity} }
+E/MiuiPadHome_ActivityManagerWrapper( 4570):  mainTaskId=3165   userId=0   windowMode=1   baseIntent=Intent { act=android.intent.action.MAIN flag=268435456 cmp=ComponentInfo{app.terbaca.test/androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity} }
+E/DynamicIslandEventDebug( 4551): handleEventStart: miui.systemui.dynamicisland.event.DynamicIslandEvent$IslandTempHiddenChanged@a6fc349
+E/DynamicIslandEventDebug( 4551): IslandTempHiddenEventCoordinator handleEvent: expandedState=null bigState=null smallState=null
+E/DynamicIslandEventDebug( 4551): StateHandler stop->updateState, listSize=0, new:[]
+E/DynamicIslandEventDebug( 4551): handleEventStop: miui.systemui.dynamicisland.event.DynamicIslandEvent$IslandTempHiddenChanged@a6fc349
+E/WindowManager( 2731):  source = Task{9ca0faa #3708 type=standard A=10440:app.terbaca} excludeMiuiNavBar = true excludeMiuiStatusBar = true excludeIme = false excludeNavBar = true miuiNavSurfaceControl = Surface(name=NavigationBar Container of Task = 3708#58156)/@0x2bcc738 miuiStatusSurfaceControl = Surface(name=StatusBar Container of Task = 3708#58157)/@0xc641311
+E/MiuiPadHome_ActivityManagerWrapper( 4570):  mainTaskId=3708   userId=0   windowMode=1   baseIntent=Intent { act=android.intent.action.VIEW flag=268435457 cmp=ComponentInfo{app.terbaca/app.terbaca.MainActivity} }
+E/MiuiPadHome_ActivityManagerWrapper( 4570):  mainTaskId=3165   userId=0   windowMode=1   baseIntent=Intent { act=android.intent.action.MAIN flag=268435456 cmp=ComponentInfo{app.terbaca.test/androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity} }
+E/WindowOrganizerController( 2731): Attempt to operate on detached container: Task{9ca0faa #3708 type=standard A=10440:app.terbaca}
+E/WindowOrganizerController( 2731): Attempt to operate on detached container: Task{9ca0faa #3708 type=standard A=10440:app.terbaca}
+E/DexOptHelperImpl( 2731): Fail to get art odex vdex with path :/data/app/~~WLV0n1JPxFmOdjraCQxNpA==/app.terbaca.benchmark-7e27U1lX6rYWXLJ5be9ORA==/base.apk

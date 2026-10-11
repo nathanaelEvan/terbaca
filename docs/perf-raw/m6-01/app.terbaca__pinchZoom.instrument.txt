@@ -1,0 +1,51 @@
+﻿
+app.terbaca.benchmark.CompetitorBenchmarks:INSTRUMENTATION_STATUS: additionalTestOutputFile_CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_CompetitorBenchmarks_pinchZoom_iter001_2026-10-11-19-01-51.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/CompetitorBenchmarks_pinchZoom_iter001_2026-10-11-19-01-51.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_CompetitorBenchmarks_pinchZoom_iter003_2026-10-11-19-02-42.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/CompetitorBenchmarks_pinchZoom_iter003_2026-10-11-19-02-42.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: android.studio.display.benchmark=CompetitorBenchmarks_pinchZoom
+  frameCount           [min 739.0](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace),   [median 757.0](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace),   [max 776.0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace)
+  frameDurationCpuMs   P50    4.8,   P90    8.3,   P95   13.6,   P99   18.6
+  frameOverrunMs       P50   -1.8,   P90    1.9,   P95   11.2,   P99   15.1
+    Traces: Iteration [0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace) [1](file://CompetitorBenchmarks_pinchZoom_iter001_2026-10-11-19-01-51.perfetto-trace) [2](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace) [3](file://CompetitorBenchmarks_pinchZoom_iter003_2026-10-11-19-02-42.perfetto-trace) [4](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark=CompetitorBenchmarks_pinchZoom
+  frameCount           [min 739.0](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace),   [median 757.0](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace),   [max 776.0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace)
+  frameDurationCpuMs   P50    4.8,   P90    8.3,   P95   13.6,   P99   18.6
+  frameOverrunMs       P50   -1.8,   P90    1.9,   P95   11.2,   P99   15.1
+    Traces: Iteration [0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace) [1](file://CompetitorBenchmarks_pinchZoom_iter001_2026-10-11-19-01-51.perfetto-trace) [2](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace) [3](file://CompetitorBenchmarks_pinchZoom_iter003_2026-10-11-19-02-42.perfetto-trace) [4](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark.outputDirPath=/storage/emulated/0/Android/media/app.terbaca.benchmark
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark=CompetitorBenchmarks_pinchZoom
+  frameCount           [min 739.0](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace),   [median 757.0](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace),   [max 776.0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace)
+  frameDurationCpuMs   P50    4.8,   P90    8.3,   P95   13.6,   P99   18.6
+  frameOverrunMs       P50   -1.8,   P90    1.9,   P95   11.2,   P99   15.1
+    Traces: Iteration [0](file://CompetitorBenchmarks_pinchZoom_iter000_2026-10-11-19-01-24.perfetto-trace) [1](file://CompetitorBenchmarks_pinchZoom_iter001_2026-10-11-19-01-51.perfetto-trace) [2](file://CompetitorBenchmarks_pinchZoom_iter002_2026-10-11-19-02-16.perfetto-trace) [3](file://CompetitorBenchmarks_pinchZoom_iter003_2026-10-11-19-02-42.perfetto-trace) [4](file://CompetitorBenchmarks_pinchZoom_iter004_2026-10-11-19-03-07.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark.outputDirPath=/storage/emulated/0/Android/media/app.terbaca.benchmark
+INSTRUMENTATION_STATUS: frame_count_max=776.0
+INSTRUMENTATION_STATUS: frame_count_median=757.0
+INSTRUMENTATION_STATUS: frame_count_min=739.0
+INSTRUMENTATION_STATUS: frame_count_stddev=13.874436925511608
+INSTRUMENTATION_STATUS: frame_duration_cpu_millis_p50=4.8346350000000005
+INSTRUMENTATION_STATUS: frame_duration_cpu_millis_p90=8.3349479
+INSTRUMENTATION_STATUS: frame_duration_cpu_millis_p95=13.573169049999995
+INSTRUMENTATION_STATUS: frame_duration_cpu_millis_p99=18.635733560000002
+INSTRUMENTATION_STATUS: frame_overrun_millis_p50=-1.849376
+INSTRUMENTATION_STATUS: frame_overrun_millis_p90=1.8654572
+INSTRUMENTATION_STATUS: frame_overrun_millis_p95=11.249381649999997
+INSTRUMENTATION_STATUS: frame_overrun_millis_p99=15.073636930000001
+INSTRUMENTATION_STATUS_CODE: 2
+.
+
+Time: 132.189
+
+OK (1 test)
+
+
