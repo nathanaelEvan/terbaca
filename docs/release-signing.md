@@ -66,6 +66,12 @@ $ANDROID_HOME/build-tools/<version>/apksigner verify --print-certs app/build/out
 
 It should print your certificate (`CN=...`) and no errors.
 
+**Keep the native debug symbols.** The APK ships a stripped `libterbaca_pdfium.so`. To read a native
+crash stack from a release later, copy
+`app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/` (unstripped,
+with debug info) next to each release you publish. The next build overwrites it. CI also uploads it
+as the `native-symbols-<commit>` artifact, kept for 90 days.
+
 Install on the tablet: `adb install -r app/build/outputs/apk/release/app-release.apk`. A device that
 has the debug build installed must uninstall it first, because the signatures differ.
 

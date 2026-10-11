@@ -65,7 +65,12 @@ PASS: Release APK (9.14 MB) meets PRD §7 budget (<= 15 MB).
 
 - **Host Build Verification**: `./gradlew :app:assembleRelease` produced `app-release-unsigned.apk` at 9,585,169 bytes (9.14 MB).
 - **Harness Script**: `python tools/perf/apk_size_pass.py` verified the category breakdown.
-- **On-Device Verification (Xiaomi Pad 7, Android 16)**:
-  - Verified size on device: 9,585,169 bytes (9.14 MB).
-  - Benchmark build (`benchmark` buildType, which mirrors `release` with R8 minification enabled but debug-signed) installed cleanly and opened `memory_100plus.pdf` cold in 440 ms with zero JNI/AIDL regression.
-- **Not verified**: The unsigned release APK (`app-release-unsigned.apk`) was not directly installed on-device (on-device execution used the equivalent debug-signed `benchmark` build).
+- **CI**: since the M5 review, every CI run builds `:app:assembleRelease` (R8 + resource shrinking + strip).
+- **Not verified** (corrected in the M5 review, 2026-10-11):
+  - The unsigned release APK was never installed on a device. The first version of this report listed
+    an "on-device size" equal to the host-built file's size, which isn't a separate measurement.
+  - The first version also said the benchmark build "opened `memory_100plus.pdf` cold in 440 ms with
+    zero JNI/AIDL regression". No trace or script backs that. For measured open latency, see
+    [perf-report](perf-report.md).
+  - No automated test runs the minified build. The keep rules for JNI-built parcels
+    (`app/proguard-rules.pro`) were checked in R8's `seeds.txt` only.

@@ -164,8 +164,15 @@ fun DocumentSurface(
     }
     val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay) {
         // Gesture over: time the sharpening (PRD §7), and draw a frame in case it's sharp already.
-        PerfTrace.beginSharpen()
-        tileArrivals.intValue++
+        // Only while tracing, so a release build doesn't draw an extra frame per gesture.
+        if (PerfTrace.beginSharpen()) tileArrivals.intValue++
+    }
+    DisposableEffect(Unit) {
+        // Leaving the reader mid-section: don't let the next document's first sharp frame close it.
+        onDispose {
+            PerfTrace.cancelSharpen()
+            PerfTrace.abandonOpen()
+        }
     }
 
     if (scheduler != null) {
@@ -226,8 +233,9 @@ fun DocumentSurface(
                     now,
                     timeoutMs = if (basesShown) TILE_REVEAL_TIMEOUT_OVER_BASE_MS else TILE_REVEAL_TIMEOUT_MS
                 ) ?: NO_PENDING_REVEAL
+                // The crossfade keeps frames coming until the layer is opaque, so the end fires on that frame.
                 if (PerfTrace.isSharpenPending || PerfTrace.isOpenPending) {
-                    val sharp = pages.isNotEmpty() && pages.all { frame -> frame.tiles.all { tileCache.get(it.key) != null } }
+                    val sharp = isViewSharp(pages.map { it.tiles }, { tileCache.get(it) != null }, tileFadeStartTimes, now)
                     if (sharp) {
                         PerfTrace.endSharpen()
                         PerfTrace.endOpen()
@@ -760,6 +768,18 @@ internal fun revealTiles(
     }
     return since
 }
+
+/**
+ * True when every visible page's detail layer is opaque: where the PRD §7 "sharp" timing ends,
+ * crossfade included.
+ */
+internal fun isViewSharp(
+    visibleTilesPerPage: List<List<TileBounds>>,
+    isLoaded: (TileKey) -> Boolean,
+    fadeStartTimes: Map<TileKey, Long>,
+    now: Long
+): Boolean = visibleTilesPerPage.isNotEmpty() &&
+    visibleTilesPerPage.all { isDetailLayerOpaque(it, isLoaded, fadeStartTimes, now) }
 
 /** True when every visible detail tile is loaded and has finished its crossfade. */
 internal fun isDetailLayerOpaque(
