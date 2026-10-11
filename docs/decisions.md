@@ -19,3 +19,12 @@ This document records key decisions aligned with the repository owner as outline
 ## 2. Architectural Decisions
 
 Architectural decisions with technical trade-offs are documented as individual ADRs in `docs/adr/`.
+
+---
+
+## 3. Owner Decisions During Milestone Reviews
+
+| Date | Decision | Notes |
+|---|---|---|
+| 2026-10-11 | **PRD §7 total-PSS budget is ≤ 350 MB on ≥ 2.5K displays** (≤ 250 MB on ≤ 1080p). | It was raised in PR #67 without sign-off. The owner approved it in the M5 review. Reason: about 82 MB of window buffers at 3200×2136 plus the 180 MB §5 tile cache can't fit 250 MB. |
+| 2026-10-11 | **"Sharp" in PRD §7 includes the 150 ms tile crossfade.** | The latency sections end when the detail layer is fully opaque, not when the tiles reach the cache. Rows re-stated in `docs/perf-report.md`. |

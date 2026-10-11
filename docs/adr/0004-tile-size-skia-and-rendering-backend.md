@@ -17,7 +17,7 @@ As established in [PRD §4.4](../PRD.md#44-tile-pyramid), [PRD §4.1](../PRD.md#
 
 - **144 Hz Frame Budget:** ≥ 99% of frames within 6.94 ms on Xiaomi Pad 7 during continuous pinch/pan/fling; zero frames over 16.6 ms ([PRD §7](../PRD.md#7-performance-budgets-and-acceptance-gates)).
 - **Sharpening Latency:** p95 tile sharpening latency ≤ 150 ms at fit-width, ≤ 300 ms at 800% zoom.
-- **Memory Footprint:** Hot cache ≤ ~80 MB; total app PSS across both processes ≤ 250 MB on 100-page documents ([PRD §5](../PRD.md#5-memory-and-cache)).
+- **Memory Footprint:** Hot cache ≤ ~80 MB; total app PSS across both processes ≤ 250 MB on 100-page documents ([PRD §5](../PRD.md#5-memory-and-cache)). *(2026-10-11: PRD §7 now allows ≤ 350 MB on ≥ 2.5K displays; see [decisions](../decisions.md).)*
 - **APK Budget:** Total APK size ≤ 15 MB for `arm64-v8a` ([PRD §7](../PRD.md#7-performance-budgets-and-acceptance-gates)).
 - **Text & Anti-Aliasing Quality:** Crisp grayscale anti-aliasing at any zoom up to 800% without visible pixelation or color fringing under rotation ([PRD §3.2](../PRD.md#32-rendering-quality)).
 - **Simplicity & Zero Bloat:** Avoid unneeded native abstractions or SurfaceView synchronization complexities if platform primitives satisfy budgets (Ponytail style).
@@ -97,7 +97,7 @@ PRD §4.6 defined a fallback plan:
 | **Heavy vector page (`heavy_plot`)** | No UI jank; sharp within 1 s | No jank (doc 3 row above). Sharpness time not measured | Partly measured |
 | **Cold start → first frame** | ≤ 500 ms | timeToInitialDisplay median 526 ms (min 445, max 655) with the generated baseline profile; 478 ms with no compilation. Spread is large across 5 iterations. App opens straight into a document; there is no library screen yet | **Borderline / missed**: investigate in M2 alongside the library screen |
 | **Open 30-page paper → first page** | ≤ 400 ms | Not measured | Not measured |
-| **Total PSS (UI + render process)** | ≤ 250 MB (100-page doc, active zoom) | Not measured | Not measured |
+| **Total PSS (UI + render process)** | ≤ 250 MB (100-page doc, active zoom; ≤ 350 MB on ≥ 2.5K displays since 2026-10-11) | Not measured | Not measured |
 | **APK (arm64) size** | ≤ 15 MB | 8.3 MB (`app-benchmark.apk`, R8 on): dex 1.4 MB, `libpdfium.so` 6.5 MB | **Met** |
 | **Crash on malformed corpus PDFs** | UI process never crashes | Verified in instrumented tests on the CI emulator (render process isolated; UI recovers). Not run on the Pad 7 | Verified on emulator only |
 

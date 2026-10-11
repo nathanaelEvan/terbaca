@@ -1,11 +1,13 @@
 package app.terbaca.core.pdfium
 
-import android.content.ComponentCallbacks2
+import android.app.ActivityManager
 import android.content.Context
-import android.os.Debug
 import android.os.ParcelFileDescriptor
+import android.os.Process
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -18,8 +20,12 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Instrumented memory profiling and leak check tests per PRD §5, §7, and §8 (M5-02).
- * Verifies memory footprints, PSS budgets (<= 250 MB), and leak-free recycling on 100+ page document.
+ * Memory checks on the 100+ page document (PRD §5, §7, M5-02).
+ *
+ * The leak check measures the `:render` process PSS through `dumpsys meminfo`, before and after
+ * repeated open/render/close cycles. It also asserts the process was not restarted in between,
+ * so a crash plus recovery cannot hide a leak. The §7 total-PSS budget (UI + render) is measured
+ * on device with `tools/perf/measure_pss.sh`, not here.
  */
 @RunWith(AndroidJUnit4::class)
 class PdfiumMemoryProfilingTest {
@@ -32,7 +38,7 @@ class PdfiumMemoryProfilingTest {
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
         PdfiumEngine.initialize()
-        renderer = PdfiumRemotePageRenderer(context)
+        renderer = PdfiumRemotePageRenderer(context, autoRecover = false)
     }
 
     @After
@@ -56,119 +62,121 @@ class PdfiumMemoryProfilingTest {
         return file
     }
 
-    @Test
-    fun test100PageDocument_openAndPageCountMemoryStability() = runBlocking {
-        val file = copyAssetToTempFile("fixtures/memory_100plus.pdf")
-
-        val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+    private suspend fun open(file: File): Long =
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             renderer.openDocument(pfd)
         }
+
+    private fun renderPid(): Int {
+        val am = context.getSystemService(ActivityManager::class.java)
+        val proc = am.runningAppProcesses.orEmpty()
+            .firstOrNull { it.uid == Process.myUid() && it.processName.endsWith(":render") }
+        assertNotNull("The :render process must be running", proc)
+        return proc!!.pid
+    }
+
+    /** Total PSS of [pid] in KB, from `dumpsys meminfo` (not rate-limited like getProcessMemoryInfo). */
+    private fun pssKb(pid: Int): Long {
+        val pfd = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("dumpsys meminfo $pid")
+        val out = ParcelFileDescriptor.AutoCloseInputStream(pfd).bufferedReader().use { it.readText() }
+        val match = TOTAL_PSS.find(out)
+        assertNotNull("No TOTAL PSS line in dumpsys meminfo output:\n$out", match)
+        return match!!.groupValues[1].toLong()
+    }
+
+    /** One open → render a few 2x tiles → close cycle, the pattern a reader session leaves behind. */
+    private suspend fun openRenderCloseCycle(file: File, cycle: Int) {
+        val handle = open(file)
+        assertTrue("Handle for cycle $cycle must be valid", handle > 0L)
+        for (page in listOf(cycle % 100, (cycle * 7 + 3) % 100)) {
+            val tile = renderer.renderTile(
+                docHandle = handle,
+                pageIndex = page,
+                fullWidth = 1190,
+                fullHeight = 1684,
+                startX = 0,
+                startY = 0,
+                tileWidth = 512,
+                tileHeight = 512
+            )
+            assertNotNull(tile)
+        }
+        renderer.closeDocument(handle)
+    }
+
+    @Test
+    fun test100PageDocument_openAndPageGeometry() = runBlocking {
+        val file = copyAssetToTempFile("fixtures/memory_100plus.pdf")
+        val handle = open(file)
         assertTrue("Document handle must be valid", handle > 0L)
 
         val pageCount = renderer.getPageCount(handle)
         assertTrue("Page count must be >= 100", pageCount >= 100)
 
-        // Verify geometry on boundary pages
-        val page0 = renderer.getPageInfo(handle, 0)
-        val page50 = renderer.getPageInfo(handle, 50)
-        val pageLast = renderer.getPageInfo(handle, pageCount - 1)
-
-        assertEquals(0, page0.index)
-        assertEquals(50, page50.index)
-        assertEquals(pageCount - 1, pageLast.index)
+        assertEquals(0, renderer.getPageInfo(handle, 0).index)
+        assertEquals(50, renderer.getPageInfo(handle, 50).index)
+        assertEquals(pageCount - 1, renderer.getPageInfo(handle, pageCount - 1).index)
 
         renderer.closeDocument(handle)
-        assertTrue("Renderer service must remain connected", renderer.isServiceConnected)
     }
 
     @Test
-    fun test100PageDocument_simulatedContinuousScroll_memoryRemainsBounded() = runBlocking {
+    fun test100PageDocument_continuousScrollAndMultiZoom_renderPssBounded() = runBlocking {
         val file = copyAssetToTempFile("fixtures/memory_100plus.pdf")
-        val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-            renderer.openDocument(pfd)
-        }
+        val handle = open(file)
+        val pid = renderPid()
         val pageCount = renderer.getPageCount(handle)
 
-        // Traverse through all pages rendering a thumbnail/base tile
-        var successfulRenders = 0
         for (i in 0 until pageCount step 2) {
-            val tile = renderer.renderTile(
-                docHandle = handle,
-                pageIndex = i,
-                fullWidth = 595,
-                fullHeight = 842,
-                startX = 0,
-                startY = 0,
-                tileWidth = 128,
-                tileHeight = 128
-            )
-            assertNotNull(tile)
-            successfulRenders++
+            assertNotNull(renderer.renderTile(handle, i, 595, 842, 0, 0, 128, 128))
         }
-        assertTrue("Must render sampled pages across the 100-page doc", successfulRenders >= 50)
-
-        renderer.closeDocument(handle)
-        assertTrue("Renderer service must remain connected after continuous render", renderer.isServiceConnected)
-    }
-
-    @Test
-    fun test100PageDocument_activeMultiZoom_tilesRenderSafely() = runBlocking {
-        val file = copyAssetToTempFile("fixtures/memory_100plus.pdf")
-        val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-            renderer.openDocument(pfd)
-        }
-
-        // Test zooming on page 0, 25, 50, 75, 100
-        val testPages = listOf(0, 25, 50, 75, 100)
-        val zoomLevels = listOf(1, 2, 4) // 1x, 2x, 4x
-
-        for (p in testPages) {
-            for (z in zoomLevels) {
-                val fullW = 595 * z
-                val fullH = 842 * z
-                val tile = renderer.renderTile(
-                    docHandle = handle,
-                    pageIndex = p,
-                    fullWidth = fullW,
-                    fullHeight = fullH,
-                    startX = 0,
-                    startY = 0,
-                    tileWidth = 256,
-                    tileHeight = 256
+        for (p in listOf(0, 25, 50, 75, 100)) {
+            for (z in listOf(1, 2, 4)) {
+                assertNotNull(
+                    "Tile must render on page $p at ${z}x",
+                    renderer.renderTile(handle, p, 595 * z, 842 * z, 0, 0, 256, 256)
                 )
-                assertNotNull("Zoomed tile must render successfully at scale ${z}x", tile)
             }
         }
 
+        val pss = pssKb(pid)
+        Log.i(TAG, "render PSS after scroll + zoom: $pss KB")
+        assertEquals("The :render process must not have restarted", pid, renderPid())
+        assertTrue("render PSS $pss KB exceeds $RENDER_PSS_CEILING_KB KB", pss < RENDER_PSS_CEILING_KB)
+
         renderer.closeDocument(handle)
-        assertTrue("Renderer service must remain operational after multi-zoom", renderer.isServiceConnected)
     }
 
     @Test
-    fun test100PageDocument_repeatedOpenCloseCycles_leakCheck() = runBlocking {
+    fun test100PageDocument_repeatedOpenCloseCycles_renderPssDoesNotGrow() = runBlocking {
         val file = copyAssetToTempFile("fixtures/memory_100plus.pdf")
 
-        // 10 repeated open-render-close cycles across IPC
-        for (cycle in 0 until 10) {
-            val handle = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-                renderer.openDocument(pfd)
-            }
-            assertTrue("Handle for cycle $cycle must be valid", handle > 0L)
+        // Warm up allocator pools, font caches and the Binder path before the baseline sample.
+        repeat(WARMUP_CYCLES) { openRenderCloseCycle(file, it) }
+        val pid = renderPid()
+        val before = pssKb(pid)
 
-            val tile = renderer.renderTile(
-                docHandle = handle,
-                pageIndex = cycle * 5,
-                fullWidth = 595,
-                fullHeight = 842,
-                startX = 0,
-                startY = 0,
-                tileWidth = 128,
-                tileHeight = 128
-            )
-            assertNotNull(tile)
-            renderer.closeDocument(handle)
-        }
+        repeat(MEASURED_CYCLES) { openRenderCloseCycle(file, WARMUP_CYCLES + it) }
+        val after = pssKb(pid)
 
-        assertTrue("Renderer service must remain connected and leak-free across repeated cycles", renderer.isServiceConnected)
+        Log.i(TAG, "render PSS before=$before KB after=$after KB delta=${after - before} KB over $MEASURED_CYCLES cycles")
+        assertEquals("The :render process must not have restarted", pid, renderPid())
+        assertTrue(
+            "render PSS grew ${after - before} KB over $MEASURED_CYCLES open/close cycles (limit $LEAK_LIMIT_KB KB)",
+            after - before < LEAK_LIMIT_KB
+        )
+    }
+
+    private companion object {
+        const val TAG = "PdfiumMemoryTest"
+        const val WARMUP_CYCLES = 3
+        const val MEASURED_CYCLES = 20
+        const val LEAK_LIMIT_KB = 12 * 1024L
+
+        // The render process holds no tile cache (that lives in the UI process), so it stays far
+        // below the §7 total; this catches runaway native growth, not the budget itself.
+        const val RENDER_PSS_CEILING_KB = 150 * 1024L
+        val TOTAL_PSS = Regex("""TOTAL(?: PSS:)?\s+(\d+)""")
     }
 }
