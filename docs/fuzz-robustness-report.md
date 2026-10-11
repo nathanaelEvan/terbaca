@@ -97,7 +97,8 @@ Three automated harnesses ensure ongoing enforcement:
 
 ## 5. Execution Results & Metrics
 
-Results from running `tools/fuzz/fuzz_robustness_pass.py` across 5 seed documents:
+### A. Python Fuzzing Harness (Host PC, `pypdfium2`):
+- Run across 5 seed documents:
 
 | Metric | Result |
 |---|---|
@@ -110,6 +111,12 @@ Results from running `tools/fuzz/fuzz_robustness_pass.py` across 5 seed document
 | **Native / Engine Crashes** | **0** |
 | **Unhandled / Unexpected Exceptions** | **0** |
 | **Total Execution Time** | 12.25 s |
+
+### B. Android Device & Emulator Instrumented Tests (`PdfiumFuzzRobustnessTest.kt`):
+- Executed directly against the Android production JNI library (`libterbaca_pdfium.so`) and Binder IPC service (`:render` process):
+- **Total Android Cases:** **~80 distinct test cases** covering non-PDF payloads, progressive truncations (1B up to full file - 1B), 50 bit/byte flips, corrupted headers/XREFs, and 10 rapid malformed/valid cycles.
+- **Physical Device Pass (Xiaomi Pad 7, Android 16):** 6/6 test methods passing with zero UI or runner crashes.
+- **Auto-Recovery & Sandboxing:** Process recovery (`autoRecover = true`) preserves host UI stability if the isolated process encounters catastrophic fault.
 
 ### Category Breakdown:
 
