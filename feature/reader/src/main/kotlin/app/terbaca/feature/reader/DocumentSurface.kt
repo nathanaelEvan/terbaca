@@ -146,6 +146,7 @@ fun DocumentSurface(
     val lastSize = remember { IntSizeRef() }
     // Per page: the last level that fully covered its visible part (kept under the next level).
     val underlayLevels = remember { HashMap<Int, PyramidLevel>() }
+    val pyramidLevelCache = remember { HashMap<Int, List<PyramidLevel>>() }
     val revealPendingSince = remember { LongArray(1) { NO_PENDING_REVEAL } }
     val viewportGeneration = remember { AtomicLong(0L) }
 
@@ -160,7 +161,8 @@ fun DocumentSurface(
             underlayLevels = underlayLevels,
             state = state,
             inFlightTiles = inFlightTiles,
-            viewportGeneration = viewportGeneration
+            viewportGeneration = viewportGeneration,
+            pyramidLevelCache = pyramidLevelCache
         )
     }
     val gestureModifier = Modifier.documentGestures(state, coroutineScope, decay) {
@@ -220,7 +222,9 @@ fun DocumentSurface(
                 val pages = layout.pagesIn(visibleRect).mapNotNull { index ->
                     val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: return@mapNotNull null
                     val page = layout.pages[index]
-                    val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
+                    val levels = pyramidLevelCache.getOrPut(index) {
+                        TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
+                    }
                     val level = TilePyramid.selectLevel(levels, state.levelScale)
                     PageFrame(index, pageVisible, level, TilePyramid.getVisibleTiles(page, level, pageVisible))
                 }
@@ -315,7 +319,8 @@ private fun handleSizeChanged(
     underlayLevels: HashMap<Int, PyramidLevel>,
     state: DocumentTransformState,
     inFlightTiles: HashSet<TileKey>,
-    viewportGeneration: AtomicLong
+    viewportGeneration: AtomicLong,
+    pyramidLevelCache: HashMap<Int, List<PyramidLevel>>
 ) {
     if (size.width > 0 && size.height > 0) {
         if (lastSize.width != 0 && lastSize.height != 0 &&
@@ -329,6 +334,7 @@ private fun handleSizeChanged(
             scheduler?.cancelAll()
             inFlightTiles.clear()
             underlayLevels.clear()
+            pyramidLevelCache.clear()
         }
         lastSize.width = size.width
         lastSize.height = size.height
@@ -445,9 +451,10 @@ private fun Modifier.documentGestures(
                         if (centroid != Offset.Unspecified) {
                             if (zoomChange != 1f) {
                                 state.beginZoom()
-                                state.onPinch(zoomChange, centroid)
+                                state.onPinch(zoomChange, centroid, panChange)
+                            } else if (panChange != Offset.Zero) {
+                                state.onPan(panChange.x, panChange.y)
                             }
-                            if (panChange != Offset.Zero) state.onPan(panChange.x, panChange.y)
                         }
                         event.changes.forEach { change: PointerInputChange ->
                             if (change.position != change.previousPosition) change.consume()
@@ -549,6 +556,10 @@ private fun DocumentTileCollector(
             lastOffsetX = offsetX
             lastOffsetY = offsetY
 
+            // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
+            // via isZooming): zooming out at a frozen high level would ask for many large tiles.
+            if (zooming) return@collectLatest
+
             val visibleRect = state.getVisibleRectPoints()
             val visiblePages = layout.pagesIn(visibleRect)
             // Forget underlays of pages scrolled well away: coming back, a stale level would be
@@ -609,9 +620,6 @@ private fun DocumentTileCollector(
                 // Cancelled by the next update (collectLatest); if none comes, the view stopped here.
                 delay(FAST_SCROLL_SETTLE_MS)
             }
-            // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
-            // via isZooming): zooming out at a frozen high level would ask for many large tiles.
-            if (zooming) return@collectLatest
             // PRD M6-06: render the centre tiles first.
             visibleDetail.sortBy { it.second }
             prefetch.sortBy { it.second }
