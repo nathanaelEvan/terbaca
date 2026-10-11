@@ -206,18 +206,18 @@ fun FloatingPill(
     // inflate the visual Surface height from 36 dp to 48 dp (fixing the ~6 dp shift from #68).
     Box(
         modifier = modifier.then(
-            if (onClick != null) Modifier.minimumInteractiveComponentSize() else Modifier
-        ),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            modifier = if (onClick != null) {
+            if (onClick != null) {
                 Modifier
+                    .minimumInteractiveComponentSize()
                     .clip(shape)
                     .clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
             } else {
                 Modifier
-            },
+            }
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
             shape = shape,
             color = TerbacaChrome,
             shadowElevation = 4.dp
