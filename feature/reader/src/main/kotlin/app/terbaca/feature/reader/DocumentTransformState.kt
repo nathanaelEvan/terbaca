@@ -179,25 +179,26 @@ class DocumentTransformState(
     }
 
     /**
-     * Handles pinch zoom by [zoomRatio] anchored around [focalPoint].
+     * Handles pinch zoom by [zoomRatio] anchored around [focalPoint], optionally applying simultaneous [pan].
      *
      * Anchoring formula (PRD §4.6):
      * The point in document coordinates under [focalPoint] remains under [focalPoint] after scaling:
-     * offset_new = focal - (focal - offset_old) * (scale_new / scale_old)
+     * offset_new = focal - (focal - offset_old) * (scale_new / scale_old) + pan
      */
-    fun onPinch(zoomRatio: Float, focalPoint: Offset) {
-        if (zoomRatio == 1f || scale <= 0f) return
+    fun onPinch(zoomRatio: Float, focalPoint: Offset, pan: Offset = Offset.Zero) {
+        if (scale <= 0f) return
+        if (zoomRatio == 1f && pan == Offset.Zero) return
 
         val oldScale = scale
         val targetScale = (scale * zoomRatio).coerceIn(minScale, maxScale)
-        if (targetScale == oldScale) return
+        if (targetScale == oldScale && pan == Offset.Zero) return
 
-        val actualRatio = targetScale / oldScale
+        val actualRatio = if (oldScale > 0f) targetScale / oldScale else 1f
         val fx = focalPoint.x
         val fy = focalPoint.y
 
-        offsetX = fx - (fx - offsetX) * actualRatio
-        offsetY = fy - (fy - offsetY) * actualRatio
+        offsetX = fx - (fx - offsetX) * actualRatio + pan.x
+        offsetY = fy - (fy - offsetY) * actualRatio + pan.y
         scale = targetScale
 
         clampOffsets()
