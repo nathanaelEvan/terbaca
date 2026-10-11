@@ -1,0 +1,63 @@
+
+## Cold open
+app | file | n | first page visible, ms median (min–max) | am start TotalTime median
+app.terbaca | deck_16_9 | 5 | 661 (623–804) | 415
+app.terbaca | heavy_plot | 5 | 681 (656–749) | 448
+app.terbaca | paper_two_column | 5 | 658 (562–708) | 420
+cn.wps.moffice_eng | deck_16_9 | 5 | 1942 (1855–2176) | 447
+cn.wps.moffice_eng | heavy_plot | 5 | 1953 (1900–2057) | 455
+cn.wps.moffice_eng | paper_two_column | 5 | 1991 (1843–2320) | 420
+cn.wps.xiaomi.abroad.lite | deck_16_9 | 5 | 235 (220–272) | 211
+cn.wps.xiaomi.abroad.lite | heavy_plot | 5 | 348 (227–377) | 242
+cn.wps.xiaomi.abroad.lite | paper_two_column | 5 | 306 (277–378) | 231
+com.adobe.reader | deck_16_9 | 5 | 1823 (1624–2098) | 969
+com.adobe.reader | heavy_plot | 5 | 1962 (1903–2083) | 1026
+com.adobe.reader | paper_two_column | 5 | 1815 (1665–2102) | 1021
+com.flyersoft.moonreader | deck_16_9 | 5 | 851 (834–887) | 645
+com.flyersoft.moonreader | heavy_plot | 5 | 865 (829–872) | 607
+com.flyersoft.moonreader | paper_two_column | 5 | 883 (843–888) | 629
+com.google.android.apps.docs | deck_16_9 | 5 | 830 (812–925) | 612
+com.google.android.apps.docs | heavy_plot | 5 | 876 (800–1148) | 639
+com.google.android.apps.docs | paper_two_column | 5 | 870 (801–998) | 656
+
+## Cold open, never-seen file copies
+app | file | n | first page visible, ms median (min–max) | am start TotalTime median
+app.terbaca | paper_two_column | 3 | 650 (603–676) | 472
+cn.wps.moffice_eng | paper_two_column | 3 | 1834 (1806–1854) | 416
+cn.wps.xiaomi.abroad.lite | paper_two_column | 3 | 305 (304–309) | 222
+com.adobe.reader | paper_two_column | 3 | 1769 (1704–1867) | 997
+com.flyersoft.moonreader | paper_two_column | 3 | 844 (841–858) | 636
+com.google.android.apps.docs | paper_two_column | 3 | 851 (773–938) | 627
+
+## Frames
+app | test | iterations | frames/iter median | late frames % (overrun > 0), pooled (per-iteration min–max) | overrun P50/P90/P99 ms | CPU frame time P50/P90/P99 ms
+app.terbaca | pinchZoom | 5 | 827 | 29.4 (26.2–34.6) | -1.2/3.1/12.7 | 5.0/8.9/16.3
+app.terbaca | scrollFlings | 5 | 1131 | 34.6 (30.8–39.6) | -3.2/6.7/9.0 | 3.3/9.6/12.6
+cn.wps.moffice_eng | pinchZoom | 5 | 1004 | 9.6 (8.8–10.9) | -5.7/-0.4/7.8 | 3.9/6.0/12.7
+cn.wps.moffice_eng | scrollFlings | 5 | 1160 | 1.4 (1.1–1.6) | -6.4/-3.8/1.2 | 3.3/6.1/8.6
+cn.wps.xiaomi.abroad.lite | pinchZoom | 5 | 767 | 27.1 (22.5–29.7) | -1.8/2.8/12.1 | 4.9/10.0/17.1
+cn.wps.xiaomi.abroad.lite | scrollFlings | 5 | 1187 | 3.8 (1.7–6.0) | -3.1/-0.4/4.2 | 4.1/5.6/9.1
+com.adobe.reader | pinchZoom | 5 | 407 | 15.3 (5.1–26.3) | -1.6/0.1/2.4 | 5.4/7.0/11.0
+com.adobe.reader | scrollFlings | 5 | 1061 | 4.8 (2.1–10.4) | -2.3/-2.1/6.1 | 4.2/5.4/12.0
+com.flyersoft.moonreader | pinchZoom | 5 | 1651 | 2.5 (0.7–9.2) | -5.4/-2.3/5.7 | 3.7/4.8/9.4
+com.flyersoft.moonreader | scrollFlings | 5 | 132 | 6.7 (5.3–9.1) | -1.6/-0.4/3.6 | 7.4/8.3/13.1
+com.google.android.apps.docs | pinchZoom | 5 | 1085 | 5.2 (3.7–6.5) | -1.1/-0.5/4.4 | 5.9/8.0/11.3
+com.google.android.apps.docs | scrollFlings | 5 | 1100 | 3.6 (2.1–9.5) | -1.1/-0.8/7.1 | 5.0/6.4/11.8
+
+## Memory (MB, total PSS of all the app's processes)
+app | runs | after open, median | peak while scrolling, median (min–max)
+app.terbaca | 3 | 283 | 324 (324–327)
+cn.wps.moffice_eng | 3 | 840 | 967 (961–971)
+cn.wps.xiaomi.abroad.lite | 3 | 283 | 416 (414–417)
+com.adobe.reader | 3 | 716 | 998 (830–1225)
+com.flyersoft.moonreader | 3 | 491 | 491 (488–501)
+com.google.android.apps.docs | 3 | 355 | 725 (716–726)
+
+## Size
+app | version | installed APK MB (files)
+app.terbaca | 0.1.0 | 9.6 (1)
+com.adobe.reader | 26.9.1.49959 | 301.1 (18)
+com.google.android.apps.docs | 2.26.397.0.all.alldpi | 59.0 (4)
+cn.wps.moffice_eng | 26.9.1 | 337.6 (3)
+cn.wps.xiaomi.abroad.lite | 2.6.9 | 9.4 (1)
+com.flyersoft.moonreader | 10.7 | 54.5 (5)
