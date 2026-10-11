@@ -28,6 +28,19 @@ abstract class CopyLicensesTask : DefaultTask() {
     }
 }
 
+// Release signing (M5-06, docs/release-signing.md). The keystore and its passwords never live in
+// the repo: they come from Gradle properties (~/.gradle/gradle.properties) or environment
+// variables. Without them the release build is left unsigned.
+fun releaseSigningValue(name: String): String? =
+    providers.gradleProperty("terbaca.$name").orElse(providers.environmentVariable("TERBACA_${name.uppercase()}"))
+        .orNull?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = releaseSigningValue("storeFile")
+val releaseStorePassword = releaseSigningValue("storePassword")
+val releaseKeyAlias = releaseSigningValue("keyAlias")
+val releaseKeyPassword = releaseSigningValue("keyPassword")
+val hasReleaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it != null }
+
 val copyLicenseAssets by tasks.registering(CopyLicensesTask::class) {
     inputDir.set(file("${project(":core:pdfium").projectDir}/src/main/cpp"))
     outputDir.set(layout.buildDirectory.dir("generated/license-assets"))
@@ -54,8 +67,20 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

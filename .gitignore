@@ -14,3 +14,8 @@ captures/
 *.hprof
 output.json
 __pycache__/
+
+# Release signing keys (docs/release-signing.md); never commit them.
+*.jks
+*.keystore
+keystore.properties
