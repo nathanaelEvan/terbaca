@@ -96,6 +96,7 @@ The Macrobenchmark and baseline profile generator live in `:benchmark` and need 
 
 - [`docs/PRD.md`](docs/PRD.md) — product requirements and engineering spec (the source of truth)
 - [`docs/adr/`](docs/adr) — architecture decisions: PDFium source and flags, IPC, pixel transport, tile size and rendering backend
+- [`docs/release-signing.md`](docs/release-signing.md) — building a signed release (keys stay off the repo)
 - [`AGENTS.md`](AGENTS.md) — workflow rules for agents working on this repo
 
 ## Contributing
