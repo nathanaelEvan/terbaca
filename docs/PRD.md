@@ -18,7 +18,7 @@
    - `.github/pull_request_template.md` (see §0.3).
    - `.github/workflows/ci.yml` that runs build, lint, ktlint/detekt and unit tests on every PR.
    - `.gitignore`, `.editorconfig`, `README.md` (one paragraph + build instructions).
-   - No license file (private, all rights reserved) unless the owner says otherwise.
+   - `LICENSE`: Apache-2.0 (owner decision, 2026-10-12, when the repo went public).
 3. Enable branch protection on `main` if the account plan supports it for private repos: require a PR, require CI to pass, block force pushes. If the plan doesn't support it, state this in the first PR description and follow the rule by convention anyway.
 4. Report back to the owner: repo URL and confirmation that the scaffold builds.
 

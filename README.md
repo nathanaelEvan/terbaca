@@ -125,3 +125,7 @@ The Macrobenchmark and baseline profile generator live in `:benchmark` and need 
 ## Contributing
 
 Every change goes through a PR from a `<type>/<task-id>-<slug>` branch using the [PR template](.github/pull_request_template.md). CI runs detekt, unit tests, lint, a debug build and the native instrumented tests on an emulator; `main` is protected, and PRs are squash-merged once checks are green.
+
+## License
+
+Apache License 2.0, see [`LICENSE`](LICENSE). Bundled PDFium binaries keep their own licenses, see [`THIRD_PARTY_NOTICES`](core/pdfium/src/main/cpp/THIRD_PARTY_NOTICES).
