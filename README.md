@@ -18,6 +18,28 @@ Under active development. Progress follows the milestones in [`docs/PRD.md`](doc
 
 M2–M4 were checked on a Xiaomi Pad 7 (Android 16) on 2026-10-11: all instrumented tests pass on the device, and the reader, paper and deck features were walked through by hand in landscape.
 
+## How Terbaca compares
+
+Measured on a Xiaomi Pad 7 (Android 16, 120 Hz) on 2026-10-11, using the same PDFs and the same
+gestures in every app. Opening was timed from screen recordings, smoothness and memory with Android's
+frame timeline and `dumpsys`. Lower is better, and the best value in each row is in **bold**.
+
+| | Terbaca | Acrobat | Google Drive | WPS Office | Xiaomi viewer | Moon+ Reader |
+|---|---|---|---|---|---|---|
+| Open a paper → first page visible (ms) | 658 | 1,815 | 870 | 1,991 | **306** | 883 |
+| Scrolling: late frames (%) | 34.6 | 4.8 | 3.6 | **1.4** | 3.8 | n/c |
+| Pinch zoom: late frames (%) | 29.4 | 15.3 | **5.2** | 9.6 | 27.1 | 2.5* |
+| Memory, 105-page doc (MB) | **324** | 998 | 725 | 967 | 416 | 491* |
+| App size (MB) | 9.6 | 301.1 | 59.0 | 337.6 | **9.4** | 54.5 |
+
+Terbaca uses the least memory, is about as small as Xiaomi's built-in viewer, and opens files faster
+than everything except that built-in viewer. Its weak spot is smoothness: about a third of its frames
+miss the display deadline, against 1–5 % for the others when scrolling. That's the next thing to fix.
+
+n/c: not comparable. \*Moon+ pages sideways, so vertical swipes didn't scroll it, and its zoom wasn't
+verified. The other apps also edit, sync and run AI features, which accounts for much of their size
+and memory. Method, spread and caveats are in [`docs/competitor-benchmark.md`](docs/competitor-benchmark.md).
+
 ## Architecture
 
 - **Engine:** [PDFium](https://pdfium.googlesource.com/pdfium/) (BSD) through a thin custom JNI layer. No MuPDF or other GPL/AGPL renderers.
@@ -96,6 +118,7 @@ The Macrobenchmark and baseline profile generator live in `:benchmark` and need 
 
 - [`docs/PRD.md`](docs/PRD.md) — product requirements and engineering spec (the source of truth)
 - [`docs/adr/`](docs/adr) — architecture decisions: PDFium source and flags, IPC, pixel transport, tile size and rendering backend
+- [`docs/competitor-benchmark.md`](docs/competitor-benchmark.md) — Terbaca vs Acrobat, Drive, WPS, Xiaomi's viewer and Moon+ on the Pad 7
 - [`docs/release-signing.md`](docs/release-signing.md) — building a signed release (keys stay off the repo)
 - [`AGENTS.md`](AGENTS.md) — workflow rules for agents working on this repo
 
