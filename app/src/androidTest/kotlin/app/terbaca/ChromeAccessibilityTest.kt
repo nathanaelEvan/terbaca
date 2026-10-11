@@ -27,6 +27,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -104,7 +105,8 @@ class ChromeAccessibilityTest {
             }
         }
 
-        compose.onNodeWithTag("pill").assertHeightIsAtLeast(48.dp)
+        // The pill draws ~32 dp tall; minimumInteractiveComponentSize widens its touch area to 48 dp.
+        compose.onNodeWithTag("pill").assertTouchHeightIsEqualTo(48.dp)
         compose.onNodeWithText("3 / 30").performClick()
         compose.runOnIdle { check(clicks == 1) { "pill tap should call onClick once, got $clicks" } }
     }
@@ -125,7 +127,7 @@ class ChromeAccessibilityTest {
         compose.onNodeWithContentDescription("Page 3 of 30")
             .assert(hasClickAction())
             .assert(SemanticsMatcher("click label is \"Go to page\"") { it.config.getOrNull(SemanticsActions.OnClick)?.label == "Go to page" })
-            .assertHeightIsAtLeast(48.dp)
+            .assertTouchHeightIsEqualTo(48.dp)
     }
 
     @Test
