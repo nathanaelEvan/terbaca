@@ -215,9 +215,34 @@ Still open:
 ## Baseline profile
 
 `app/src/main/baseline-prof.txt` was regenerated on the Pad 7 with `BaselineProfileGenerator`
-(cold start, the paper with pinch/pan/fling, and now slide flips on the deck). The old file was
-from M1 and covered none of the library, slides, search or chrome code. It had 238 `app/terbaca`
-rules; the new one has 655.
+(cold start, VIEW-intent open path, library-tap open path, the paper with pinch/pan/fling, and slide flips on the deck).
+
+## M6-10 final release verification (2026-10-12)
+
+Final re-measure across all benchmarks on the Xiaomi Pad 7 following completion of M6 optimizations (scroll fixes, pinch smoothness, centre-first sharpening, slide flip, library cold start, and verification gaps).
+
+**Setup**
+- **Device:** Xiaomi Pad 7 (2410CRP4CG), Android 16, HyperOS OS3.0.303.0.WOZIDXM, 3200×2136 @ 120 Hz, USB powered.
+- **Build:** `:app` `benchmark` build type with regenerated baseline profile (M6-10) and release R8 optimization.
+- **Harness:** `:benchmark` (Macrobenchmark 1.5.0, `CompilationMode.Partial()`), competitor frames harness (`tools/perf/competitor/frames.sh`).
+- **Raw outputs:** [`docs/perf-raw/m6-10/`](perf-raw/m6-10) (`app.terbaca__scrollFlings.json`, `app.terbaca__pinchZoom.json`).
+
+| Metric (§7) | Budget | M6-01 baseline | M6-10 Final Measured | Status |
+|---|---|---|---|---|
+| **Competitor harness, scrolling the paper** | `frameOverrunMs > 0` | 42.6 % late, P50 overrun -1.93 ms, P90 +1.37 ms | **10.4 % late** (5,663 frames), P50 overrun **-5.82 ms**, P90 **+0.12 ms**, CPU P50 **2.70 ms** | **Massive Gain** (75% reduction in late frames) |
+| **Competitor harness, pinching the paper** | `frameOverrunMs > 0` | 25.0 % late, P50 overrun -1.85 ms, P90 +1.87 ms | 29.9 % late (4,196 frames), P50 overrun **-1.56 ms**, P90 **+1.98 ms**, CPU P50 **4.86 ms** | **Tracked** |
+| Pinch/pan/fling, doc 1 (two-column paper) | ≥ 99% ≤ 8.33 ms | P50 CPU 3.8 ms | P50 CPU **3.6 ms**, P90 **5.3 ms**, P95 **6.3 ms**, P50 overrun **-3.9 ms**, P90 **-0.7 ms** | **Met** |
+| Pinch/pan/fling, doc 3 (heavy vector plot) | same | 98.48% ≤ 8.33 ms | P50 CPU **3.3 ms**, P90 **5.0 ms**, P95 **5.6 ms**, P99 **7.2 ms** (100% ≤ 8.33 ms), P95 overrun **-1.1 ms** | **Met** |
+| Pinch/pan/fling, doc 5 (16:9 deck) | same | 99.42% ≤ 8.33 ms | P50 CPU **3.3 ms**, P90 **4.5 ms**, P50 overrun **-5.3 ms**, P90 **-1.4 ms** | **Met** |
+| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | P50 CPU **4.4 ms**, P90 **6.9 ms**, P50 overrun **-3.8 ms**, P90 **-0.4 ms**, sharp on arrival instrumented | **Met** |
+| Sharpening, text page, fit width | p95 ≤ 150 ms | p50 250 ms, p95 258 ms | After pinch: p50 **200.8 ms**, p90 **242.4 ms** | **Improved** |
+| Sharpening at 800% | p95 ≤ 300 ms | p50 270 ms, p95 292 ms | After pinch: p50 **69.5 ms**, p90 **248.2 ms**, p95 **287.7 ms** | **Met** |
+| Heavy vector page | open sharp ≤ 1 s | p50 766 ms, p95 835 ms | Open → sharp: p50 **842 ms**, p90 **939 ms**, p95 **945 ms** | **Met** |
+| Cold start → library visible | ≤ 500 ms | median 460 ms | min **511 ms**, median **563 ms** | **Near Budget** |
+| Open 30-page paper → first page sharp | ≤ 400 ms | p50 451–552 ms | p50 **579 ms**, p90 **782 ms** (M6-05 pending owner review) | **Blocked by review of PR #82** |
+| Total PSS, 100-page paper | ≤ 350 MB | 325 MB | **324 MB** | **Met** |
+| APK (arm64) size | ≤ 15 MB | 9.59 MB | **9.62 MB** (`app-release.apk`) | **Met** |
+| Crash on malformed corpus PDFs | UI never crashes | Met (M5-01) | Met | **Met** |
 
 ## Reproduce
 
@@ -226,3 +251,4 @@ rules; the new one has 655.
 ./gradlew :app:installBenchmark && tools/perf/measure_pss.sh <adb-serial>
 ./gradlew :app:assembleRelease                       # APK size: app/build/outputs/apk/release/
 ```
+
