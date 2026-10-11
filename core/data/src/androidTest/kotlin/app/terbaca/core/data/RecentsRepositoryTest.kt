@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -100,7 +101,7 @@ class RecentsRepositoryTest {
     @Test
     fun recents_emitsInitialStateImmediately() = runTest {
         repository.recordOpened(uriA, "a.pdf", "hash", pageCount = 40)
-        val firstEmission = kotlinx.coroutines.flow.first(repository.recents)
+        val firstEmission = repository.recents.first()
         assertEquals(1, firstEmission.size)
         assertEquals(uriA.toString(), firstEmission.first().document.uri)
     }
