@@ -63,7 +63,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 const val MAX_TILES_SWAPPED_PER_FRAME = 4
-const val TILE_CROSSFADE_DURATION_MS = 150L // F-REN-3: 100-150 ms
+const val TILE_CROSSFADE_DURATION_MS = 100L // F-REN-3: 100-150 ms (M6-06)
 
 /** Longest a loaded tile waits for the rest of the visible set before it is revealed anyway. */
 const val TILE_REVEAL_TIMEOUT_MS = 300L
@@ -611,6 +611,9 @@ private fun DocumentTileCollector(
             // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
             // via isZooming): zooming out at a frozen high level would ask for many large tiles.
             if (zooming) return@collectLatest
+            // PRD M6-06: render the centre tiles first.
+            visibleDetail.sortBy { it.second }
+            prefetch.sortBy { it.second }
             visibleDetail.forEach { (tile, dist) ->
                 requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
             }
