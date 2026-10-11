@@ -44,6 +44,17 @@ jobs:
       - name: Assemble Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Assemble Release APK (unsigned, R8 + resource shrinking)
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Upload unstripped native libs (for symbolicating release crashes)
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-symbols-${{ github.sha }}
+          path: app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/
+          retention-days: 90
+          if-no-files-found: error
+
   instrumented:
     name: Instrumented Tests (x86_64 emulator)
     runs-on: ubuntu-latest

@@ -27,11 +27,7 @@ class MemoryBudgetProfilingUnitTest {
     fun test100PageSimulation_cacheMemoryStaysStrictlyWithinBudgets() {
         val recycledBitmaps = mutableListOf<Bitmap>()
         val tileSize = 512L * 512L * 4L // 1 MB per tile
-        val budget = TileMemoryBudget(
-            hotBytes = 32L * 1024 * 1024,      // 32 MB
-            warmBytes = 32L * 1024 * 1024,     // 32 MB
-            thumbnailBytes = 10L * 1024 * 1024 // 10 MB
-        )
+        val budget = TileMemoryBudget() // PRD §5 defaults: hot 80 MB, warm 80 MB, thumbnails 20 MB
 
         val cache = TileCache(
             budget = budget,
@@ -67,7 +63,7 @@ class MemoryBudgetProfilingUnitTest {
         // Verify that eviction happened and bitmaps were recycled deterministically
         val totalActiveTiles = cache.hotCount + cache.warmCount
         val totalRecycledTiles = recycledBitmaps.size
-        assertTrue("Active tiles must be bounded", totalActiveTiles <= 64)
+        assertTrue("Active tiles must be bounded", totalActiveTiles <= (budget.hotBytes + budget.warmBytes) / tileSize)
         assertTrue("Evicted bitmaps must be deterministically recycled", totalRecycledTiles > 0)
         assertEquals("Total allocated equals active + recycled", totalTilesCreated + totalPages, totalActiveTiles + cache.thumbnailCount + totalRecycledTiles)
 
