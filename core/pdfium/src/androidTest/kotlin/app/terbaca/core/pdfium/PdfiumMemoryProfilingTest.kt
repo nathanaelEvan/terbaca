@@ -102,7 +102,7 @@ class PdfiumMemoryProfilingTest {
             )
             assertNotNull(tile)
         }
-        renderer.closeDocument(handle)
+        // NEGATIVE CONTROL (temporary): leak the document on purpose; the leak test must fail.
     }
 
     @Test
