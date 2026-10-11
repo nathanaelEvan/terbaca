@@ -128,4 +128,4 @@ Every change goes through a PR from a `<type>/<task-id>-<slug>` branch using the
 
 ## License
 
-Apache License 2.0, see [`LICENSE`](LICENSE). Bundled PDFium binaries keep their own licenses, see [`THIRD_PARTY_NOTICES`](core/pdfium/src/main/cpp/THIRD_PARTY_NOTICES).
+Copyright 2026 Nathanael Evan. Apache License 2.0, see [`LICENSE`](LICENSE). Bundled PDFium binaries keep their own licenses, see [`THIRD_PARTY_NOTICES`](core/pdfium/src/main/cpp/THIRD_PARTY_NOTICES).
