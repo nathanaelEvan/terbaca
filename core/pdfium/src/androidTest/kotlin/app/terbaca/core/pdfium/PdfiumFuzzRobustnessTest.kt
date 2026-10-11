@@ -114,7 +114,7 @@ class PdfiumFuzzRobustnessTest {
                     openedDoc = PdfiumEngine.openDocument(pfd)
                     val count = openedDoc.pageCount
                     assertTrue("If document opened, pageCount must be non-negative", count >= 0)
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected clean rejection
                 } finally {
                     openedDoc?.close()
@@ -127,7 +127,7 @@ class PdfiumFuzzRobustnessTest {
                     assertTrue(clientHandle > 0L)
                     val count = runBlocking { renderer.getPageCount(clientHandle) }
                     assertTrue(count >= 0)
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected clean rejection
                 } finally {
                     clientHandle?.let { runBlocking { renderer.closeDocument(it) } }
@@ -189,7 +189,7 @@ class PdfiumFuzzRobustnessTest {
                         doc.getOutline()
                         doc.getImageBounds(0)
                     }
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected rejection
                 } finally {
                     doc?.close()
@@ -209,7 +209,7 @@ class PdfiumFuzzRobustnessTest {
                             renderer.getImageBounds(handle, 0)
                         }
                     }
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected rejection
                 } finally {
                     handle?.let { runBlocking { renderer.closeDocument(it) } }
@@ -240,7 +240,7 @@ class PdfiumFuzzRobustnessTest {
                 try {
                     doc = PdfiumEngine.openDocument(pfd)
                     assertTrue("If opened, doc must have valid count", doc.pageCount >= 0)
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected rejection
                 } finally {
                     doc?.close()
@@ -251,7 +251,7 @@ class PdfiumFuzzRobustnessTest {
                     handle = runBlocking { renderer.openDocument(pfd) }
                     val count = runBlocking { renderer.getPageCount(handle) }
                     assertTrue(count >= 0)
-                } catch (_: PdfCorruptException) {
+                } catch (_: PdfiumException) {
                     // Expected rejection
                 } finally {
                     handle?.let { runBlocking { renderer.closeDocument(it) } }
@@ -296,7 +296,7 @@ class PdfiumFuzzRobustnessTest {
                 assertEquals(PdfiumDocument.STATUS_SUCCESS, status2)
 
                 // Invalid page indices
-                assertThrows(IllegalArgumentException::class.java) {
+                assertThrows(PdfPageNotFoundException::class.java) {
                     doc.renderTileToDirectBuffer(
                         pageIndex = -1,
                         directBuffer = buffer,
@@ -308,7 +308,7 @@ class PdfiumFuzzRobustnessTest {
                         tileHeight = 256
                     )
                 }
-                assertThrows(IllegalArgumentException::class.java) {
+                assertThrows(PdfPageNotFoundException::class.java) {
                     doc.renderTileToDirectBuffer(
                         pageIndex = 9999,
                         directBuffer = buffer,
