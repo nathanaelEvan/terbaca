@@ -4,8 +4,12 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -100,8 +104,16 @@ class RecentsRepositoryTest {
 
     @Test
     fun recents_emitsInitialStateImmediately() = runTest {
-        repository.recordOpened(uriA, "a.pdf", "hash", pageCount = 40)
-        val firstEmission = repository.recents.first()
+        val hangingRepo = RecentsRepository(
+            context = context,
+            dao = db.recentDocumentDao(),
+            stateDao = db.documentStateDao(),
+            availability = { awaitCancellation() }
+        )
+        hangingRepo.recordOpened(uriA, "a.pdf", "hash", pageCount = 40)
+        val firstEmission = withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(1000) { hangingRepo.recents.first() }
+        }
         assertEquals(1, firstEmission.size)
         assertEquals(uriA.toString(), firstEmission.first().document.uri)
     }

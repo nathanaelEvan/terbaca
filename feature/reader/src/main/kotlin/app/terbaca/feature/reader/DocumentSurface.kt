@@ -620,9 +620,6 @@ private fun DocumentTileCollector(
                 // Cancelled by the next update (collectLatest); if none comes, the view stopped here.
                 delay(FAST_SCROLL_SETTLE_MS)
             }
-            // PRD M6-06: render the centre tiles first.
-            visibleDetail.sortBy { it.second }
-            prefetch.sortBy { it.second }
             visibleDetail.forEach { (tile, dist) ->
                 requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
             }

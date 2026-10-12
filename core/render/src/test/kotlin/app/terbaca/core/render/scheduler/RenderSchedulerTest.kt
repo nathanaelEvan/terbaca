@@ -480,4 +480,42 @@ class RenderSchedulerTest {
         assertEquals("result_2", def2.await())
         assertEquals(0, scheduler.inFlightCount)
     }
+
+    @Test
+    fun enqueuingTilesFarToNear_dispatchesNearToFar() = runTest {
+        val dispatchedKeys = CopyOnWriteArrayList<TileKey>()
+        val gate = CompletableDeferred<Unit>()
+
+        val scheduler = RenderScheduler<String>(
+            scope = this,
+            maxConcurrentRenders = 1
+        ) { bounds, _ ->
+            if (bounds.key.pageIndex == 99) {
+                gate.await()
+            }
+            dispatchedKeys.add(bounds.key)
+            "done_${bounds.key}"
+        }
+
+        val blocker = createBounds(0, 0, pageIndex = 99)
+        scheduler.enqueue(blocker, TilePriority(TileLayerType.THUMBNAIL))
+
+        val tileNear = createBounds(0, 0, pageIndex = 0)
+        val tileMid = createBounds(1, 0, pageIndex = 0)
+        val tileFar = createBounds(0, 1, pageIndex = 0)
+
+        // Enqueue strictly in far-to-near order
+        scheduler.enqueue(tileFar, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = 300f))
+        scheduler.enqueue(tileMid, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = 200f))
+        scheduler.enqueue(tileNear, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = 100f))
+
+        gate.complete(Unit)
+        testScheduler.advanceUntilIdle()
+
+        val detailDispatches = dispatchedKeys.filter { it.pageIndex == 0 }
+        assertEquals(
+            listOf(tileNear.key, tileMid.key, tileFar.key),
+            detailDispatches
+        )
+    }
 }
