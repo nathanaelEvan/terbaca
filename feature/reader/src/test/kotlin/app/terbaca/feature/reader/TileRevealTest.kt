@@ -1,10 +1,12 @@
 package app.terbaca.feature.reader
 
 import app.terbaca.core.model.TileKey
+import app.terbaca.core.render.PerfTrace
 import app.terbaca.core.render.pyramid.TileBounds
 import app.terbaca.core.render.pyramid.ViewportRect
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TileRevealTest {
@@ -80,5 +82,25 @@ class TileRevealTest {
     fun unrevealedTile_isNotOpaque() {
         val fades = visible.associate { it.key to TILE_UNREVEALED }
         assertEquals(false, isDetailLayerOpaque(visible, { true }, fades, now))
+    }
+
+    @Test
+    fun completeBatch_emitsRevealStartMark() {
+        val marks = mutableListOf<String>()
+        val fakeTracer = object : PerfTrace.Tracer {
+            override val isEnabled: Boolean = true
+            override fun beginAsync(name: String, cookie: Int) {}
+            override fun endAsync(name: String, cookie: Int) {}
+            override fun mark(name: String) { marks += name }
+        }
+        val prevTracer = PerfTrace.tracer
+        PerfTrace.tracer = fakeTracer
+        try {
+            val fades = visible.associate { it.key to TILE_UNREVEALED }.toMutableMap()
+            revealTiles(visible, { true }, fades, pendingSince = now - 50, now)
+            assertTrue("Expected TerbacaRevealStart mark", marks.contains(PerfTrace.REVEAL_START))
+        } finally {
+            PerfTrace.tracer = prevTracer
+        }
     }
 }

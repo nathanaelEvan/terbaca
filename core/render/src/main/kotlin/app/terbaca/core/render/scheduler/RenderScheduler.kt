@@ -2,6 +2,7 @@ package app.terbaca.core.render.scheduler
 
 import android.graphics.Bitmap
 import app.terbaca.core.model.TileKey
+import app.terbaca.core.render.PerfTrace
 import app.terbaca.core.render.pyramid.TileBounds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +58,9 @@ class RenderScheduler<T>(
                     existing.priority = priority
                     priorityQueue.remove(existing)
                     priorityQueue.offer(existing)
+                    if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
+                        PerfTrace.mark(PerfTrace.TILE_REQUESTED)
+                    }
                 }
                 return existing.deferred
             }
@@ -64,6 +68,9 @@ class RenderScheduler<T>(
             val newRequest = TileRequest<T>(bounds, priority)
             queuedRequests[bounds.key] = newRequest
             priorityQueue.offer(newRequest)
+            if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
+                PerfTrace.mark(PerfTrace.TILE_REQUESTED)
+            }
             dispatchNextLocked()
             newRequest
         }
@@ -91,6 +98,9 @@ class RenderScheduler<T>(
                         existing.priority = priority
                         priorityQueue.remove(existing)
                         priorityQueue.offer(existing)
+                        if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
+                            PerfTrace.mark(PerfTrace.TILE_REQUESTED)
+                        }
                     }
                     resultMap[key] = existing.deferred
                     return@let
@@ -100,6 +110,9 @@ class RenderScheduler<T>(
                     val newRequest = TileRequest<T>(bounds, priority)
                     queuedRequests[key] = newRequest
                     priorityQueue.offer(newRequest)
+                    if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
+                        PerfTrace.mark(PerfTrace.TILE_REQUESTED)
+                    }
                     resultMap[key] = newRequest.deferred
                 }
             }

@@ -512,6 +512,7 @@ private class TileRequester(
                     if (!bmp.isRecycled) bmp.recycle()
                     return@launch
                 }
+                PerfTrace.mark(PerfTrace.TILE_ARRIVED)
                 pendingTileArrivals.add(bounds.key to bmp)
                 queued = true // released by swapPendingTiles
                 tileArrivals.intValue++
@@ -704,7 +705,7 @@ private fun drainEvictedBitmaps(prev: ArrayList<Bitmap>, current: ArrayList<Bitm
     }
 }
 
-private fun swapPendingTiles(
+internal fun swapPendingTiles(
     pending: ArrayDeque<Pair<TileKey, Bitmap>>,
     cache: TileCache,
     fadeTimes: HashMap<TileKey, Long>,
@@ -717,6 +718,9 @@ private fun swapPendingTiles(
         fadeTimes[key] = TILE_UNREVEALED
         onSwapped(key)
         swapped++
+    }
+    if (swapped > 0) {
+        PerfTrace.mark("${PerfTrace.TILE_SWAPPED}:$swapped")
     }
 }
 
@@ -868,6 +872,7 @@ internal fun revealTiles(
     if (!waiting) return null
     val since = pendingSince ?: now
     if (visibleTiles.all { isLoaded(it.key) } || now - since >= timeoutMs) {
+        PerfTrace.mark(PerfTrace.REVEAL_START)
         for (tile in visibleTiles) {
             if (fadeStartTimes[tile.key] == TILE_UNREVEALED) fadeStartTimes[tile.key] = now
         }
