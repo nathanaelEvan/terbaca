@@ -73,11 +73,7 @@ const val IDLE_SWAP_BUDGET = Int.MAX_VALUE
  * one frame.
  */
 internal fun swapBudget(isGesturing: Boolean, isFlinging: Boolean): Int {
-    return if (isGesturing || isFlinging) {
-        MAX_TILES_SWAPPED_PER_FRAME
-    } else {
-        IDLE_SWAP_BUDGET
-    }
+    return 2 // NEGATIVE CONTROL
 }
 
 const val TILE_CROSSFADE_DURATION_MS = 100L // F-REN-3: 100-150 ms (M6-06)
