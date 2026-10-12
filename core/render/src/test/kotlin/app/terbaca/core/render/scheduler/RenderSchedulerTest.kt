@@ -2,6 +2,7 @@ package app.terbaca.core.render.scheduler
 
 import app.terbaca.core.model.PageInfo
 import app.terbaca.core.model.TileKey
+import app.terbaca.core.render.PerfTrace
 import app.terbaca.core.render.pyramid.TilePyramid
 import app.terbaca.core.render.pyramid.ViewportRect
 import kotlinx.coroutines.CancellationException
@@ -517,5 +518,26 @@ class RenderSchedulerTest {
             listOf(tileNear.key, tileMid.key, tileFar.key),
             detailDispatches
         )
+    }
+
+    @Test
+    fun enqueuingVisibleDetail_emitsTileRequestedMark() = runTest {
+        val marks = mutableListOf<String>()
+        val fakeTracer = object : PerfTrace.Tracer {
+            override val isEnabled: Boolean = true
+            override fun beginAsync(name: String, cookie: Int) {}
+            override fun endAsync(name: String, cookie: Int) {}
+            override fun mark(name: String) { marks += name }
+        }
+        val prevTracer = PerfTrace.tracer
+        PerfTrace.tracer = fakeTracer
+        try {
+            val scheduler = RenderScheduler<String>(scope = this, maxConcurrentRenders = 1) { _, _ -> "done" }
+            val target = createBounds(0, 0, pageIndex = 1)
+            scheduler.enqueue(target, TilePriority(TileLayerType.VISIBLE_DETAIL))
+            assertTrue("Expected TerbacaTileRequested mark", marks.contains(PerfTrace.TILE_REQUESTED))
+        } finally {
+            PerfTrace.tracer = prevTracer
+        }
     }
 }

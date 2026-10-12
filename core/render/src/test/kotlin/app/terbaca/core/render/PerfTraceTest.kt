@@ -81,4 +81,14 @@ class PerfTraceTest {
         PerfTrace.endOpen()
         assertEquals(listOf("begin ${PerfTrace.OPEN_TO_SHARP}", "end ${PerfTrace.OPEN_TO_SHARP}"), tracer.events)
     }
+
+    @Test
+    fun mark_emitsWhenEnabled_andIgnoresWhenDisabled() {
+        PerfTrace.mark("testMark")
+        assertEquals(listOf("mark testMark"), tracer.events)
+        tracer.events.clear()
+        tracer.isEnabled = false
+        PerfTrace.mark("testMarkDisabled")
+        assertTrue(tracer.events.isEmpty())
+    }
 }

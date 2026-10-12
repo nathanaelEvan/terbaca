@@ -26,25 +26,47 @@ object PerfTrace {
     /** Marks a slide flip where the arriving slide was not rendered and had to show a placeholder. */
     const val SLIDE_NOT_SHARP_ON_ARRIVAL = "TerbacaSlideNotSharpOnArrival"
 
+    /** Marks when a visible detail tile is enqueued in the scheduler (M7-01). */
+    const val TILE_REQUESTED = "TerbacaTileRequested"
+
+    /** Marks when a rendered bitmap reaches pendingTileArrivals (M7-01). */
+    const val TILE_ARRIVED = "TerbacaTileArrived"
+
+    /** Prefix for marking tiles swapped into the cache this frame (M7-01). */
+    const val TILE_SWAPPED = "TerbacaTileSwapped"
+
+    /** Marks when revealTiles starts the batch fade (M7-01). */
+    const val REVEAL_START = "TerbacaRevealStart"
+
     /** The platform trace calls; swapped in unit tests, where `android.os.Trace` is a stub. */
-    internal interface Tracer {
+    interface Tracer {
         val isEnabled: Boolean
         fun beginAsync(name: String, cookie: Int)
         fun endAsync(name: String, cookie: Int)
         fun mark(name: String)
     }
 
-    internal object SystemTracer : Tracer {
-        override val isEnabled: Boolean get() = Trace.isEnabled()
-        override fun beginAsync(name: String, cookie: Int) = Trace.beginAsyncSection(name, cookie)
-        override fun endAsync(name: String, cookie: Int) = Trace.endAsyncSection(name, cookie)
+    object SystemTracer : Tracer {
+        override val isEnabled: Boolean
+            get() = runCatching { Trace.isEnabled() }.getOrDefault(false)
+
+        override fun beginAsync(name: String, cookie: Int) {
+            runCatching { Trace.beginAsyncSection(name, cookie) }
+        }
+
+        override fun endAsync(name: String, cookie: Int) {
+            runCatching { Trace.endAsyncSection(name, cookie) }
+        }
+
         override fun mark(name: String) {
-            Trace.beginSection(name)
-            Trace.endSection()
+            runCatching {
+                Trace.beginSection(name)
+                Trace.endSection()
+            }
         }
     }
 
-    internal var tracer: Tracer = SystemTracer
+    var tracer: Tracer = SystemTracer
 
     private var openCookie = 0
     private var sharpenCookie = 0
