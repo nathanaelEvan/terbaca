@@ -637,6 +637,10 @@ internal fun computeTilePlan(
     underlayLevels: Map<Int, PyramidLevel> = emptyMap(),
     pyramidLevelCache: MutableMap<Int, List<PyramidLevel>>? = null
 ): TileCollectionPlan {
+    if (zooming) {
+        // NEGATIVE CONTROL: break zooming base layer requests to verify test failure in CI
+        return TileCollectionPlan(emptyList(), emptyList(), emptyList(), emptyList(), emptySet(), emptySet())
+    }
     val visiblePages = layout.pagesIn(visibleRect)
     val viewportCenter = Offset(viewportWidth / 2f, viewportHeight / 2f)
 
