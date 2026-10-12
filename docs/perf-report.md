@@ -42,7 +42,7 @@ This table is the M5-05 measurement of 2026-10-11; the M6 baseline is the
 | Pinch/pan/fling, doc 3 (heavy vector plot) | same | 99.32% / 0 (max 15.0 ms); 3,660 frames | **Met** |
 | Pinch/pan/fling, doc 5 (16:9 deck) | same | 99.57% / 1 frame (16.8 ms); 2,105 frames | **Met** for the 99%; one frame 0.2 ms over 16.6 |
 | Fling through 30-page paper | same as doc 1 | Covered by the doc 1 row (two flings per iteration) | **Missed** (as doc 1) |
-| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.61% ≤ 8.33 ms, max 13.6 ms, 0 > 16.6 ms. "Sharp on arrival" not instrumented | **Missed** |
+| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | **100% sharp on arrival** (80/80 in each of 3 runs; was 75.0% before M6R-05b), 95.94% ≤ 8.33 ms CPU (median of 3 runs, 95.92–95.97), 3–9 frames > 16.6 ms per run (`docs/perf-raw/m6r-05b/`) | **Missed** (frames over 8.33 ms remain) |
 | Sharpening, typical text page, fit width | p95 ≤ 150 ms | After a pinch, with the crossfade: p50 ≈ 224, **p95 ≈ 261**, p99 ≈ 265 ms, estimated (measured to the fade start: 73.9 / 111.2 / 115.2 ms, 60 pinches). Drags and flicks (p95 7.4 ms) don't test this budget, see below | **Missed** (estimate) |
 | Sharpening at 800% | p95 ≤ 300 ms | After a pinch, with the crossfade: p50 ≈ 262, **p95 ≈ 281**, p99 ≈ 286 ms, estimated (measured: 112.4 / 130.7 / 136.3 ms, 60). Drags: not a test of the budget | **Met** (tight, estimate) |
 | Heavy vector page | no UI jank; sharp within 1 s | Open → sharp, with the crossfade: p95 ≈ **1,059 ms**, max ≈ 1,079 ms, estimated (measured: 909 / 929 ms, 10 opens). After a pinch: p95 ≈ 516, p99 ≈ 580 ms (measured 366 / 430). Frames: see doc 3 row | **Missed** on open (estimate) |
