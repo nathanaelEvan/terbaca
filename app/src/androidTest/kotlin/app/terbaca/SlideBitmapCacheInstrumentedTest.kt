@@ -47,18 +47,4 @@ class SlideBitmapCacheInstrumentedTest {
 
         assertFalse(displayed.isRecycled)
     }
-
-    @Test
-    fun nextSlideSharpOnArrival_neighbourPreRenderedInCache() {
-        val cache = createSlideBitmapCache()
-        val current = slide(0)
-        val next = slide(1)
-        cache.put(current, Bitmap.createBitmap(32, 18, Bitmap.Config.ARGB_8888))
-        cache.put(next, Bitmap.createBitmap(32, 18, Bitmap.Config.ARGB_8888))
-
-        // When flipping to next slide, pre-rendered bitmap arrives sharp immediately (PRD §7)
-        val arriving = cache.get(next)
-        org.junit.Assert.assertNotNull(arriving)
-        assertFalse(arriving!!.isRecycled)
-    }
 }

@@ -22,7 +22,8 @@ class RecentsRepository(
     context: Context,
     private val dao: RecentDocumentDao,
     private val stateDao: DocumentStateDao,
-    private val now: () -> Long = System::currentTimeMillis
+    private val now: () -> Long = System::currentTimeMillis,
+    private val availability: suspend (Uri) -> Boolean = defaultAvailability(context)
 ) {
     private val resolver = context.applicationContext.contentResolver
 
@@ -31,7 +32,7 @@ class RecentsRepository(
             val initial = documents.map { RecentEntry(it, isPermissionPersisted(Uri.parse(it.uri))) }
             emit(initial)
             if (documents.isNotEmpty()) {
-                val checked = documents.map { RecentEntry(it, isAvailable(Uri.parse(it.uri))) }
+                val checked = documents.map { RecentEntry(it, availability(Uri.parse(it.uri))) }
                 if (checked != initial) {
                     emit(checked)
                 }
@@ -155,6 +156,16 @@ class RecentsRepository(
     companion object {
         private const val TAG = "RecentsRepository"
         const val MAX_RECENTS = 100
+
+        internal fun defaultAvailability(context: Context): suspend (Uri) -> Boolean {
+            val resolver = context.applicationContext.contentResolver
+            return { uri ->
+                val persisted = resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
+                persisted && runCatching {
+                    resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { it.moveToFirst() }
+                }.getOrNull() == true
+            }
+        }
 
         fun create(context: Context): RecentsRepository {
             val db = RecentsDatabase.create(context)
