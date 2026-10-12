@@ -225,24 +225,24 @@ Final re-measure across all benchmarks on the Xiaomi Pad 7 following completion 
 - **Device:** Xiaomi Pad 7 (2410CRP4CG), Android 16, HyperOS OS3.0.303.0.WOZIDXM, 3200×2136 @ 120 Hz, USB powered.
 - **Build:** `:app` `benchmark` build type with regenerated baseline profile (M6-10) and release R8 optimization.
 - **Harness:** `:benchmark` (Macrobenchmark 1.5.0, `CompilationMode.Partial()`), competitor frames harness (`tools/perf/competitor/frames.sh`).
-- **Raw outputs:** [`docs/perf-raw/m6-10/`](perf-raw/m6-10) (`app.terbaca__scrollFlings.json`, `app.terbaca__pinchZoom.json`).
+- **Raw outputs:** [`docs/perf-raw/m6-10/`](perf-raw/m6-10) (`app.terbaca__scrollFlings.json`, `app.terbaca__pinchZoom.json`, summarized by `summarize.py`).
 
 | Metric (§7) | Budget | M6-01 baseline | M6-10 Final Measured | Status |
 |---|---|---|---|---|
-| **Competitor harness, scrolling the paper** | `frameOverrunMs > 0` | 42.6 % late, P50 overrun -1.93 ms, P90 +1.37 ms | **10.4 % late** (5,663 frames), P50 overrun **-5.82 ms**, P90 **+0.12 ms**, CPU P50 **2.70 ms** | **Massive Gain** (75% reduction in late frames) |
-| **Competitor harness, pinching the paper** | `frameOverrunMs > 0` | 25.0 % late, P50 overrun -1.85 ms, P90 +1.87 ms | 29.9 % late (4,196 frames), P50 overrun **-1.56 ms**, P90 **+1.98 ms**, CPU P50 **4.86 ms** | **Tracked** |
-| Pinch/pan/fling, doc 1 (two-column paper) | ≥ 99% ≤ 8.33 ms | P50 CPU 3.8 ms | P50 CPU **3.6 ms**, P90 **5.3 ms**, P95 **6.3 ms**, P50 overrun **-3.9 ms**, P90 **-0.7 ms** | **Met** |
-| Pinch/pan/fling, doc 3 (heavy vector plot) | same | 98.48% ≤ 8.33 ms | P50 CPU **3.3 ms**, P90 **5.0 ms**, P95 **5.6 ms**, P99 **7.2 ms** (100% ≤ 8.33 ms), P95 overrun **-1.1 ms** | **Met** |
-| Pinch/pan/fling, doc 5 (16:9 deck) | same | 99.42% ≤ 8.33 ms | P50 CPU **3.3 ms**, P90 **4.5 ms**, P50 overrun **-5.3 ms**, P90 **-1.4 ms** | **Met** |
-| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | P50 CPU **4.4 ms**, P90 **6.9 ms**, P50 overrun **-3.8 ms**, P90 **-0.4 ms**, sharp on arrival instrumented | **Met** |
-| Sharpening, text page, fit width | p95 ≤ 150 ms | p50 250 ms, p95 258 ms | After pinch: p50 **200.8 ms**, p90 **242.4 ms** | **Improved** |
-| Sharpening at 800% | p95 ≤ 300 ms | p50 270 ms, p95 292 ms | After pinch: p50 **69.5 ms**, p90 **248.2 ms**, p95 **287.7 ms** | **Met** |
-| Heavy vector page | open sharp ≤ 1 s | p50 766 ms, p95 835 ms | Open → sharp: p50 **842 ms**, p90 **939 ms**, p95 **945 ms** | **Met** |
-| Cold start → library visible | ≤ 500 ms | median 460 ms | min **511 ms**, median **563 ms** | **Near Budget** |
-| Open 30-page paper → first page sharp | ≤ 400 ms | p50 451–552 ms | p50 **579 ms**, p90 **782 ms** (M6-05 pending owner review) | **Blocked by review of PR #82** |
-| Total PSS, 100-page paper | ≤ 350 MB | 325 MB | **324 MB** | **Met** |
+| **Competitor harness, scrolling the paper** | `frameOverrunMs > 0` (≤ 5% late) | 34.6 % late (v0.1.0 in `docs/competitor-benchmark/summary.txt`) | **10.4 % late** (5,663 frames), 1,133 frames/iter, per-iteration late: 1.5–13.4% (median 12.5%), P50 overrun **-5.82 ms**, P90 **+0.12 ms**, CPU P50 **2.70 ms** | **Missed** |
+| **Competitor harness, pinching the paper** | `frameOverrunMs > 0` (≤ 10% late) | 25.0 % late, P50 overrun -1.85 ms, P90 +1.87 ms | **29.9 % late** (4,196 frames), 839 frames/iter, per-iteration late: 22.9–34.1% (median 30.4%), P50 overrun **-1.56 ms**, P90 **+1.98 ms**, CPU P50 **4.86 ms** | **Missed** |
+| Pinch/pan/fling, doc 1 (two-column paper) | ≥ 99% ≤ 8.33 ms; 0 > 16.6 ms | P50 CPU 3.8 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
+| Pinch/pan/fling, doc 3 (heavy vector plot) | same | 98.48% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
+| Pinch/pan/fling, doc 5 (16:9 deck) | same | 99.42% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
+| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
+| Sharpening, text page, fit width | p95 ≤ 150 ms | p50 250 ms, p95 258 ms | After pinch: p50 200.8 ms, p90 242.4 ms | **Missed** (p90 242.4 ms exceeds p95 budget of 150 ms; p95 raw data not committed) |
+| Sharpening at 800% | p95 ≤ 300 ms | p50 270 ms, p95 292 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw latency files omitted; to be re-measured in M6R-10) |
+| Heavy vector page | open sharp ≤ 1 s | p50 766 ms, p95 835 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw latency files omitted; to be re-measured in M6R-10) |
+| Cold start → library visible | ≤ 500 ms | median 460 ms | min 511 ms, median 563 ms | **Missed** (median 563 ms vs ≤ 500 ms budget; regressed from 460 ms in M6-01) |
+| Open 30-page paper → first page sharp | ≤ 400 ms | p50 451–552 ms | p50 579 ms, p90 782 ms (PR #82 pending rework) | **Missed** |
+| Total PSS, 100-page paper | ≤ 350 MB | 325 MB | 324 MB (`docs/competitor-benchmark/summary.txt` from 2026-10-11) | **Not measured** (not re-measured in M6-10; earlier competitor run cited) |
 | APK (arm64) size | ≤ 15 MB | 9.59 MB | **9.62 MB** (`app-release.apk`) | **Met** |
-| Crash on malformed corpus PDFs | UI never crashes | Met (M5-01) | Met | **Met** |
+| Crash on malformed corpus PDFs | UI never crashes | Met (M5-01) | Not re-run in M6-10 | **Not measured** (not re-run in M6-10; carried over from M5-01) |
 
 ## Reproduce
 

@@ -15,9 +15,9 @@ Under active development. Progress follows the milestones in [`docs/PRD.md`](doc
 | M3 — Paper features | Outline and links, column-aware zoom, citation peek, search, text selection | Done |
 | M4 — Deck features and themes | Grid overview, presentation mode, 2-up/spread, Dark and Sepia themes | Done |
 | M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Done |
-| M6 — Smoothness and Release | 120 Hz scroll/pinch optimization, centre-first tiles, verification gaps, baseline profile & 0.2.0 release | Done |
+| M6 — Smoothness and Release | 120 Hz scroll/pinch optimization, centre-first tiles, verification gaps, baseline profile & 0.2.0 release | In progress |
 
-M2–M6 were verified on a Xiaomi Pad 7 (Android 16, HyperOS 3.0, 120 Hz).
+Manual checks (TalkBack, portrait layouts, visual smoke checks) were verified by hand on a Xiaomi Pad 7 on 2026-10-11 (M5); automated benchmarks were run on 2026-10-11 and 2026-10-12. M6 feel and manual verification evidence are being completed in M6R.
 
 ## How Terbaca compares
 
@@ -35,8 +35,7 @@ frame timeline and `dumpsys`. Lower is better, and the best value in each row is
 
 Terbaca uses the least memory, is about as small as Xiaomi's built-in viewer, and opens files faster
 than everything except that built-in viewer. With milestone M6's scroll and pinch optimizations, late
-frames during scrolling dropped from 34.6% (and 42.6% unoptimized baseline) down to 10.4%, with median
-frame overrun at -5.8 ms.
+frames during scrolling dropped from 34.6% down to 10.4%, with median frame overrun at -5.8 ms.
 
 n/c: not comparable. \*Moon+ pages sideways, so vertical swipes didn't scroll it, and its zoom wasn't
 verified. The other apps also edit, sync and run AI features, which accounts for much of their size

@@ -35,18 +35,28 @@ The `Surface` is now wrapped inside an interactive `Box`:
 ```kotlin
 Box(
     modifier = modifier.then(
-        if (onClick != null) Modifier.minimumInteractiveComponentSize() else Modifier
+        if (onClick != null) {
+            Modifier
+                .minimumInteractiveComponentSize()
+                .clip(shape)
+                .clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
+        } else {
+            Modifier
+        }
     ),
     contentAlignment = Alignment.Center
 ) {
     Surface(
-        modifier = if (onClick != null) {
-            Modifier.clip(shape).clickable(...)
-        } else Modifier,
         shape = shape,
         color = TerbacaChrome,
         shadowElevation = 4.dp
-    ) { ... }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
+    }
 }
 ```
 - **Accessibility preserved:** The outer `Box` enforces the 48 dp × 48 dp minimum touch target for TalkBack and user touch inputs (`assertTouchHeightIsEqualTo(48.dp)` passes).
