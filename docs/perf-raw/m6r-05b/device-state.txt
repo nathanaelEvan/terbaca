@@ -1,0 +1,18 @@
+run 1 2026-10-12T07:48:50Z
+  level: 63
+  Capacity level: -1
+Thermal Status: 0
+OS3.0.303.0.WOZIDXM
+exit 0
+run 2 2026-10-12T07:51:33Z
+  level: 63
+  Capacity level: -1
+Thermal Status: 0
+OS3.0.303.0.WOZIDXM
+exit 0
+run 3 2026-10-12T07:53:43Z
+  level: 63
+  Capacity level: -1
+Thermal Status: 0
+OS3.0.303.0.WOZIDXM
+exit 0

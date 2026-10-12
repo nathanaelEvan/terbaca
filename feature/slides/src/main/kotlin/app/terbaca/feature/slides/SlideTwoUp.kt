@@ -41,7 +41,7 @@ internal fun TwoUpSlides(
     currentSlide: Int,
     renderer: PageRenderer?,
     docHandle: Long,
-    slideCache: SlideCache<SlideKey, Bitmap>,
+    slideCache: SlideCache<Bitmap>,
     coroutineScope: CoroutineScope,
     decay: DecayAnimationSpec<Float>,
     onSlideChange: (Int) -> Unit,
