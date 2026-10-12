@@ -146,7 +146,7 @@ fun DocumentSurface(
     val lastSize = remember { IntSizeRef() }
     // Per page: the last level that fully covered its visible part (kept under the next level).
     val underlayLevels = remember { HashMap<Int, PyramidLevel>() }
-    val pyramidLevelCache = remember { HashMap<Int, List<PyramidLevel>>() }
+    val pyramidLevelCache = remember(docHandle, state.layout) { HashMap<Int, List<PyramidLevel>>() }
     val revealPendingSince = remember { LongArray(1) { NO_PENDING_REVEAL } }
     val viewportGeneration = remember { AtomicLong(0L) }
 
@@ -190,7 +190,8 @@ fun DocumentSurface(
             tileCache = tileCache,
             tileFadeStartTimes = tileFadeStartTimes,
             underlayLevels = underlayLevels,
-            reloadTrigger = reloadTrigger
+            reloadTrigger = reloadTrigger,
+            pyramidLevelCache = pyramidLevelCache
         )
     }
 
@@ -534,7 +535,8 @@ private fun DocumentTileCollector(
     tileCache: TileCache,
     tileFadeStartTimes: HashMap<TileKey, Long>,
     underlayLevels: HashMap<Int, PyramidLevel>,
-    reloadTrigger: MutableIntState
+    reloadTrigger: MutableIntState,
+    pyramidLevelCache: HashMap<Int, List<PyramidLevel>>
 ) {
     LaunchedEffect(state, requester) {
         val layout = state.layout
@@ -556,10 +558,6 @@ private fun DocumentTileCollector(
             lastOffsetX = offsetX
             lastOffsetY = offsetY
 
-            // Mid-pinch, draw what is cached and request detail once the fingers lift (re-collected
-            // via isZooming): zooming out at a frozen high level would ask for many large tiles.
-            if (zooming) return@collectLatest
-
             val visibleRect = state.getVisibleRectPoints()
             val visiblePages = layout.pagesIn(visibleRect)
             // Forget underlays of pages scrolled well away: coming back, a stale level would be
@@ -568,70 +566,134 @@ private fun DocumentTileCollector(
                 val kept = visiblePages.first - ADJACENT_BASE_PAGES..visiblePages.last + ADJACENT_BASE_PAGES
                 underlayLevels.keys.retainAll { it in kept }
             }
-            val viewportCenter = Offset(state.viewportWidth / 2f, state.viewportHeight / 2f)
 
-            val activeKeys = HashSet<TileKey>()
-            val visibleBases = ArrayList<TileBounds>()
-            val visibleDetail = ArrayList<Pair<TileBounds, Float>>()
-            val prefetch = ArrayList<Pair<TileBounds, Float>>()
-            for (index in visiblePages) {
-                val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: continue
-                val page = layout.pages[index]
-                val pageRect = layout.pageRect(index)
-                val origin = Offset(offsetX + pageRect.left * scale, offsetY + pageRect.top * scale)
-                fun distance(tile: TileBounds) = (
-                    origin + Offset(tile.pageRect.centerX * scale, tile.pageRect.centerY * scale) - viewportCenter
-                    ).getDistance()
-
-                visibleBases += TilePyramid.computeBaseLevelBounds(page, state.fitWidthScale)
-                val levels = TilePyramid.buildLevels(page, state.viewportWidth, state.viewportHeight)
-                val currentLevel = TilePyramid.selectLevel(levels, state.levelScale)
-                val tiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
-                tiles.mapTo(visibleDetail) { it to distance(it) }
-                underlayLevels[index]?.let { prev ->
-                    TilePyramid.getVisibleTiles(page, prev, pageVisible).mapTo(activeKeys) { it.key }
-                }
-                // PRD §4.5: prefetch the ring of tiles just off-screen in the scroll direction (all
-                // around when still), so panning reveals sharp tiles instead of the blurry base.
-                TilePyramid.getPrefetchRing(page, currentLevel, tiles, scrollDeltaX, scrollDeltaY)
-                    .mapTo(prefetch) { it to distance(it) }
-            }
-            // Base layers of the pages just above and below the viewport, so scrolling onto them
-            // never shows a placeholder.
-            val adjacentBases = if (visiblePages.isEmpty()) emptyList() else {
-                ((visiblePages.first - ADJACENT_BASE_PAGES until visiblePages.first) +
-                    (visiblePages.last + 1..visiblePages.last + ADJACENT_BASE_PAGES))
-                    .filter { it in layout.pages.indices }
-                    .map { TilePyramid.computeBaseLevelBounds(layout.pages[it], state.fitWidthScale) }
-            }
-
-            visibleBases.mapTo(activeKeys) { it.key }
-            visibleDetail.mapTo(activeKeys) { it.first.key }
-            tileCache.pinHot(activeKeys)
-            requester.scheduler.cancelStaleExcept(
-                activeKeys + prefetch.map { it.first.key } + adjacentBases.map { it.key }
+            val plan = computeTilePlan(
+                layout = layout,
+                visibleRect = visibleRect,
+                scale = scale,
+                offsetX = offsetX,
+                offsetY = offsetY,
+                fitWidthScale = state.fitWidthScale,
+                levelScale = state.levelScale,
+                viewportWidth = state.viewportWidth,
+                viewportHeight = state.viewportHeight,
+                scrollDeltaX = scrollDeltaX,
+                scrollDeltaY = scrollDeltaY,
+                zooming = zooming,
+                underlayLevels = underlayLevels,
+                pyramidLevelCache = pyramidLevelCache
             )
+
+            tileCache.pinHot(plan.activeKeys)
+            requester.scheduler.cancelStaleExcept(plan.cancelStaleKeepKeys)
 
             tileFadeStartTimes.keys.retainAll { tileCache.get(it) != null }
 
-            visibleBases.forEach { requester.request(it, TilePriority(TileLayerType.VISIBLE_BASE)) }
-            if (hypot(scrollDeltaX, scrollDeltaY) > state.viewportHeight * FAST_SCROLL_FRACTION) {
-                adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
+            plan.visibleBases.forEach { requester.request(it, TilePriority(TileLayerType.VISIBLE_BASE)) }
+            if (!zooming && hypot(scrollDeltaX, scrollDeltaY) > state.viewportHeight * FAST_SCROLL_FRACTION) {
+                plan.adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
                 // Cancelled by the next update (collectLatest); if none comes, the view stopped here.
                 delay(FAST_SCROLL_SETTLE_MS)
             }
-            // PRD M6-06: render the centre tiles first.
-            visibleDetail.sortBy { it.second }
-            prefetch.sortBy { it.second }
-            visibleDetail.forEach { (tile, dist) ->
-                requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
+            if (!zooming) {
+                // PRD M6-06: render the centre tiles first.
+                val sortedDetail = plan.visibleDetail.sortedBy { it.second }
+                val sortedPrefetch = plan.prefetch.sortedBy { it.second }
+                sortedDetail.forEach { (tile, dist) ->
+                    requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
+                }
+                sortedPrefetch.forEach { (tile, dist) ->
+                    requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
+                }
             }
-            prefetch.forEach { (tile, dist) ->
-                requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
-            }
-            adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
+            plan.adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
         }
     }
+}
+
+internal data class TileCollectionPlan(
+    val visibleBases: List<TileBounds>,
+    val adjacentBases: List<TileBounds>,
+    val visibleDetail: List<Pair<TileBounds, Float>>,
+    val prefetch: List<Pair<TileBounds, Float>>,
+    val activeKeys: Set<TileKey>,
+    val cancelStaleKeepKeys: Set<TileKey>
+)
+
+@Suppress("LongParameterList")
+internal fun computeTilePlan(
+    layout: DocumentLayout,
+    visibleRect: ViewportRect,
+    scale: Float,
+    offsetX: Float,
+    offsetY: Float,
+    fitWidthScale: Float,
+    levelScale: Float,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    scrollDeltaX: Float = 0f,
+    scrollDeltaY: Float = 0f,
+    zooming: Boolean,
+    underlayLevels: Map<Int, PyramidLevel> = emptyMap(),
+    pyramidLevelCache: MutableMap<Int, List<PyramidLevel>>? = null
+): TileCollectionPlan {
+    val visiblePages = layout.pagesIn(visibleRect)
+    val viewportCenter = Offset(viewportWidth / 2f, viewportHeight / 2f)
+
+    val activeKeys = HashSet<TileKey>()
+    val visibleBases = ArrayList<TileBounds>()
+    val visibleDetail = ArrayList<Pair<TileBounds, Float>>()
+    val prefetch = ArrayList<Pair<TileBounds, Float>>()
+
+    for (index in visiblePages) {
+        val pageVisible = layout.visibleRectOnPage(index, visibleRect) ?: continue
+        val page = layout.pages[index]
+        val pageRect = layout.pageRect(index)
+        val origin = Offset(offsetX + pageRect.left * scale, offsetY + pageRect.top * scale)
+        fun distance(tile: TileBounds) = (
+            origin + Offset(tile.pageRect.centerX * scale, tile.pageRect.centerY * scale) - viewportCenter
+        ).getDistance()
+
+        visibleBases += TilePyramid.computeBaseLevelBounds(page, fitWidthScale)
+
+        if (!zooming) {
+            val levels = pyramidLevelCache?.getOrPut(index) {
+                TilePyramid.buildLevels(page, viewportWidth, viewportHeight)
+            } ?: TilePyramid.buildLevels(page, viewportWidth, viewportHeight)
+            val currentLevel = TilePyramid.selectLevel(levels, levelScale)
+            val tiles = TilePyramid.getVisibleTiles(page, currentLevel, pageVisible)
+            tiles.mapTo(visibleDetail) { it to distance(it) }
+            // PRD §4.5: prefetch the ring of tiles just off-screen in the scroll direction (all
+            // around when still), so panning reveals sharp tiles instead of the blurry base.
+            TilePyramid.getPrefetchRing(page, currentLevel, tiles, scrollDeltaX, scrollDeltaY)
+                .mapTo(prefetch) { it to distance(it) }
+        }
+
+        underlayLevels[index]?.let { prev ->
+            TilePyramid.getVisibleTiles(page, prev, pageVisible).mapTo(activeKeys) { it.key }
+        }
+    }
+
+    val adjacentBases = if (visiblePages.isEmpty()) emptyList() else {
+        ((visiblePages.first - ADJACENT_BASE_PAGES until visiblePages.first) +
+            (visiblePages.last + 1..visiblePages.last + ADJACENT_BASE_PAGES))
+            .filter { it in layout.pages.indices }
+            .map { TilePyramid.computeBaseLevelBounds(layout.pages[it], fitWidthScale) }
+    }
+
+    visibleBases.mapTo(activeKeys) { it.key }
+    visibleDetail.mapTo(activeKeys) { it.first.key }
+
+    val cancelStaleKeepKeys = activeKeys + prefetch.map { it.first.key } + adjacentBases.map { it.key }
+
+    return TileCollectionPlan(
+        visibleBases = visibleBases,
+        adjacentBases = adjacentBases,
+        visibleDetail = visibleDetail,
+        prefetch = prefetch,
+        activeKeys = activeKeys,
+        cancelStaleKeepKeys = cancelStaleKeepKeys
+    )
 }
 
 private fun drainEvictedBitmaps(prev: ArrayList<Bitmap>, current: ArrayList<Bitmap>) {
