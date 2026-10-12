@@ -1,0 +1,10 @@
+Device: Xiaomi Pad 7 (2410CRP4CG)
+Android: 16 (VanillaIceCream)
+HyperOS: OS3.0.303.0.WOZIDXM
+Date: 2026-10-12
+Battery level: 62%
+Battery temperature: 26.0 C
+Thermal status: 0 (THERMAL_STATUS_NONE)
+CPU temperature: 36.9 C
+GPU temperature: 33.4 C
+Session: M7-02 swap-cap baseline & after measurements
