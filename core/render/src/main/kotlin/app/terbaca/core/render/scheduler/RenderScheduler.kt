@@ -68,9 +68,9 @@ class RenderScheduler<T>(
             val newRequest = TileRequest<T>(bounds, priority)
             queuedRequests[bounds.key] = newRequest
             priorityQueue.offer(newRequest)
-            if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
-                PerfTrace.mark(PerfTrace.TILE_REQUESTED)
-            }
+            // if (priority.layerType == TileLayerType.VISIBLE_DETAIL) {
+            //     PerfTrace.mark(PerfTrace.TILE_REQUESTED)
+            // }
             dispatchNextLocked()
             newRequest
         }
