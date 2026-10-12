@@ -28,8 +28,15 @@ class RecentsRepository(
     private val resolver = context.applicationContext.contentResolver
 
     val recents: Flow<List<RecentEntry>> = dao.observeAll()
-        .map { documents ->
-            documents.map { RecentEntry(it, availability(Uri.parse(it.uri))) }
+        .transform { documents ->
+            val initial = documents.map { RecentEntry(it, isPermissionPersisted(Uri.parse(it.uri))) }
+            emit(initial)
+            if (documents.isNotEmpty()) {
+                val checked = documents.map { RecentEntry(it, availability(Uri.parse(it.uri))) }
+                if (checked != initial) {
+                    emit(checked)
+                }
+            }
         }
         .flowOn(Dispatchers.IO)
 

@@ -14,7 +14,8 @@ data class TilePriority(
         if (layerType != other.layerType) {
             return layerType.rank.compareTo(other.layerType.rank)
         }
-        // NEGATIVE CONTROL: ignore distance
+        val distDiff = distanceToCenter.compareTo(other.distanceToCenter)
+        if (distDiff != 0) return distDiff
         return sequenceNumber.compareTo(other.sequenceNumber)
     }
 }
