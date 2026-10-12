@@ -72,14 +72,36 @@ def analyze_trace(tp, trace_path):
         """))
         first_req_ms = (reqs[0].ts - t_start) / 1e6 if reqs else 0.0
 
-        # 2. Render service busy time (sum of binder renderTile slices before reveal)
+        # 2. Render service busy time (wall-clock union of server-side binder renderTile slices before reveal)
         renders = list(tp.query(f"""
-            SELECT ts, dur FROM slice
-            WHERE name LIKE '%IPdfiumRenderService%#4%' AND ts >= {t_start} AND ts <= {reveal_start_ts}
-            ORDER BY ts
+            SELECT s.ts, s.dur FROM slice s
+            JOIN thread_track tt ON s.track_id = tt.id
+            JOIN thread t USING (utid)
+            JOIN process p USING (upid)
+            WHERE s.name LIKE '%IPdfiumRenderService%#4%'
+              AND p.name = 'app.terbaca:render'
+              AND s.ts >= {t_start} AND s.ts <= {reveal_start_ts}
+            ORDER BY s.ts
         """))
-        render_busy_ms = sum(r.dur for r in renders) / 1e6
-        last_render_end = max((r.ts + r.dur) for r in renders) if renders else t_start
+
+        # Union of intervals clamped strictly to [t_start, reveal_start_ts]
+        intervals = []
+        for r in renders:
+            start = max(t_start, r.ts)
+            end = min(reveal_start_ts, r.ts + r.dur)
+            if end <= start:
+                continue
+            if not intervals or intervals[-1][1] < start:
+                intervals.append([start, end])
+            else:
+                intervals[-1][1] = max(intervals[-1][1], end)
+
+        render_busy_ms = sum(end - start for start, end in intervals) / 1e6
+        last_render_end = max((min(reveal_start_ts, r.ts + r.dur)) for r in renders) if renders else t_start
+
+        # Sanity check: render busy time cannot exceed the window
+        window_ms = (reveal_start_ts - t_start) / 1e6
+        assert render_busy_ms <= window_ms + 1e-4, f"render_busy_ms ({render_busy_ms:.2f}) > window ({window_ms:.2f})"
 
         # 3. Swaps before reveal
         swaps = list(tp.query(f"""

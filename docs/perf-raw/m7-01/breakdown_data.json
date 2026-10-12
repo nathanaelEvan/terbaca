@@ -4,7 +4,7 @@
       {
         "total_ms": 423.870156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 575.05739,
+        "render_busy_ms": 306.011302,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.051094,
         "reveal_to_sharp_ms": 99.656666,
@@ -13,7 +13,7 @@
       {
         "total_ms": 222.222761,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.192083,
+        "render_busy_ms": 113.310885,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.057865,
         "reveal_to_sharp_ms": 100.747917,
@@ -22,7 +22,7 @@
       {
         "total_ms": 224.205469,
         "first_req_ms": 0.0,
-        "render_busy_ms": 227.682504,
+        "render_busy_ms": 119.677344,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083437,
         "reveal_to_sharp_ms": 99.711823,
@@ -31,7 +31,7 @@
       {
         "total_ms": 217.743802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.16505,
+        "render_busy_ms": 111.889948,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.132604,
         "reveal_to_sharp_ms": 100.206666,
@@ -40,7 +40,7 @@
       {
         "total_ms": 232.514896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.142134,
+        "render_busy_ms": 122.62375,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075937,
         "reveal_to_sharp_ms": 101.424792,
@@ -49,7 +49,7 @@
       {
         "total_ms": 129.421198,
         "first_req_ms": 0.0,
-        "render_busy_ms": 49.963021,
+        "render_busy_ms": 22.940938,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063542,
         "reveal_to_sharp_ms": 100.592031,
@@ -58,7 +58,7 @@
       {
         "total_ms": 216.216927,
         "first_req_ms": 0.0,
-        "render_busy_ms": 201.260159,
+        "render_busy_ms": 112.758229,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.060156,
         "reveal_to_sharp_ms": 100.313178,
@@ -67,7 +67,7 @@
       {
         "total_ms": 222.928073,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.938801,
+        "render_busy_ms": 114.63375,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.060573,
         "reveal_to_sharp_ms": 100.719166,
@@ -76,7 +76,7 @@
       {
         "total_ms": 223.994219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 227.124844,
+        "render_busy_ms": 122.621667,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.086771,
         "reveal_to_sharp_ms": 99.387812,
@@ -85,7 +85,7 @@
       {
         "total_ms": 450.927136,
         "first_req_ms": 0.0,
-        "render_busy_ms": 658.31208,
+        "render_busy_ms": 343.411199,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.096407,
         "reveal_to_sharp_ms": 100.177552,
@@ -94,7 +94,7 @@
       {
         "total_ms": 248.985156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 268.09578,
+        "render_busy_ms": 145.033074,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.078907,
         "reveal_to_sharp_ms": 99.859843,
@@ -103,7 +103,7 @@
       {
         "total_ms": 284.044271,
         "first_req_ms": 0.0,
-        "render_busy_ms": 350.929946,
+        "render_busy_ms": 177.46125,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.082813,
         "reveal_to_sharp_ms": 99.715104,
@@ -112,7 +112,7 @@
       {
         "total_ms": 416.004115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 568.263486,
+        "render_busy_ms": 314.291875,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.060312,
         "reveal_to_sharp_ms": 101.043438,
@@ -130,7 +130,7 @@
       {
         "total_ms": 204.264375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 189.369687,
+        "render_busy_ms": 87.979271,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.104479,
         "reveal_to_sharp_ms": 107.771614,
@@ -139,7 +139,7 @@
       {
         "total_ms": 224.995729,
         "first_req_ms": 0.0,
-        "render_busy_ms": 222.818593,
+        "render_busy_ms": 115.347709,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06599,
         "reveal_to_sharp_ms": 100.580833,
@@ -148,7 +148,7 @@
       {
         "total_ms": 232.205677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.623175,
+        "render_busy_ms": 124.372813,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.080417,
         "reveal_to_sharp_ms": 100.593854,
@@ -157,7 +157,7 @@
       {
         "total_ms": 221.052396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.708437,
+        "render_busy_ms": 111.515677,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.071459,
         "reveal_to_sharp_ms": 100.142344,
@@ -166,7 +166,7 @@
       {
         "total_ms": 224.553802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 210.203127,
+        "render_busy_ms": 120.028281,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.086563,
         "reveal_to_sharp_ms": 100.594427,
@@ -175,7 +175,7 @@
       {
         "total_ms": 128.923594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 32.55151,
+        "render_busy_ms": 21.786927,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.089479,
         "reveal_to_sharp_ms": 100.596667,
@@ -184,7 +184,7 @@
       {
         "total_ms": 215.237344,
         "first_req_ms": 0.0,
-        "render_busy_ms": 214.594216,
+        "render_busy_ms": 114.536666,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.079114,
         "reveal_to_sharp_ms": 100.363594,
@@ -193,7 +193,7 @@
       {
         "total_ms": 223.885208,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.744586,
+        "render_busy_ms": 114.539896,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.084427,
         "reveal_to_sharp_ms": 101.091458,
@@ -202,7 +202,7 @@
       {
         "total_ms": 239.796667,
         "first_req_ms": 0.0,
-        "render_busy_ms": 224.679116,
+        "render_busy_ms": 130.64849,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.085625,
         "reveal_to_sharp_ms": 99.706458,
@@ -211,7 +211,7 @@
       {
         "total_ms": 228.797395,
         "first_req_ms": 0.0,
-        "render_busy_ms": 223.448803,
+        "render_busy_ms": 118.750364,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.098541,
         "reveal_to_sharp_ms": 100.037552,
@@ -220,7 +220,7 @@
       {
         "total_ms": 531.083333,
         "first_req_ms": 0.0,
-        "render_busy_ms": 759.171044,
+        "render_busy_ms": 427.909479,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070781,
         "reveal_to_sharp_ms": 100.375625,
@@ -229,7 +229,7 @@
       {
         "total_ms": 225.566615,
         "first_req_ms": 0.0,
-        "render_busy_ms": 230.438802,
+        "render_busy_ms": 116.278125,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070729,
         "reveal_to_sharp_ms": 100.424167,
@@ -238,7 +238,7 @@
       {
         "total_ms": 282.303959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 318.0625,
+        "render_busy_ms": 177.575052,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.060469,
         "reveal_to_sharp_ms": 99.998698,
@@ -247,7 +247,7 @@
       {
         "total_ms": 219.096875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 217.739843,
+        "render_busy_ms": 113.809219,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06026,
         "reveal_to_sharp_ms": 100.22724,
@@ -256,7 +256,7 @@
       {
         "total_ms": 224.495208,
         "first_req_ms": 0.0,
-        "render_busy_ms": 213.413753,
+        "render_busy_ms": 118.079896,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.119323,
         "reveal_to_sharp_ms": 100.682031,
@@ -265,7 +265,7 @@
       {
         "total_ms": 134.190365,
         "first_req_ms": 0.0,
-        "render_busy_ms": 39.198957,
+        "render_busy_ms": 14.740365,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.08,
         "reveal_to_sharp_ms": 100.796562,
@@ -274,7 +274,7 @@
       {
         "total_ms": 216.43974,
         "first_req_ms": 0.0,
-        "render_busy_ms": 196.967136,
+        "render_busy_ms": 111.757709,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063437,
         "reveal_to_sharp_ms": 100.743282,
@@ -283,7 +283,7 @@
       {
         "total_ms": 141.664896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 39.464999,
+        "render_busy_ms": 15.224947,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.148333,
         "reveal_to_sharp_ms": 108.504584,
@@ -292,7 +292,7 @@
       {
         "total_ms": 215.80125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 204.691717,
+        "render_busy_ms": 110.737812,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068906,
         "reveal_to_sharp_ms": 100.309792,
@@ -301,7 +301,7 @@
       {
         "total_ms": 448.901145,
         "first_req_ms": 0.0,
-        "render_busy_ms": 657.805886,
+        "render_busy_ms": 338.934063,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.090521,
         "reveal_to_sharp_ms": 101.714166,
@@ -310,7 +310,7 @@
       {
         "total_ms": 257.622656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 270.927866,
+        "render_busy_ms": 146.211355,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067292,
         "reveal_to_sharp_ms": 107.590416,
@@ -319,7 +319,7 @@
       {
         "total_ms": 297.944115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 366.929221,
+        "render_busy_ms": 179.485521,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076354,
         "reveal_to_sharp_ms": 107.815677,
@@ -328,7 +328,7 @@
       {
         "total_ms": 448.817708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 628.469586,
+        "render_busy_ms": 339.127865,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067084,
         "reveal_to_sharp_ms": 100.399687,
@@ -337,7 +337,7 @@
       {
         "total_ms": 163.682812,
         "first_req_ms": 0.0,
-        "render_busy_ms": 109.770626,
+        "render_busy_ms": 55.569948,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.085573,
         "reveal_to_sharp_ms": 100.280156,
@@ -346,7 +346,7 @@
       {
         "total_ms": 232.960781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 227.550054,
+        "render_busy_ms": 129.073282,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.115,
         "reveal_to_sharp_ms": 100.534062,
@@ -355,7 +355,7 @@
       {
         "total_ms": 141.270052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 76.826304,
+        "render_busy_ms": 33.772448,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.077448,
         "reveal_to_sharp_ms": 101.214635,
@@ -364,7 +364,7 @@
       {
         "total_ms": 232.572031,
         "first_req_ms": 0.0,
-        "render_busy_ms": 229.622085,
+        "render_busy_ms": 127.4825,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.072292,
         "reveal_to_sharp_ms": 100.274635,
@@ -373,7 +373,7 @@
       {
         "total_ms": 224.943646,
         "first_req_ms": 0.0,
-        "render_busy_ms": 217.234114,
+        "render_busy_ms": 115.373698,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055781,
         "reveal_to_sharp_ms": 101.105938,
@@ -382,7 +382,7 @@
       {
         "total_ms": 232.3475,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.09531,
+        "render_busy_ms": 122.364218,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.14026,
         "reveal_to_sharp_ms": 100.470261,
@@ -391,7 +391,7 @@
       {
         "total_ms": 446.620624,
         "first_req_ms": 0.0,
-        "render_busy_ms": 650.472554,
+        "render_busy_ms": 338.88901,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.058958,
         "reveal_to_sharp_ms": 100.413229,
@@ -400,7 +400,7 @@
       {
         "total_ms": 248.446719,
         "first_req_ms": 0.0,
-        "render_busy_ms": 231.152083,
+        "render_busy_ms": 142.559635,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075,
         "reveal_to_sharp_ms": 100.354323,
@@ -409,7 +409,7 @@
       {
         "total_ms": 285.809219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 336.773647,
+        "render_busy_ms": 178.306406,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.056771,
         "reveal_to_sharp_ms": 100.340677,
@@ -418,7 +418,7 @@
       {
         "total_ms": 232.671458,
         "first_req_ms": 0.0,
-        "render_busy_ms": 251.138123,
+        "render_busy_ms": 121.741302,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075208,
         "reveal_to_sharp_ms": 108.281302,
@@ -427,7 +427,7 @@
       {
         "total_ms": 287.6925,
         "first_req_ms": 0.0,
-        "render_busy_ms": 358.497241,
+        "render_busy_ms": 177.984739,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083489,
         "reveal_to_sharp_ms": 100.009375,
@@ -436,7 +436,7 @@
       {
         "total_ms": 408.150156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 542.206095,
+        "render_busy_ms": 299.81974,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.053125,
         "reveal_to_sharp_ms": 100.814218,
@@ -454,7 +454,7 @@
       {
         "total_ms": 224.264895,
         "first_req_ms": 0.0,
-        "render_busy_ms": 246.10547,
+        "render_busy_ms": 115.335261,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.044584,
         "reveal_to_sharp_ms": 99.905468,
@@ -463,7 +463,7 @@
       {
         "total_ms": 220.719479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.847863,
+        "render_busy_ms": 119.345885,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.054115,
         "reveal_to_sharp_ms": 100.722239,
@@ -472,7 +472,7 @@
       {
         "total_ms": 232.512032,
         "first_req_ms": 0.0,
-        "render_busy_ms": 233.727501,
+        "render_busy_ms": 127.651979,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.100208,
         "reveal_to_sharp_ms": 99.958855,
@@ -481,7 +481,7 @@
       {
         "total_ms": 223.428594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 232.346717,
+        "render_busy_ms": 122.178646,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083594,
         "reveal_to_sharp_ms": 100.92849,
@@ -490,7 +490,7 @@
       {
         "total_ms": 233.021615,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.221405,
+        "render_busy_ms": 128.218177,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.094114,
         "reveal_to_sharp_ms": 100.227657,
@@ -499,7 +499,7 @@
       {
         "total_ms": 226.012291,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.604741,
+        "render_busy_ms": 116.858021,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.059479,
         "reveal_to_sharp_ms": 100.702031,
@@ -508,7 +508,7 @@
       {
         "total_ms": 223.89875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.654167,
+        "render_busy_ms": 121.014062,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06349,
         "reveal_to_sharp_ms": 99.413698,
@@ -517,7 +517,7 @@
       {
         "total_ms": 219.48125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.902812,
+        "render_busy_ms": 111.829531,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.088698,
         "reveal_to_sharp_ms": 101.123229,
@@ -526,7 +526,7 @@
       {
         "total_ms": 224.512865,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.379062,
+        "render_busy_ms": 121.934375,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.078125,
         "reveal_to_sharp_ms": 100.194375,
@@ -535,7 +535,7 @@
       {
         "total_ms": 440.704739,
         "first_req_ms": 0.0,
-        "render_busy_ms": 646.558019,
+        "render_busy_ms": 332.495677,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067396,
         "reveal_to_sharp_ms": 100.989791,
@@ -546,7 +546,7 @@
       {
         "total_ms": 415.536666,
         "first_req_ms": 0.0,
-        "render_busy_ms": 606.175408,
+        "render_busy_ms": 305.559011,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.056459,
         "reveal_to_sharp_ms": 100.084739,
@@ -555,7 +555,7 @@
       {
         "total_ms": 223.782865,
         "first_req_ms": 0.0,
-        "render_busy_ms": 220.279687,
+        "render_busy_ms": 114.1125,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.087084,
         "reveal_to_sharp_ms": 101.208281,
@@ -564,7 +564,7 @@
       {
         "total_ms": 232.548958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 251.857137,
+        "render_busy_ms": 132.487187,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055833,
         "reveal_to_sharp_ms": 99.942552,
@@ -573,7 +573,7 @@
       {
         "total_ms": 146.240469,
         "first_req_ms": 0.0,
-        "render_busy_ms": 80.76099,
+        "render_busy_ms": 37.936563,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.045886,
         "reveal_to_sharp_ms": 100.929635,
@@ -582,7 +582,7 @@
       {
         "total_ms": 274.449584,
         "first_req_ms": 0.0,
-        "render_busy_ms": 320.021094,
+        "render_busy_ms": 170.779062,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.0725,
         "reveal_to_sharp_ms": 100.479688,
@@ -591,7 +591,7 @@
       {
         "total_ms": 140.963594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 79.986508,
+        "render_busy_ms": 32.948854,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.054584,
         "reveal_to_sharp_ms": 100.524948,
@@ -600,7 +600,7 @@
       {
         "total_ms": 233.65901,
         "first_req_ms": 0.0,
-        "render_busy_ms": 228.837346,
+        "render_busy_ms": 127.512031,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.062135,
         "reveal_to_sharp_ms": 101.351927,
@@ -609,7 +609,7 @@
       {
         "total_ms": 224.042292,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.512086,
+        "render_busy_ms": 116.420365,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06724,
         "reveal_to_sharp_ms": 101.203229,
@@ -618,7 +618,7 @@
       {
         "total_ms": 225.140469,
         "first_req_ms": 0.0,
-        "render_busy_ms": 224.608074,
+        "render_busy_ms": 122.183229,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.073073,
         "reveal_to_sharp_ms": 100.283907,
@@ -627,7 +627,7 @@
       {
         "total_ms": 229.487396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 215.987654,
+        "render_busy_ms": 119.60625,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.057865,
         "reveal_to_sharp_ms": 100.329167,
@@ -636,7 +636,7 @@
       {
         "total_ms": 224.487865,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.77161,
+        "render_busy_ms": 117.633959,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.079063,
         "reveal_to_sharp_ms": 100.303281,
@@ -645,7 +645,7 @@
       {
         "total_ms": 232.954479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.910416,
+        "render_busy_ms": 115.994114,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.112812,
         "reveal_to_sharp_ms": 100.412084,
@@ -654,7 +654,7 @@
       {
         "total_ms": 507.590416,
         "first_req_ms": 0.0,
-        "render_busy_ms": 729.918698,
+        "render_busy_ms": 401.968385,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.069895,
         "reveal_to_sharp_ms": 99.973125,
@@ -663,7 +663,7 @@
       {
         "total_ms": 220.470104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 201.195207,
+        "render_busy_ms": 111.01526,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063593,
         "reveal_to_sharp_ms": 100.514219,
@@ -672,7 +672,7 @@
       {
         "total_ms": 315.6675,
         "first_req_ms": 0.0,
-        "render_busy_ms": 391.251457,
+        "render_busy_ms": 211.910364,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.079062,
         "reveal_to_sharp_ms": 100.164115,
@@ -681,7 +681,7 @@
       {
         "total_ms": 221.920625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.193959,
+        "render_busy_ms": 109.005989,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055312,
         "reveal_to_sharp_ms": 100.403438,
@@ -690,7 +690,7 @@
       {
         "total_ms": 263.039115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 289.983647,
+        "render_busy_ms": 155.748594,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.074063,
         "reveal_to_sharp_ms": 99.87401,
@@ -699,7 +699,7 @@
       {
         "total_ms": 171.516927,
         "first_req_ms": 0.0,
-        "render_busy_ms": 107.850158,
+        "render_busy_ms": 60.738594,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083229,
         "reveal_to_sharp_ms": 100.170677,
@@ -708,7 +708,7 @@
       {
         "total_ms": 248.499167,
         "first_req_ms": 0.0,
-        "render_busy_ms": 271.899585,
+        "render_busy_ms": 148.225,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.095521,
         "reveal_to_sharp_ms": 99.918646,
@@ -717,7 +717,7 @@
       {
         "total_ms": 222.591562,
         "first_req_ms": 0.0,
-        "render_busy_ms": 214.31651,
+        "render_busy_ms": 113.488177,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.081042,
         "reveal_to_sharp_ms": 100.788802,
@@ -726,7 +726,7 @@
       {
         "total_ms": 230.744947,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.038858,
+        "render_busy_ms": 123.461198,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.088229,
         "reveal_to_sharp_ms": 100.028958,
@@ -735,7 +735,7 @@
       {
         "total_ms": 223.49625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 214.1713,
+        "render_busy_ms": 111.551562,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.059479,
         "reveal_to_sharp_ms": 100.971979,
@@ -744,7 +744,7 @@
       {
         "total_ms": 232.917343,
         "first_req_ms": 0.0,
-        "render_busy_ms": 240.888231,
+        "render_busy_ms": 131.937865,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.089115,
         "reveal_to_sharp_ms": 100.12552,
@@ -753,7 +753,7 @@
       {
         "total_ms": 221.375156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 213.602554,
+        "render_busy_ms": 110.64823,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.056302,
         "reveal_to_sharp_ms": 100.70177,
@@ -762,7 +762,7 @@
       {
         "total_ms": 549.857708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 773.918383,
+        "render_busy_ms": 443.969791,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076666,
         "reveal_to_sharp_ms": 100.264427,
@@ -771,7 +771,7 @@
       {
         "total_ms": 231.680625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 213.734895,
+        "render_busy_ms": 117.327551,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070312,
         "reveal_to_sharp_ms": 100.817813,
@@ -780,7 +780,7 @@
       {
         "total_ms": 266.442083,
         "first_req_ms": 0.0,
-        "render_busy_ms": 285.686255,
+        "render_busy_ms": 156.447291,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.088333,
         "reveal_to_sharp_ms": 108.308542,
@@ -789,7 +789,7 @@
       {
         "total_ms": 164.021146,
         "first_req_ms": 0.0,
-        "render_busy_ms": 111.660937,
+        "render_busy_ms": 56.024688,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083334,
         "reveal_to_sharp_ms": 100.569166,
@@ -798,7 +798,7 @@
       {
         "total_ms": 249.320156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 256.927914,
+        "render_busy_ms": 139.893385,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067448,
         "reveal_to_sharp_ms": 100.843646,
@@ -807,7 +807,7 @@
       {
         "total_ms": 221.419583,
         "first_req_ms": 0.0,
-        "render_busy_ms": 217.141407,
+        "render_busy_ms": 112.455521,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.089844,
         "reveal_to_sharp_ms": 100.012343,
@@ -816,7 +816,7 @@
       {
         "total_ms": 233.276042,
         "first_req_ms": 0.0,
-        "render_busy_ms": 231.043075,
+        "render_busy_ms": 124.215364,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063229,
         "reveal_to_sharp_ms": 100.34599,
@@ -825,7 +825,7 @@
       {
         "total_ms": 223.780989,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.857292,
+        "render_busy_ms": 111.461198,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.064791,
         "reveal_to_sharp_ms": 100.090677,
@@ -834,7 +834,7 @@
       {
         "total_ms": 232.81776,
         "first_req_ms": 0.0,
-        "render_busy_ms": 240.536146,
+        "render_busy_ms": 130.717864,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.069583,
         "reveal_to_sharp_ms": 100.929219,
@@ -843,7 +843,7 @@
       {
         "total_ms": 228.8925,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.975886,
+        "render_busy_ms": 117.462032,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.08849,
         "reveal_to_sharp_ms": 100.282864,
@@ -852,7 +852,7 @@
       {
         "total_ms": 240.755104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 237.916562,
+        "render_busy_ms": 134.689531,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070886,
         "reveal_to_sharp_ms": 99.849948,
@@ -861,7 +861,7 @@
       {
         "total_ms": 463.122552,
         "first_req_ms": 0.0,
-        "render_busy_ms": 633.978386,
+        "render_busy_ms": 350.032083,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.117917,
         "reveal_to_sharp_ms": 99.769323,
@@ -870,7 +870,7 @@
       {
         "total_ms": 504.277343,
         "first_req_ms": 0.0,
-        "render_busy_ms": 734.487031,
+        "render_busy_ms": 402.794791,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070416,
         "reveal_to_sharp_ms": 100.545052,
@@ -879,7 +879,7 @@
       {
         "total_ms": 224.125781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.813488,
+        "render_busy_ms": 113.941666,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.146562,
         "reveal_to_sharp_ms": 100.793073,
@@ -888,7 +888,7 @@
       {
         "total_ms": 290.976094,
         "first_req_ms": 0.0,
-        "render_busy_ms": 313.070622,
+        "render_busy_ms": 180.118958,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068125,
         "reveal_to_sharp_ms": 100.182136,
@@ -897,7 +897,7 @@
       {
         "total_ms": 222.362604,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.512032,
+        "render_busy_ms": 114.353958,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.071823,
         "reveal_to_sharp_ms": 100.403906,
@@ -906,7 +906,7 @@
       {
         "total_ms": 257.03875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 284.039424,
+        "render_busy_ms": 151.883489,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063437,
         "reveal_to_sharp_ms": 99.956042,
@@ -915,7 +915,7 @@
       {
         "total_ms": 168.093646,
         "first_req_ms": 0.0,
-        "render_busy_ms": 110.441977,
+        "render_busy_ms": 55.256354,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.056354,
         "reveal_to_sharp_ms": 100.733906,
@@ -924,7 +924,7 @@
       {
         "total_ms": 266.747969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 291.222755,
+        "render_busy_ms": 160.92875,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076406,
         "reveal_to_sharp_ms": 100.956823,
@@ -933,7 +933,7 @@
       {
         "total_ms": 223.929687,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.317081,
+        "render_busy_ms": 113.006823,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066459,
         "reveal_to_sharp_ms": 100.129791,
@@ -942,7 +942,7 @@
       {
         "total_ms": 266.051874,
         "first_req_ms": 0.0,
-        "render_busy_ms": 282.774532,
+        "render_busy_ms": 158.483385,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068489,
         "reveal_to_sharp_ms": 100.328802,
@@ -951,7 +951,7 @@
       {
         "total_ms": 184.498021,
         "first_req_ms": 0.0,
-        "render_busy_ms": 102.742135,
+        "render_busy_ms": 67.78776,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083281,
         "reveal_to_sharp_ms": 101.32224,
@@ -960,7 +960,7 @@
       {
         "total_ms": 250.168229,
         "first_req_ms": 0.0,
-        "render_busy_ms": 257.243019,
+        "render_busy_ms": 143.341719,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.062656,
         "reveal_to_sharp_ms": 100.955521,
@@ -969,7 +969,7 @@
       {
         "total_ms": 225.645781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 224.730886,
+        "render_busy_ms": 115.702865,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066823,
         "reveal_to_sharp_ms": 100.904895,
@@ -978,7 +978,7 @@
       {
         "total_ms": 499.082031,
         "first_req_ms": 0.0,
-        "render_busy_ms": 716.909221,
+        "render_busy_ms": 393.756667,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.078334,
         "reveal_to_sharp_ms": 99.93526,
@@ -987,7 +987,7 @@
       {
         "total_ms": 225.900938,
         "first_req_ms": 0.0,
-        "render_busy_ms": 210.299736,
+        "render_busy_ms": 119.986302,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.083698,
         "reveal_to_sharp_ms": 99.934948,
@@ -996,7 +996,7 @@
       {
         "total_ms": 280.691615,
         "first_req_ms": 0.0,
-        "render_busy_ms": 314.233593,
+        "render_busy_ms": 173.479114,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.074635,
         "reveal_to_sharp_ms": 100.039271,
@@ -1005,7 +1005,7 @@
       {
         "total_ms": 223.174115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 220.817344,
+        "render_busy_ms": 113.795052,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.158802,
         "reveal_to_sharp_ms": 100.880052,
@@ -1014,7 +1014,7 @@
       {
         "total_ms": 281.894479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 295.89479,
+        "render_busy_ms": 176.777448,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.072292,
         "reveal_to_sharp_ms": 100.178177,
@@ -1023,7 +1023,7 @@
       {
         "total_ms": 222.339063,
         "first_req_ms": 0.0,
-        "render_busy_ms": 215.100991,
+        "render_busy_ms": 112.238438,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.093386,
         "reveal_to_sharp_ms": 100.455625,
@@ -1032,7 +1032,7 @@
       {
         "total_ms": 266.177552,
         "first_req_ms": 0.0,
-        "render_busy_ms": 276.785413,
+        "render_busy_ms": 160.342032,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.106823,
         "reveal_to_sharp_ms": 100.502812,
@@ -1041,7 +1041,7 @@
       {
         "total_ms": 148.315469,
         "first_req_ms": 0.0,
-        "render_busy_ms": 89.318022,
+        "render_busy_ms": 39.899584,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075157,
         "reveal_to_sharp_ms": 101.360312,
@@ -1050,7 +1050,7 @@
       {
         "total_ms": 224.180052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.108175,
+        "render_busy_ms": 118.081198,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06276,
         "reveal_to_sharp_ms": 99.886823,
@@ -1059,7 +1059,7 @@
       {
         "total_ms": 222.421771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 225.086147,
+        "render_busy_ms": 115.30401,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.05875,
         "reveal_to_sharp_ms": 100.894792,
@@ -1068,7 +1068,7 @@
       {
         "total_ms": 239.094895,
         "first_req_ms": 0.0,
-        "render_busy_ms": 203.007601,
+        "render_busy_ms": 127.12672,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066302,
         "reveal_to_sharp_ms": 107.359739,
@@ -1077,7 +1077,7 @@
       {
         "total_ms": 134.60875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 38.01547,
+        "render_busy_ms": 15.644584,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066302,
         "reveal_to_sharp_ms": 101.063281,
@@ -1088,7 +1088,7 @@
       {
         "total_ms": 498.845937,
         "first_req_ms": 0.0,
-        "render_busy_ms": 715.562186,
+        "render_busy_ms": 395.71677,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068646,
         "reveal_to_sharp_ms": 100.070521,
@@ -1097,7 +1097,7 @@
       {
         "total_ms": 221.731094,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.788125,
+        "render_busy_ms": 113.699115,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.085052,
         "reveal_to_sharp_ms": 100.248594,
@@ -1106,7 +1106,7 @@
       {
         "total_ms": 266.727396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 284.098387,
+        "render_busy_ms": 161.441458,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068906,
         "reveal_to_sharp_ms": 101.070104,
@@ -1115,7 +1115,7 @@
       {
         "total_ms": 171.195052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 107.287866,
+        "render_busy_ms": 63.569792,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.084583,
         "reveal_to_sharp_ms": 100.357605,
@@ -1124,7 +1124,7 @@
       {
         "total_ms": 266.590938,
         "first_req_ms": 0.0,
-        "render_busy_ms": 284.994893,
+        "render_busy_ms": 161.413334,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075677,
         "reveal_to_sharp_ms": 101.043177,
@@ -1133,7 +1133,7 @@
       {
         "total_ms": 228.468229,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.359796,
+        "render_busy_ms": 119.412188,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06349,
         "reveal_to_sharp_ms": 101.031823,
@@ -1142,7 +1142,7 @@
       {
         "total_ms": 274.331145,
         "first_req_ms": 0.0,
-        "render_busy_ms": 305.864994,
+        "render_busy_ms": 171.720938,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.151667,
         "reveal_to_sharp_ms": 100.103385,
@@ -1151,7 +1151,7 @@
       {
         "total_ms": 228.988437,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.60042,
+        "render_busy_ms": 115.428854,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.078281,
         "reveal_to_sharp_ms": 101.547292,
@@ -1160,7 +1160,7 @@
       {
         "total_ms": 273.810572,
         "first_req_ms": 0.0,
-        "render_busy_ms": 308.64797,
+        "render_busy_ms": 169.303229,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.07724,
         "reveal_to_sharp_ms": 99.526041,
@@ -1169,7 +1169,7 @@
       {
         "total_ms": 222.20349,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.629477,
+        "render_busy_ms": 117.211303,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.081303,
         "reveal_to_sharp_ms": 100.890729,
@@ -1178,7 +1178,7 @@
       {
         "total_ms": 278.98776,
         "first_req_ms": 0.0,
-        "render_busy_ms": 303.654896,
+        "render_busy_ms": 170.791823,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.090938,
         "reveal_to_sharp_ms": 99.862031,
@@ -1187,7 +1187,7 @@
       {
         "total_ms": 218.131614,
         "first_req_ms": 0.0,
-        "render_busy_ms": 210.328335,
+        "render_busy_ms": 111.271875,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.072604,
         "reveal_to_sharp_ms": 100.054531,
@@ -1196,7 +1196,7 @@
       {
         "total_ms": 607.308906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 901.551306,
+        "render_busy_ms": 504.158385,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076354,
         "reveal_to_sharp_ms": 99.865989,
@@ -1205,7 +1205,7 @@
       {
         "total_ms": 234.550364,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.859118,
+        "render_busy_ms": 122.226667,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.065105,
         "reveal_to_sharp_ms": 100.644062,
@@ -1214,7 +1214,7 @@
       {
         "total_ms": 265.64052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 288.743225,
+        "render_busy_ms": 157.089427,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.053594,
         "reveal_to_sharp_ms": 100.737604,
@@ -1223,7 +1223,7 @@
       {
         "total_ms": 172.49776,
         "first_req_ms": 0.0,
-        "render_busy_ms": 111.844949,
+        "render_busy_ms": 58.460261,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.078959,
         "reveal_to_sharp_ms": 100.832447,
@@ -1232,7 +1232,7 @@
       {
         "total_ms": 273.601562,
         "first_req_ms": 0.0,
-        "render_busy_ms": 303.626718,
+        "render_busy_ms": 168.358333,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068229,
         "reveal_to_sharp_ms": 99.969791,
@@ -1241,7 +1241,7 @@
       {
         "total_ms": 222.861718,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.479378,
+        "render_busy_ms": 118.260156,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.065052,
         "reveal_to_sharp_ms": 100.246979,
@@ -1250,7 +1250,7 @@
       {
         "total_ms": 232.337604,
         "first_req_ms": 0.0,
-        "render_busy_ms": 219.586508,
+        "render_busy_ms": 123.335729,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070052,
         "reveal_to_sharp_ms": 100.430261,
@@ -1259,7 +1259,7 @@
       {
         "total_ms": 125.309843,
         "first_req_ms": 0.0,
-        "render_busy_ms": 50.940312,
+        "render_busy_ms": 22.681614,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.064219,
         "reveal_to_sharp_ms": 101.458177,
@@ -1268,7 +1268,7 @@
       {
         "total_ms": 224.495104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 205.93219,
+        "render_busy_ms": 114.118958,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.086302,
         "reveal_to_sharp_ms": 108.077552,
@@ -1277,7 +1277,7 @@
       {
         "total_ms": 215.791719,
         "first_req_ms": 0.0,
-        "render_busy_ms": 194.783854,
+        "render_busy_ms": 109.566719,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.085833,
         "reveal_to_sharp_ms": 100.663542,
@@ -1286,7 +1286,7 @@
       {
         "total_ms": 233.174375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 236.388073,
+        "render_busy_ms": 127.729375,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.077812,
         "reveal_to_sharp_ms": 100.504792,
@@ -1295,7 +1295,7 @@
       {
         "total_ms": 220.477448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 222.204478,
+        "render_busy_ms": 113.468906,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.072969,
         "reveal_to_sharp_ms": 100.345573,
@@ -1304,7 +1304,7 @@
       {
         "total_ms": 499.204896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 718.49479,
+        "render_busy_ms": 396.493073,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06474,
         "reveal_to_sharp_ms": 100.233177,
@@ -1313,7 +1313,7 @@
       {
         "total_ms": 224.56026,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.426145,
+        "render_busy_ms": 116.756875,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076511,
         "reveal_to_sharp_ms": 100.19776,
@@ -1322,7 +1322,7 @@
       {
         "total_ms": 272.4075,
         "first_req_ms": 0.0,
-        "render_busy_ms": 292.07349,
+        "render_busy_ms": 163.876927,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.097708,
         "reveal_to_sharp_ms": 100.594115,
@@ -1331,7 +1331,7 @@
       {
         "total_ms": 141.339115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 82.21396,
+        "render_busy_ms": 35.810573,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067865,
         "reveal_to_sharp_ms": 101.278854,
@@ -1340,7 +1340,7 @@
       {
         "total_ms": 249.463177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 271.803643,
+        "render_busy_ms": 145.036042,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.08,
         "reveal_to_sharp_ms": 100.437813,
@@ -1349,7 +1349,7 @@
       {
         "total_ms": 223.974375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 218.324634,
+        "render_busy_ms": 115.311979,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.110573,
         "reveal_to_sharp_ms": 100.741927,
@@ -1358,7 +1358,7 @@
       {
         "total_ms": 232.790105,
         "first_req_ms": 0.0,
-        "render_busy_ms": 236.958074,
+        "render_busy_ms": 129.088229,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.05901,
         "reveal_to_sharp_ms": 100.365886,
@@ -1367,7 +1367,7 @@
       {
         "total_ms": 224.420625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 226.273335,
+        "render_busy_ms": 118.12474,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.069271,
         "reveal_to_sharp_ms": 100.858385,
@@ -1376,7 +1376,7 @@
       {
         "total_ms": 234.279479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 230.502449,
+        "render_busy_ms": 123.215417,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.059428,
         "reveal_to_sharp_ms": 101.634635,
@@ -1385,7 +1385,7 @@
       {
         "total_ms": 224.162916,
         "first_req_ms": 0.0,
-        "render_busy_ms": 223.134479,
+        "render_busy_ms": 116.958698,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.266406,
         "reveal_to_sharp_ms": 99.643229,
@@ -1394,7 +1394,7 @@
       {
         "total_ms": 222.998698,
         "first_req_ms": 0.0,
-        "render_busy_ms": 224.586043,
+        "render_busy_ms": 117.929115,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06974,
         "reveal_to_sharp_ms": 99.718489,
@@ -1403,7 +1403,7 @@
       {
         "total_ms": 221.871146,
         "first_req_ms": 0.0,
-        "render_busy_ms": 216.615728,
+        "render_busy_ms": 118.370885,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.049896,
         "reveal_to_sharp_ms": 100.606511,
@@ -1412,7 +1412,7 @@
       {
         "total_ms": 448.687083,
         "first_req_ms": 0.0,
-        "render_busy_ms": 623.464274,
+        "render_busy_ms": 334.142031,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.052604,
         "reveal_to_sharp_ms": 100.152656,
@@ -1421,7 +1421,7 @@
       {
         "total_ms": 227.177239,
         "first_req_ms": 0.0,
-        "render_busy_ms": 228.343278,
+        "render_busy_ms": 124.218333,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055469,
         "reveal_to_sharp_ms": 101.528854,
@@ -1430,7 +1430,7 @@
       {
         "total_ms": 232.324844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 238.385206,
+        "render_busy_ms": 125.517916,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067291,
         "reveal_to_sharp_ms": 99.776615,
@@ -1439,7 +1439,7 @@
       {
         "total_ms": 216.085834,
         "first_req_ms": 0.0,
-        "render_busy_ms": 225.229372,
+        "render_busy_ms": 110.495052,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070417,
         "reveal_to_sharp_ms": 100.2375,
@@ -1448,7 +1448,7 @@
       {
         "total_ms": 224.05802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.732654,
+        "render_busy_ms": 117.31427,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.064739,
         "reveal_to_sharp_ms": 100.168177,
@@ -1457,7 +1457,7 @@
       {
         "total_ms": 224.133437,
         "first_req_ms": 0.0,
-        "render_busy_ms": 212.087394,
+        "render_busy_ms": 115.742864,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.077344,
         "reveal_to_sharp_ms": 100.086927,
@@ -1466,7 +1466,7 @@
       {
         "total_ms": 238.34099,
         "first_req_ms": 0.0,
-        "render_busy_ms": 253.220415,
+        "render_busy_ms": 125.8225,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.05948,
         "reveal_to_sharp_ms": 100.100208,
@@ -1475,7 +1475,7 @@
       {
         "total_ms": 216.567187,
         "first_req_ms": 0.0,
-        "render_busy_ms": 209.449896,
+        "render_busy_ms": 109.100312,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066823,
         "reveal_to_sharp_ms": 100.118646,
@@ -1484,7 +1484,7 @@
       {
         "total_ms": 233.136146,
         "first_req_ms": 0.0,
-        "render_busy_ms": 225.513389,
+        "render_busy_ms": 127.098437,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.068646,
         "reveal_to_sharp_ms": 100.746979,
@@ -1493,7 +1493,7 @@
       {
         "total_ms": 132.679427,
         "first_req_ms": 0.0,
-        "render_busy_ms": 46.569688,
+        "render_busy_ms": 26.573177,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.049218,
         "reveal_to_sharp_ms": 100.479427,
@@ -1502,7 +1502,7 @@
       {
         "total_ms": 223.677448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.338177,
+        "render_busy_ms": 118.322343,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.069166,
         "reveal_to_sharp_ms": 99.77224,
@@ -1511,7 +1511,7 @@
       {
         "total_ms": 218.807864,
         "first_req_ms": 0.0,
-        "render_busy_ms": 201.673018,
+        "render_busy_ms": 111.910156,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.080573,
         "reveal_to_sharp_ms": 100.299739,
@@ -1520,7 +1520,7 @@
       {
         "total_ms": 407.749479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 579.601141,
+        "render_busy_ms": 307.805677,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.048125,
         "reveal_to_sharp_ms": 99.810313,
@@ -1529,7 +1529,7 @@
       {
         "total_ms": 166.047292,
         "first_req_ms": 0.0,
-        "render_busy_ms": 115.347083,
+        "render_busy_ms": 61.580885,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.092448,
         "reveal_to_sharp_ms": 99.697761,
@@ -1538,7 +1538,7 @@
       {
         "total_ms": 248.839792,
         "first_req_ms": 0.0,
-        "render_busy_ms": 265.664692,
+        "render_busy_ms": 145.228125,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076354,
         "reveal_to_sharp_ms": 99.478802,
@@ -1547,7 +1547,7 @@
       {
         "total_ms": 229.610781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 231.124792,
+        "render_busy_ms": 127.756563,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.105834,
         "reveal_to_sharp_ms": 100.208177,
@@ -1556,7 +1556,7 @@
       {
         "total_ms": 264.432812,
         "first_req_ms": 0.0,
-        "render_busy_ms": 283.623124,
+        "render_busy_ms": 155.336979,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.080104,
         "reveal_to_sharp_ms": 100.183854,
@@ -1565,7 +1565,7 @@
       {
         "total_ms": 176.722812,
         "first_req_ms": 0.0,
-        "render_busy_ms": 109.495729,
+        "render_busy_ms": 61.699792,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.142083,
         "reveal_to_sharp_ms": 100.561406,
@@ -1574,7 +1574,7 @@
       {
         "total_ms": 249.62625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 258.73807,
+        "render_busy_ms": 145.179583,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.070729,
         "reveal_to_sharp_ms": 100.886562,
@@ -1583,7 +1583,7 @@
       {
         "total_ms": 224.249584,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.415627,
+        "render_busy_ms": 118.447396,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.076875,
         "reveal_to_sharp_ms": 101.114219,
@@ -1592,7 +1592,7 @@
       {
         "total_ms": 231.394479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 231.96,
+        "render_busy_ms": 130.707448,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.048594,
         "reveal_to_sharp_ms": 100.436145,
@@ -1601,7 +1601,7 @@
       {
         "total_ms": 224.110313,
         "first_req_ms": 0.0,
-        "render_busy_ms": 215.469529,
+        "render_busy_ms": 111.491771,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.069427,
         "reveal_to_sharp_ms": 99.996094,
@@ -1610,7 +1610,7 @@
       {
         "total_ms": 240.689583,
         "first_req_ms": 0.0,
-        "render_busy_ms": 268.800938,
+        "render_busy_ms": 134.500625,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.065104,
         "reveal_to_sharp_ms": 100.309062,
@@ -1619,7 +1619,7 @@
       {
         "total_ms": 222.263281,
         "first_req_ms": 0.0,
-        "render_busy_ms": 221.472969,
+        "render_busy_ms": 115.140469,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.071198,
         "reveal_to_sharp_ms": 100.80651,
@@ -3260,7 +3260,7 @@
       {
         "total_ms": 299.959687,
         "first_req_ms": 0.0,
-        "render_busy_ms": 192.851774,
+        "render_busy_ms": 132.500623,
         "last_render_to_last_swap_ms": 61.67802,
         "last_swap_to_reveal_ms": 0.156511,
         "reveal_to_sharp_ms": 100.453906,
@@ -3269,7 +3269,7 @@
       {
         "total_ms": 250.109688,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.27234,
+        "render_busy_ms": 63.65005,
         "last_render_to_last_swap_ms": 54.185677,
         "last_swap_to_reveal_ms": 0.193333,
         "reveal_to_sharp_ms": 102.407292,
@@ -3278,7 +3278,7 @@
       {
         "total_ms": 199.453385,
         "first_req_ms": 0.0,
-        "render_busy_ms": 111.22631,
+        "render_busy_ms": 77.320418,
         "last_render_to_last_swap_ms": 19.21125,
         "last_swap_to_reveal_ms": 0.124948,
         "reveal_to_sharp_ms": 100.014114,
@@ -3287,7 +3287,7 @@
       {
         "total_ms": 239.527812,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.324111,
+        "render_busy_ms": 58.661614,
         "last_render_to_last_swap_ms": 67.37177,
         "last_swap_to_reveal_ms": 0.152032,
         "reveal_to_sharp_ms": 101.180781,
@@ -3296,7 +3296,7 @@
       {
         "total_ms": 195.112604,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.773597,
+        "render_busy_ms": 61.488542,
         "last_render_to_last_swap_ms": 25.260573,
         "last_swap_to_reveal_ms": 0.087239,
         "reveal_to_sharp_ms": 100.408125,
@@ -3305,7 +3305,7 @@
       {
         "total_ms": 240.279531,
         "first_req_ms": 0.0,
-        "render_busy_ms": 98.321979,
+        "render_busy_ms": 67.929062,
         "last_render_to_last_swap_ms": 46.9325,
         "last_swap_to_reveal_ms": 0.101458,
         "reveal_to_sharp_ms": 101.564896,
@@ -3314,7 +3314,7 @@
       {
         "total_ms": 190.544219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 119.972502,
+        "render_busy_ms": 83.076353,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.043802,
         "reveal_to_sharp_ms": 100.383646,
@@ -3323,7 +3323,7 @@
       {
         "total_ms": 241.329115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 78.604898,
+        "render_busy_ms": 58.288128,
         "last_render_to_last_swap_ms": 70.303906,
         "last_swap_to_reveal_ms": 0.179896,
         "reveal_to_sharp_ms": 100.895833,
@@ -3332,7 +3332,7 @@
       {
         "total_ms": 200.345312,
         "first_req_ms": 0.0,
-        "render_busy_ms": 118.934948,
+        "render_busy_ms": 81.763801,
         "last_render_to_last_swap_ms": 14.467188,
         "last_swap_to_reveal_ms": 0.142604,
         "reveal_to_sharp_ms": 99.774739,
@@ -3341,7 +3341,7 @@
       {
         "total_ms": 242.346354,
         "first_req_ms": 0.0,
-        "render_busy_ms": 82.464062,
+        "render_busy_ms": 58.966092,
         "last_render_to_last_swap_ms": 72.359011,
         "last_swap_to_reveal_ms": 0.164375,
         "reveal_to_sharp_ms": 100.983489,
@@ -3350,7 +3350,7 @@
       {
         "total_ms": 190.846979,
         "first_req_ms": 0.0,
-        "render_busy_ms": 78.853747,
+        "render_busy_ms": 56.25078,
         "last_render_to_last_swap_ms": 30.087031,
         "last_swap_to_reveal_ms": 0.136094,
         "reveal_to_sharp_ms": 99.854115,
@@ -3359,7 +3359,7 @@
       {
         "total_ms": 240.509219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 79.998905,
+        "render_busy_ms": 60.160052,
         "last_render_to_last_swap_ms": 67.971823,
         "last_swap_to_reveal_ms": 0.681718,
         "reveal_to_sharp_ms": 100.041407,
@@ -3368,7 +3368,7 @@
       {
         "total_ms": 305.353802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 197.837182,
+        "render_busy_ms": 135.921664,
         "last_render_to_last_swap_ms": 66.714167,
         "last_swap_to_reveal_ms": 0.1025,
         "reveal_to_sharp_ms": 99.712969,
@@ -3377,7 +3377,7 @@
       {
         "total_ms": 247.218437,
         "first_req_ms": 0.0,
-        "render_busy_ms": 89.850051,
+        "render_busy_ms": 64.284269,
         "last_render_to_last_swap_ms": 64.351823,
         "last_swap_to_reveal_ms": 0.165521,
         "reveal_to_sharp_ms": 106.53,
@@ -3386,7 +3386,7 @@
       {
         "total_ms": 214.535781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 118.684009,
+        "render_busy_ms": 82.919842,
         "last_render_to_last_swap_ms": 13.457656,
         "last_swap_to_reveal_ms": 0.104636,
         "reveal_to_sharp_ms": 107.730364,
@@ -3395,7 +3395,7 @@
       {
         "total_ms": 261.048854,
         "first_req_ms": 0.0,
-        "render_busy_ms": 119.166044,
+        "render_busy_ms": 88.318542,
         "last_render_to_last_swap_ms": 49.861302,
         "last_swap_to_reveal_ms": 0.16875,
         "reveal_to_sharp_ms": 100.473229,
@@ -3404,7 +3404,7 @@
       {
         "total_ms": 191.193021,
         "first_req_ms": 0.0,
-        "render_busy_ms": 125.851461,
+        "render_busy_ms": 83.159324,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.059427,
         "reveal_to_sharp_ms": 100.737813,
@@ -3413,7 +3413,7 @@
       {
         "total_ms": 240.707708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 79.211822,
+        "render_busy_ms": 60.23505,
         "last_render_to_last_swap_ms": 66.643125,
         "last_swap_to_reveal_ms": 0.119635,
         "reveal_to_sharp_ms": 102.518177,
@@ -3422,7 +3422,7 @@
       {
         "total_ms": 207.706406,
         "first_req_ms": 0.0,
-        "render_busy_ms": 121.123697,
+        "render_busy_ms": 83.255417,
         "last_render_to_last_swap_ms": 17.538073,
         "last_swap_to_reveal_ms": 0.150364,
         "reveal_to_sharp_ms": 99.184271,
@@ -3431,7 +3431,7 @@
       {
         "total_ms": 256.863802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 104.427916,
+        "render_busy_ms": 73.751197,
         "last_render_to_last_swap_ms": 66.807708,
         "last_swap_to_reveal_ms": 0.183542,
         "reveal_to_sharp_ms": 101.130938,
@@ -3440,7 +3440,7 @@
       {
         "total_ms": 190.951354,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.598023,
+        "render_busy_ms": 85.682865,
         "last_render_to_last_swap_ms": 1.049739,
         "last_swap_to_reveal_ms": 0.071094,
         "reveal_to_sharp_ms": 100.174271,
@@ -3449,7 +3449,7 @@
       {
         "total_ms": 245.987396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 99.643909,
+        "render_busy_ms": 69.3525,
         "last_render_to_last_swap_ms": 47.669531,
         "last_swap_to_reveal_ms": 0.106927,
         "reveal_to_sharp_ms": 102.426771,
@@ -3458,7 +3458,7 @@
       {
         "total_ms": 207.564062,
         "first_req_ms": 0.0,
-        "render_busy_ms": 133.776929,
+        "render_busy_ms": 92.147135,
         "last_render_to_last_swap_ms": 12.990104,
         "last_swap_to_reveal_ms": 0.176302,
         "reveal_to_sharp_ms": 99.415573,
@@ -3467,7 +3467,7 @@
       {
         "total_ms": 250.110156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 114.938485,
+        "render_busy_ms": 77.372447,
         "last_render_to_last_swap_ms": 47.497864,
         "last_swap_to_reveal_ms": 0.194271,
         "reveal_to_sharp_ms": 99.923906,
@@ -3476,7 +3476,7 @@
       {
         "total_ms": 299.7925,
         "first_req_ms": 0.0,
-        "render_busy_ms": 189.576201,
+        "render_busy_ms": 127.703959,
         "last_render_to_last_swap_ms": 66.426458,
         "last_swap_to_reveal_ms": 0.136927,
         "reveal_to_sharp_ms": 100.601823,
@@ -3485,7 +3485,7 @@
       {
         "total_ms": 233.650104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.981351,
+        "render_busy_ms": 60.979894,
         "last_render_to_last_swap_ms": 53.109739,
         "last_swap_to_reveal_ms": 0.059271,
         "reveal_to_sharp_ms": 99.754063,
@@ -3494,7 +3494,7 @@
       {
         "total_ms": 207.172448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 135.081092,
+        "render_busy_ms": 90.165832,
         "last_render_to_last_swap_ms": 10.747552,
         "last_swap_to_reveal_ms": 0.049792,
         "reveal_to_sharp_ms": 100.0875,
@@ -3503,7 +3503,7 @@
       {
         "total_ms": 248.073489,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.297241,
+        "render_busy_ms": 61.761353,
         "last_render_to_last_swap_ms": 59.993593,
         "last_swap_to_reveal_ms": 0.197917,
         "reveal_to_sharp_ms": 108.818437,
@@ -3512,7 +3512,7 @@
       {
         "total_ms": 197.498959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.352659,
+        "render_busy_ms": 84.128544,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.063489,
         "reveal_to_sharp_ms": 100.599584,
@@ -3521,7 +3521,7 @@
       {
         "total_ms": 235.503542,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.440106,
+        "render_busy_ms": 62.584271,
         "last_render_to_last_swap_ms": 56.541979,
         "last_swap_to_reveal_ms": 0.155364,
         "reveal_to_sharp_ms": 99.47599,
@@ -3530,7 +3530,7 @@
       {
         "total_ms": 215.242031,
         "first_req_ms": 0.0,
-        "render_busy_ms": 82.709842,
+        "render_busy_ms": 59.69698,
         "last_render_to_last_swap_ms": 42.855833,
         "last_swap_to_reveal_ms": 0.118854,
         "reveal_to_sharp_ms": 107.482917,
@@ -3539,7 +3539,7 @@
       {
         "total_ms": 248.923958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.699691,
+        "render_busy_ms": 60.116356,
         "last_render_to_last_swap_ms": 60.383854,
         "last_swap_to_reveal_ms": 0.31625,
         "reveal_to_sharp_ms": 108.586302,
@@ -3548,7 +3548,7 @@
       {
         "total_ms": 191.056719,
         "first_req_ms": 0.0,
-        "render_busy_ms": 122.983383,
+        "render_busy_ms": 82.263489,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.050886,
         "reveal_to_sharp_ms": 100.392656,
@@ -3557,7 +3557,7 @@
       {
         "total_ms": 233.165417,
         "first_req_ms": 0.0,
-        "render_busy_ms": 76.546149,
+        "render_busy_ms": 57.741303,
         "last_render_to_last_swap_ms": 71.272604,
         "last_swap_to_reveal_ms": 0.163438,
         "reveal_to_sharp_ms": 99.439427,
@@ -3566,7 +3566,7 @@
       {
         "total_ms": 207.006302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.188335,
+        "render_busy_ms": 83.428282,
         "last_render_to_last_swap_ms": 20.292916,
         "last_swap_to_reveal_ms": 0.120209,
         "reveal_to_sharp_ms": 99.75776,
@@ -3575,7 +3575,7 @@
       {
         "total_ms": 239.212708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.996564,
+        "render_busy_ms": 62.533125,
         "last_render_to_last_swap_ms": 55.281511,
         "last_swap_to_reveal_ms": 0.165468,
         "reveal_to_sharp_ms": 99.83375,
@@ -3584,7 +3584,7 @@
       {
         "total_ms": 300.111718,
         "first_req_ms": 0.0,
-        "render_busy_ms": 192.594014,
+        "render_busy_ms": 132.430727,
         "last_render_to_last_swap_ms": 57.36323,
         "last_swap_to_reveal_ms": 0.142656,
         "reveal_to_sharp_ms": 100.310312,
@@ -3593,7 +3593,7 @@
       {
         "total_ms": 248.792656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.429739,
+        "render_busy_ms": 62.289894,
         "last_render_to_last_swap_ms": 59.363438,
         "last_swap_to_reveal_ms": 0.187396,
         "reveal_to_sharp_ms": 109.146927,
@@ -3602,7 +3602,7 @@
       {
         "total_ms": 207.582395,
         "first_req_ms": 0.0,
-        "render_busy_ms": 127.600418,
+        "render_busy_ms": 88.006719,
         "last_render_to_last_swap_ms": 13.874219,
         "last_swap_to_reveal_ms": 0.09526,
         "reveal_to_sharp_ms": 100.079375,
@@ -3611,7 +3611,7 @@
       {
         "total_ms": 248.96276,
         "first_req_ms": 0.0,
-        "render_busy_ms": 82.633381,
+        "render_busy_ms": 59.778854,
         "last_render_to_last_swap_ms": 67.880156,
         "last_swap_to_reveal_ms": 0.158594,
         "reveal_to_sharp_ms": 109.210208,
@@ -3620,7 +3620,7 @@
       {
         "total_ms": 191.297865,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.373752,
+        "render_busy_ms": 84.234636,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.061198,
         "reveal_to_sharp_ms": 100.308073,
@@ -3629,7 +3629,7 @@
       {
         "total_ms": 240.644063,
         "first_req_ms": 0.0,
-        "render_busy_ms": 94.623701,
+        "render_busy_ms": 64.423806,
         "last_render_to_last_swap_ms": 55.1075,
         "last_swap_to_reveal_ms": 0.142188,
         "reveal_to_sharp_ms": 103.000729,
@@ -3638,7 +3638,7 @@
       {
         "total_ms": 205.810157,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.412551,
+        "render_busy_ms": 86.705363,
         "last_render_to_last_swap_ms": 11.451145,
         "last_swap_to_reveal_ms": 0.095938,
         "reveal_to_sharp_ms": 100.031094,
@@ -3647,7 +3647,7 @@
       {
         "total_ms": 241.157291,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.136717,
+        "render_busy_ms": 59.366979,
         "last_render_to_last_swap_ms": 73.629635,
         "last_swap_to_reveal_ms": 0.1525,
         "reveal_to_sharp_ms": 100.541406,
@@ -3656,7 +3656,7 @@
       {
         "total_ms": 191.321302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 113.38474,
+        "render_busy_ms": 81.64823,
         "last_render_to_last_swap_ms": 3.194219,
         "last_swap_to_reveal_ms": 0.058333,
         "reveal_to_sharp_ms": 100.147448,
@@ -3665,7 +3665,7 @@
       {
         "total_ms": 258.338958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.48276,
+        "render_busy_ms": 81.576145,
         "last_render_to_last_swap_ms": 37.715885,
         "last_swap_to_reveal_ms": 0.211094,
         "reveal_to_sharp_ms": 107.748958,
@@ -3674,7 +3674,7 @@
       {
         "total_ms": 215.892084,
         "first_req_ms": 0.0,
-        "render_busy_ms": 96.518386,
+        "render_busy_ms": 68.636563,
         "last_render_to_last_swap_ms": 36.711666,
         "last_swap_to_reveal_ms": 0.198177,
         "reveal_to_sharp_ms": 100.053386,
@@ -3683,7 +3683,7 @@
       {
         "total_ms": 233.60875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.637968,
+        "render_busy_ms": 66.534479,
         "last_render_to_last_swap_ms": 49.695209,
         "last_swap_to_reveal_ms": 0.171145,
         "reveal_to_sharp_ms": 101.089792,
@@ -3692,7 +3692,7 @@
       {
         "total_ms": 305.682083,
         "first_req_ms": 0.0,
-        "render_busy_ms": 207.943907,
+        "render_busy_ms": 139.461877,
         "last_render_to_last_swap_ms": 59.680937,
         "last_swap_to_reveal_ms": 0.094948,
         "reveal_to_sharp_ms": 99.521927,
@@ -3701,7 +3701,7 @@
       {
         "total_ms": 240.600521,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.416249,
+        "render_busy_ms": 60.95427,
         "last_render_to_last_swap_ms": 61.953229,
         "last_swap_to_reveal_ms": 0.15125,
         "reveal_to_sharp_ms": 102.112136,
@@ -3710,7 +3710,7 @@
       {
         "total_ms": 207.977187,
         "first_req_ms": 0.0,
-        "render_busy_ms": 122.32245,
+        "render_busy_ms": 85.47677,
         "last_render_to_last_swap_ms": 19.190104,
         "last_swap_to_reveal_ms": 0.187084,
         "reveal_to_sharp_ms": 99.948906,
@@ -3719,7 +3719,7 @@
       {
         "total_ms": 242.327813,
         "first_req_ms": 0.0,
-        "render_busy_ms": 92.891458,
+        "render_busy_ms": 63.023331,
         "last_render_to_last_swap_ms": 58.971771,
         "last_swap_to_reveal_ms": 0.140365,
         "reveal_to_sharp_ms": 101.202552,
@@ -3728,7 +3728,7 @@
       {
         "total_ms": 191.167605,
         "first_req_ms": 0.0,
-        "render_busy_ms": 126.547238,
+        "render_busy_ms": 84.931614,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.047291,
         "reveal_to_sharp_ms": 100.143855,
@@ -3737,7 +3737,7 @@
       {
         "total_ms": 237.03099,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.067867,
+        "render_busy_ms": 65.396769,
         "last_render_to_last_swap_ms": 51.644791,
         "last_swap_to_reveal_ms": 0.173854,
         "reveal_to_sharp_ms": 100.971928,
@@ -3746,7 +3746,7 @@
       {
         "total_ms": 224.531302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 95.883698,
+        "render_busy_ms": 65.179324,
         "last_render_to_last_swap_ms": 38.765104,
         "last_swap_to_reveal_ms": 0.145521,
         "reveal_to_sharp_ms": 108.174948,
@@ -3755,7 +3755,7 @@
       {
         "total_ms": 237.110052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 94.117703,
+        "render_busy_ms": 63.66354,
         "last_render_to_last_swap_ms": 51.318541,
         "last_swap_to_reveal_ms": 0.227396,
         "reveal_to_sharp_ms": 100.842552,
@@ -3764,7 +3764,7 @@
       {
         "total_ms": 190.365365,
         "first_req_ms": 0.0,
-        "render_busy_ms": 116.411304,
+        "render_busy_ms": 80.234689,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.057969,
         "reveal_to_sharp_ms": 100.43125,
@@ -3773,7 +3773,7 @@
       {
         "total_ms": 236.015885,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.909426,
+        "render_busy_ms": 59.748958,
         "last_render_to_last_swap_ms": 53.811406,
         "last_swap_to_reveal_ms": 0.222761,
         "reveal_to_sharp_ms": 100.50901,
@@ -3782,7 +3782,7 @@
       {
         "total_ms": 206.862188,
         "first_req_ms": 0.0,
-        "render_busy_ms": 134.108644,
+        "render_busy_ms": 93.635571,
         "last_render_to_last_swap_ms": 9.598333,
         "last_swap_to_reveal_ms": 0.070365,
         "reveal_to_sharp_ms": 99.944219,
@@ -3791,7 +3791,7 @@
       {
         "total_ms": 241.459427,
         "first_req_ms": 0.0,
-        "render_busy_ms": 99.230262,
+        "render_busy_ms": 68.552604,
         "last_render_to_last_swap_ms": 50.716979,
         "last_swap_to_reveal_ms": 0.204739,
         "reveal_to_sharp_ms": 108.743594,
@@ -3802,7 +3802,7 @@
       {
         "total_ms": 306.133229,
         "first_req_ms": 0.0,
-        "render_busy_ms": 189.709165,
+        "render_busy_ms": 129.674689,
         "last_render_to_last_swap_ms": 68.369895,
         "last_swap_to_reveal_ms": 0.070573,
         "reveal_to_sharp_ms": 99.960886,
@@ -3811,7 +3811,7 @@
       {
         "total_ms": 242.291823,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.220366,
+        "render_busy_ms": 60.270004,
         "last_render_to_last_swap_ms": 61.94651,
         "last_swap_to_reveal_ms": 0.142136,
         "reveal_to_sharp_ms": 102.334531,
@@ -3820,7 +3820,7 @@
       {
         "total_ms": 216.463698,
         "first_req_ms": 0.0,
-        "render_busy_ms": 121.53099,
+        "render_busy_ms": 85.21375,
         "last_render_to_last_swap_ms": 14.070573,
         "last_swap_to_reveal_ms": 0.124115,
         "reveal_to_sharp_ms": 108.733646,
@@ -3829,7 +3829,7 @@
       {
         "total_ms": 234.003073,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.521612,
+        "render_busy_ms": 58.906667,
         "last_render_to_last_swap_ms": 54.61651,
         "last_swap_to_reveal_ms": 0.149271,
         "reveal_to_sharp_ms": 100.009688,
@@ -3838,7 +3838,7 @@
       {
         "total_ms": 191.024011,
         "first_req_ms": 0.0,
-        "render_busy_ms": 92.826197,
+        "render_busy_ms": 65.27177,
         "last_render_to_last_swap_ms": 18.291667,
         "last_swap_to_reveal_ms": 0.114479,
         "reveal_to_sharp_ms": 100.155677,
@@ -3847,7 +3847,7 @@
       {
         "total_ms": 246.224166,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.989065,
+        "render_busy_ms": 60.662188,
         "last_render_to_last_swap_ms": 65.131458,
         "last_swap_to_reveal_ms": 0.161407,
         "reveal_to_sharp_ms": 101.262864,
@@ -3856,7 +3856,7 @@
       {
         "total_ms": 190.659479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 113.352134,
+        "render_busy_ms": 78.406613,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067552,
         "reveal_to_sharp_ms": 100.685989,
@@ -3865,7 +3865,7 @@
       {
         "total_ms": 252.421979,
         "first_req_ms": 0.0,
-        "render_busy_ms": 100.404167,
+        "render_busy_ms": 76.779428,
         "last_render_to_last_swap_ms": 61.47875,
         "last_swap_to_reveal_ms": 0.138125,
         "reveal_to_sharp_ms": 100.14125,
@@ -3874,7 +3874,7 @@
       {
         "total_ms": 207.949375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 126.091724,
+        "render_busy_ms": 86.984533,
         "last_render_to_last_swap_ms": 11.848386,
         "last_swap_to_reveal_ms": 0.099323,
         "reveal_to_sharp_ms": 100.105,
@@ -3883,7 +3883,7 @@
       {
         "total_ms": 237.627969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.911612,
+        "render_busy_ms": 63.242655,
         "last_render_to_last_swap_ms": 53.686407,
         "last_swap_to_reveal_ms": 0.174791,
         "reveal_to_sharp_ms": 101.933386,
@@ -3892,7 +3892,7 @@
       {
         "total_ms": 190.950886,
         "first_req_ms": 0.0,
-        "render_busy_ms": 115.453179,
+        "render_busy_ms": 79.780262,
         "last_render_to_last_swap_ms": 6.903541,
         "last_swap_to_reveal_ms": 0.071042,
         "reveal_to_sharp_ms": 100.233542,
@@ -3901,7 +3901,7 @@
       {
         "total_ms": 243.628177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 88.389012,
+        "render_busy_ms": 61.584325,
         "last_render_to_last_swap_ms": 56.574375,
         "last_swap_to_reveal_ms": 0.162864,
         "reveal_to_sharp_ms": 107.247292,
@@ -3910,7 +3910,7 @@
       {
         "total_ms": 299.943177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 191.556722,
+        "render_busy_ms": 129.482606,
         "last_render_to_last_swap_ms": 61.081718,
         "last_swap_to_reveal_ms": 0.084896,
         "reveal_to_sharp_ms": 100.906094,
@@ -3919,7 +3919,7 @@
       {
         "total_ms": 239.557448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.206145,
+        "render_busy_ms": 60.765366,
         "last_render_to_last_swap_ms": 59.058281,
         "last_swap_to_reveal_ms": 0.166406,
         "reveal_to_sharp_ms": 102.409167,
@@ -3928,7 +3928,7 @@
       {
         "total_ms": 208.103542,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.535834,
+        "render_busy_ms": 85.708957,
         "last_render_to_last_swap_ms": 14.365,
         "last_swap_to_reveal_ms": 0.065052,
         "reveal_to_sharp_ms": 100.426146,
@@ -3937,7 +3937,7 @@
       {
         "total_ms": 239.524479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.80516,
+        "render_busy_ms": 65.90599,
         "last_render_to_last_swap_ms": 59.359688,
         "last_swap_to_reveal_ms": 0.199323,
         "reveal_to_sharp_ms": 99.828906,
@@ -3946,7 +3946,7 @@
       {
         "total_ms": 191.503281,
         "first_req_ms": 0.0,
-        "render_busy_ms": 114.350779,
+        "render_busy_ms": 81.475937,
         "last_render_to_last_swap_ms": 6.252396,
         "last_swap_to_reveal_ms": 0.100468,
         "reveal_to_sharp_ms": 100.032136,
@@ -3955,7 +3955,7 @@
       {
         "total_ms": 242.618438,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.858695,
+        "render_busy_ms": 62.103645,
         "last_render_to_last_swap_ms": 68.324531,
         "last_swap_to_reveal_ms": 0.328959,
         "reveal_to_sharp_ms": 99.890833,
@@ -3964,7 +3964,7 @@
       {
         "total_ms": 207.911979,
         "first_req_ms": 0.0,
-        "render_busy_ms": 131.357344,
+        "render_busy_ms": 87.161925,
         "last_render_to_last_swap_ms": 7.82573,
         "last_swap_to_reveal_ms": 0.096093,
         "reveal_to_sharp_ms": 100.622344,
@@ -3973,7 +3973,7 @@
       {
         "total_ms": 233.193958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 79.314996,
+        "render_busy_ms": 58.789167,
         "last_render_to_last_swap_ms": 70.134375,
         "last_swap_to_reveal_ms": 0.195833,
         "reveal_to_sharp_ms": 100.932969,
@@ -3982,7 +3982,7 @@
       {
         "total_ms": 206.293646,
         "first_req_ms": 0.0,
-        "render_busy_ms": 128.388124,
+        "render_busy_ms": 87.484998,
         "last_render_to_last_swap_ms": 3.564115,
         "last_swap_to_reveal_ms": 0.059375,
         "reveal_to_sharp_ms": 100.614427,
@@ -3991,7 +3991,7 @@
       {
         "total_ms": 248.380938,
         "first_req_ms": 0.0,
-        "render_busy_ms": 100.064323,
+        "render_busy_ms": 68.096874,
         "last_render_to_last_swap_ms": 58.569583,
         "last_swap_to_reveal_ms": 0.069219,
         "reveal_to_sharp_ms": 108.933646,
@@ -4000,7 +4000,7 @@
       {
         "total_ms": 213.509479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 113.967811,
+        "render_busy_ms": 79.244843,
         "last_render_to_last_swap_ms": 25.671771,
         "last_swap_to_reveal_ms": 0.144063,
         "reveal_to_sharp_ms": 100.118437,
@@ -4009,7 +4009,7 @@
       {
         "total_ms": 261.410312,
         "first_req_ms": 0.0,
-        "render_busy_ms": 113.159893,
+        "render_busy_ms": 81.963854,
         "last_render_to_last_swap_ms": 50.002812,
         "last_swap_to_reveal_ms": 0.056719,
         "reveal_to_sharp_ms": 99.828281,
@@ -4018,7 +4018,7 @@
       {
         "total_ms": 307.640677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 229.11443,
+        "render_busy_ms": 148.531561,
         "last_render_to_last_swap_ms": 52.526875,
         "last_swap_to_reveal_ms": 0.112188,
         "reveal_to_sharp_ms": 100.353385,
@@ -4027,7 +4027,7 @@
       {
         "total_ms": 238.252552,
         "first_req_ms": 0.0,
-        "render_busy_ms": 86.712189,
+        "render_busy_ms": 62.137551,
         "last_render_to_last_swap_ms": 59.906042,
         "last_swap_to_reveal_ms": 0.130781,
         "reveal_to_sharp_ms": 101.932917,
@@ -4036,7 +4036,7 @@
       {
         "total_ms": 207.945781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 134.821777,
+        "render_busy_ms": 92.699584,
         "last_render_to_last_swap_ms": 6.841927,
         "last_swap_to_reveal_ms": 0.148698,
         "reveal_to_sharp_ms": 100.668177,
@@ -4045,7 +4045,7 @@
       {
         "total_ms": 242.734844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 78.597555,
+        "render_busy_ms": 58.496978,
         "last_render_to_last_swap_ms": 64.631823,
         "last_swap_to_reveal_ms": 0.113334,
         "reveal_to_sharp_ms": 103.003489,
@@ -4054,7 +4054,7 @@
       {
         "total_ms": 192.431563,
         "first_req_ms": 0.0,
-        "render_busy_ms": 112.039217,
+        "render_busy_ms": 77.796459,
         "last_render_to_last_swap_ms": 5.169688,
         "last_swap_to_reveal_ms": 0.056302,
         "reveal_to_sharp_ms": 101.761771,
@@ -4063,7 +4063,7 @@
       {
         "total_ms": 233.573907,
         "first_req_ms": 0.0,
-        "render_busy_ms": 88.526254,
+        "render_busy_ms": 61.69818,
         "last_render_to_last_swap_ms": 63.012343,
         "last_swap_to_reveal_ms": 0.100052,
         "reveal_to_sharp_ms": 102.253282,
@@ -4072,7 +4072,7 @@
       {
         "total_ms": 208.174219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 115.776255,
+        "render_busy_ms": 81.933021,
         "last_render_to_last_swap_ms": 22.724531,
         "last_swap_to_reveal_ms": 0.10349,
         "reveal_to_sharp_ms": 100.294896,
@@ -4081,7 +4081,7 @@
       {
         "total_ms": 233.824896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 85.356925,
+        "render_busy_ms": 64.778801,
         "last_render_to_last_swap_ms": 55.488646,
         "last_swap_to_reveal_ms": 0.184219,
         "reveal_to_sharp_ms": 100.270104,
@@ -4090,7 +4090,7 @@
       {
         "total_ms": 199.326927,
         "first_req_ms": 0.0,
-        "render_busy_ms": 80.723539,
+        "render_busy_ms": 55.85151,
         "last_render_to_last_swap_ms": 30.43901,
         "last_swap_to_reveal_ms": 0.093021,
         "reveal_to_sharp_ms": 108.263021,
@@ -4099,7 +4099,7 @@
       {
         "total_ms": 238.783385,
         "first_req_ms": 0.0,
-        "render_busy_ms": 89.964738,
+        "render_busy_ms": 61.249062,
         "last_render_to_last_swap_ms": 60.080521,
         "last_swap_to_reveal_ms": 0.171719,
         "reveal_to_sharp_ms": 101.290937,
@@ -4108,7 +4108,7 @@
       {
         "total_ms": 191.048907,
         "first_req_ms": 0.0,
-        "render_busy_ms": 110.986195,
+        "render_busy_ms": 78.438801,
         "last_render_to_last_swap_ms": 8.917813,
         "last_swap_to_reveal_ms": 0.078281,
         "reveal_to_sharp_ms": 100.189792,
@@ -4117,7 +4117,7 @@
       {
         "total_ms": 239.512395,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.165833,
+        "render_busy_ms": 62.560624,
         "last_render_to_last_swap_ms": 56.926094,
         "last_swap_to_reveal_ms": 0.166302,
         "reveal_to_sharp_ms": 99.545885,
@@ -4126,7 +4126,7 @@
       {
         "total_ms": 307.656198,
         "first_req_ms": 0.0,
-        "render_busy_ms": 198.288125,
+        "render_busy_ms": 133.995939,
         "last_render_to_last_swap_ms": 64.042187,
         "last_swap_to_reveal_ms": 0.06448,
         "reveal_to_sharp_ms": 100.472812,
@@ -4135,7 +4135,7 @@
       {
         "total_ms": 246.314271,
         "first_req_ms": 0.0,
-        "render_busy_ms": 97.04881,
+        "render_busy_ms": 67.48771,
         "last_render_to_last_swap_ms": 61.241146,
         "last_swap_to_reveal_ms": 0.101458,
         "reveal_to_sharp_ms": 101.527917,
@@ -4144,7 +4144,7 @@
       {
         "total_ms": 208.302864,
         "first_req_ms": 0.0,
-        "render_busy_ms": 112.377869,
+        "render_busy_ms": 79.954117,
         "last_render_to_last_swap_ms": 26.27625,
         "last_swap_to_reveal_ms": 0.10526,
         "reveal_to_sharp_ms": 100.343229,
@@ -4153,7 +4153,7 @@
       {
         "total_ms": 245.901302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 92.051613,
+        "render_busy_ms": 63.930627,
         "last_render_to_last_swap_ms": 60.140417,
         "last_swap_to_reveal_ms": 0.205625,
         "reveal_to_sharp_ms": 104.671146,
@@ -4162,7 +4162,7 @@
       {
         "total_ms": 190.403906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.106981,
+        "render_busy_ms": 84.806719,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.054479,
         "reveal_to_sharp_ms": 99.975,
@@ -4171,7 +4171,7 @@
       {
         "total_ms": 238.669271,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.487811,
+        "render_busy_ms": 65.423072,
         "last_render_to_last_swap_ms": 55.973698,
         "last_swap_to_reveal_ms": 0.202396,
         "reveal_to_sharp_ms": 101.34474,
@@ -4180,7 +4180,7 @@
       {
         "total_ms": 207.275729,
         "first_req_ms": 0.0,
-        "render_busy_ms": 125.36688,
+        "render_busy_ms": 85.50401,
         "last_render_to_last_swap_ms": 17.474114,
         "last_swap_to_reveal_ms": 0.13724,
         "reveal_to_sharp_ms": 100.077344,
@@ -4189,7 +4189,7 @@
       {
         "total_ms": 240.114791,
         "first_req_ms": 0.0,
-        "render_busy_ms": 75.972296,
+        "render_busy_ms": 55.779429,
         "last_render_to_last_swap_ms": 72.349323,
         "last_swap_to_reveal_ms": 0.181979,
         "reveal_to_sharp_ms": 102.772812,
@@ -4198,7 +4198,7 @@
       {
         "total_ms": 197.728958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 77.831515,
+        "render_busy_ms": 56.180989,
         "last_render_to_last_swap_ms": 36.451458,
         "last_swap_to_reveal_ms": 0.113177,
         "reveal_to_sharp_ms": 99.360781,
@@ -4207,7 +4207,7 @@
       {
         "total_ms": 233.435573,
         "first_req_ms": 0.0,
-        "render_busy_ms": 89.67469,
+        "render_busy_ms": 66.433279,
         "last_render_to_last_swap_ms": 60.330989,
         "last_swap_to_reveal_ms": 0.164531,
         "reveal_to_sharp_ms": 101.534271,
@@ -4216,7 +4216,7 @@
       {
         "total_ms": 190.459063,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.898852,
+        "render_busy_ms": 84.290521,
         "last_render_to_last_swap_ms": 1.006666,
         "last_swap_to_reveal_ms": 0.058542,
         "reveal_to_sharp_ms": 100.159375,
@@ -4225,7 +4225,7 @@
       {
         "total_ms": 243.053333,
         "first_req_ms": 0.0,
-        "render_busy_ms": 77.015992,
+        "render_busy_ms": 56.158804,
         "last_render_to_last_swap_ms": 76.33401,
         "last_swap_to_reveal_ms": 0.175521,
         "reveal_to_sharp_ms": 100.796302,
@@ -4234,7 +4234,7 @@
       {
         "total_ms": 306.365521,
         "first_req_ms": 0.0,
-        "render_busy_ms": 197.769587,
+        "render_busy_ms": 131.807813,
         "last_render_to_last_swap_ms": 62.155781,
         "last_swap_to_reveal_ms": 0.061771,
         "reveal_to_sharp_ms": 101.396198,
@@ -4243,7 +4243,7 @@
       {
         "total_ms": 243.723333,
         "first_req_ms": 0.0,
-        "render_busy_ms": 82.30146,
+        "render_busy_ms": 61.492241,
         "last_render_to_last_swap_ms": 70.629948,
         "last_swap_to_reveal_ms": 0.279063,
         "reveal_to_sharp_ms": 101.95151,
@@ -4252,7 +4252,7 @@
       {
         "total_ms": 214.924115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.418598,
+        "render_busy_ms": 87.571407,
         "last_render_to_last_swap_ms": 17.221041,
         "last_swap_to_reveal_ms": 0.091563,
         "reveal_to_sharp_ms": 100.445573,
@@ -4261,7 +4261,7 @@
       {
         "total_ms": 261.809323,
         "first_req_ms": 0.0,
-        "render_busy_ms": 111.071564,
+        "render_busy_ms": 79.731301,
         "last_render_to_last_swap_ms": 51.125104,
         "last_swap_to_reveal_ms": 0.17974,
         "reveal_to_sharp_ms": 101.010625,
@@ -4270,7 +4270,7 @@
       {
         "total_ms": 199.036771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.846092,
+        "render_busy_ms": 86.094218,
         "last_render_to_last_swap_ms": 0.162604,
         "last_swap_to_reveal_ms": 0.060052,
         "reveal_to_sharp_ms": 100.228438,
@@ -4279,7 +4279,7 @@
       {
         "total_ms": 246.862708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 88.946353,
+        "render_busy_ms": 61.38599,
         "last_render_to_last_swap_ms": 59.875885,
         "last_swap_to_reveal_ms": 0.15125,
         "reveal_to_sharp_ms": 109.039531,
@@ -4288,7 +4288,7 @@
       {
         "total_ms": 207.313177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 126.243071,
+        "render_busy_ms": 87.898905,
         "last_render_to_last_swap_ms": 12.957448,
         "last_swap_to_reveal_ms": 0.106823,
         "reveal_to_sharp_ms": 99.955833,
@@ -4297,7 +4297,7 @@
       {
         "total_ms": 245.274635,
         "first_req_ms": 0.0,
-        "render_busy_ms": 78.239844,
+        "render_busy_ms": 57.340418,
         "last_render_to_last_swap_ms": 77.958802,
         "last_swap_to_reveal_ms": 0.151614,
         "reveal_to_sharp_ms": 104.01125,
@@ -4306,7 +4306,7 @@
       {
         "total_ms": 191.10099,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.746091,
+        "render_busy_ms": 82.610261,
         "last_render_to_last_swap_ms": 4.263594,
         "last_swap_to_reveal_ms": 0.049479,
         "reveal_to_sharp_ms": 100.38974,
@@ -4315,7 +4315,7 @@
       {
         "total_ms": 241.467969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.085521,
+        "render_busy_ms": 63.836825,
         "last_render_to_last_swap_ms": 66.894166,
         "last_swap_to_reveal_ms": 0.10724,
         "reveal_to_sharp_ms": 100.163281,
@@ -4324,7 +4324,7 @@
       {
         "total_ms": 208.488229,
         "first_req_ms": 0.0,
-        "render_busy_ms": 127.182399,
+        "render_busy_ms": 88.401822,
         "last_render_to_last_swap_ms": 11.894948,
         "last_swap_to_reveal_ms": 0.128698,
         "reveal_to_sharp_ms": 100.631302,
@@ -4333,7 +4333,7 @@
       {
         "total_ms": 240.923385,
         "first_req_ms": 0.0,
-        "render_busy_ms": 81.209586,
+        "render_busy_ms": 58.810158,
         "last_render_to_last_swap_ms": 68.450938,
         "last_swap_to_reveal_ms": 0.133958,
         "reveal_to_sharp_ms": 100.263385,
@@ -4344,7 +4344,7 @@
       {
         "total_ms": 307.509114,
         "first_req_ms": 0.0,
-        "render_busy_ms": 188.957662,
+        "render_busy_ms": 129.226302,
         "last_render_to_last_swap_ms": 62.405989,
         "last_swap_to_reveal_ms": 0.100104,
         "reveal_to_sharp_ms": 108.593854,
@@ -4353,7 +4353,7 @@
       {
         "total_ms": 264.980521,
         "first_req_ms": 0.0,
-        "render_busy_ms": 117.500568,
+        "render_busy_ms": 82.03052,
         "last_render_to_last_swap_ms": 45.264062,
         "last_swap_to_reveal_ms": 0.150521,
         "reveal_to_sharp_ms": 101.384844,
@@ -4362,7 +4362,7 @@
       {
         "total_ms": 208.005365,
         "first_req_ms": 0.0,
-        "render_busy_ms": 124.316041,
+        "render_busy_ms": 84.178853,
         "last_render_to_last_swap_ms": 14.044271,
         "last_swap_to_reveal_ms": 0.096302,
         "reveal_to_sharp_ms": 99.815573,
@@ -4371,7 +4371,7 @@
       {
         "total_ms": 252.831875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 106.987344,
+        "render_busy_ms": 72.358073,
         "last_render_to_last_swap_ms": 50.431979,
         "last_swap_to_reveal_ms": 0.165833,
         "reveal_to_sharp_ms": 107.462292,
@@ -4380,7 +4380,7 @@
       {
         "total_ms": 199.190156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.474426,
+        "render_busy_ms": 85.91724,
         "last_render_to_last_swap_ms": 5.187083,
         "last_swap_to_reveal_ms": 0.071406,
         "reveal_to_sharp_ms": 100.18224,
@@ -4389,7 +4389,7 @@
       {
         "total_ms": 242.311771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 85.089687,
+        "render_busy_ms": 61.861978,
         "last_render_to_last_swap_ms": 58.947656,
         "last_swap_to_reveal_ms": 0.164896,
         "reveal_to_sharp_ms": 101.462604,
@@ -4398,7 +4398,7 @@
       {
         "total_ms": 208.468073,
         "first_req_ms": 0.0,
-        "render_busy_ms": 97.995467,
+        "render_busy_ms": 65.39474,
         "last_render_to_last_swap_ms": 36.725521,
         "last_swap_to_reveal_ms": 0.134479,
         "reveal_to_sharp_ms": 101.046146,
@@ -4407,7 +4407,7 @@
       {
         "total_ms": 247.83651,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.916149,
+        "render_busy_ms": 58.368748,
         "last_render_to_last_swap_ms": 60.365156,
         "last_swap_to_reveal_ms": 0.158803,
         "reveal_to_sharp_ms": 109.753541,
@@ -4416,7 +4416,7 @@
       {
         "total_ms": 189.668959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 113.804427,
+        "render_busy_ms": 79.200936,
         "last_render_to_last_swap_ms": 4.549218,
         "last_swap_to_reveal_ms": 0.096303,
         "reveal_to_sharp_ms": 100.069427,
@@ -4425,7 +4425,7 @@
       {
         "total_ms": 242.316615,
         "first_req_ms": 0.0,
-        "render_busy_ms": 95.948281,
+        "render_busy_ms": 67.085313,
         "last_render_to_last_swap_ms": 56.226927,
         "last_swap_to_reveal_ms": 0.156458,
         "reveal_to_sharp_ms": 103.294792,
@@ -4434,7 +4434,7 @@
       {
         "total_ms": 208.617188,
         "first_req_ms": 0.0,
-        "render_busy_ms": 122.940941,
+        "render_busy_ms": 83.655418,
         "last_render_to_last_swap_ms": 15.645625,
         "last_swap_to_reveal_ms": 0.175573,
         "reveal_to_sharp_ms": 100.146875,
@@ -4443,7 +4443,7 @@
       {
         "total_ms": 243.377969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 100.220467,
+        "render_busy_ms": 69.367552,
         "last_render_to_last_swap_ms": 37.118646,
         "last_swap_to_reveal_ms": 0.149635,
         "reveal_to_sharp_ms": 102.109896,
@@ -4452,7 +4452,7 @@
       {
         "total_ms": 303.551458,
         "first_req_ms": 0.0,
-        "render_busy_ms": 201.518076,
+        "render_busy_ms": 135.87328,
         "last_render_to_last_swap_ms": 54.844792,
         "last_swap_to_reveal_ms": 0.13151,
         "reveal_to_sharp_ms": 100.498802,
@@ -4461,7 +4461,7 @@
       {
         "total_ms": 244.013646,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.008907,
+        "render_busy_ms": 65.710418,
         "last_render_to_last_swap_ms": 46.539218,
         "last_swap_to_reveal_ms": 0.160938,
         "reveal_to_sharp_ms": 109.121927,
@@ -4470,7 +4470,7 @@
       {
         "total_ms": 216.408594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 117.435048,
+        "render_busy_ms": 81.691928,
         "last_render_to_last_swap_ms": 21.896406,
         "last_swap_to_reveal_ms": 0.089583,
         "reveal_to_sharp_ms": 107.964167,
@@ -4479,7 +4479,7 @@
       {
         "total_ms": 233.050885,
         "first_req_ms": 0.0,
-        "render_busy_ms": 79.016412,
+        "render_busy_ms": 55.760678,
         "last_render_to_last_swap_ms": 71.206666,
         "last_swap_to_reveal_ms": 0.110573,
         "reveal_to_sharp_ms": 101.093333,
@@ -4488,7 +4488,7 @@
       {
         "total_ms": 189.927656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 128.959015,
+        "render_busy_ms": 85.597083,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.056823,
         "reveal_to_sharp_ms": 100.84125,
@@ -4497,7 +4497,7 @@
       {
         "total_ms": 242.340729,
         "first_req_ms": 0.0,
-        "render_busy_ms": 99.672654,
+        "render_busy_ms": 70.013647,
         "last_render_to_last_swap_ms": 56.831615,
         "last_swap_to_reveal_ms": 0.190052,
         "reveal_to_sharp_ms": 101.94875,
@@ -4506,7 +4506,7 @@
       {
         "total_ms": 207.405052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 90.51693,
+        "render_busy_ms": 59.819532,
         "last_render_to_last_swap_ms": 38.32802,
         "last_swap_to_reveal_ms": 0.078386,
         "reveal_to_sharp_ms": 100.767291,
@@ -4515,7 +4515,7 @@
       {
         "total_ms": 234.465261,
         "first_req_ms": 0.0,
-        "render_busy_ms": 76.783335,
+        "render_busy_ms": 57.244429,
         "last_render_to_last_swap_ms": 67.461407,
         "last_swap_to_reveal_ms": 0.129427,
         "reveal_to_sharp_ms": 101.861979,
@@ -4524,7 +4524,7 @@
       {
         "total_ms": 208.056615,
         "first_req_ms": 0.0,
-        "render_busy_ms": 125.507967,
+        "render_busy_ms": 83.91625,
         "last_render_to_last_swap_ms": 13.871458,
         "last_swap_to_reveal_ms": 0.058385,
         "reveal_to_sharp_ms": 100.870157,
@@ -4533,7 +4533,7 @@
       {
         "total_ms": 241.850573,
         "first_req_ms": 0.0,
-        "render_busy_ms": 92.107241,
+        "render_busy_ms": 68.10078,
         "last_render_to_last_swap_ms": 49.238906,
         "last_swap_to_reveal_ms": 0.19224,
         "reveal_to_sharp_ms": 100.915417,
@@ -4542,7 +4542,7 @@
       {
         "total_ms": 190.199895,
         "first_req_ms": 0.0,
-        "render_busy_ms": 118.629794,
+        "render_busy_ms": 84.840262,
         "last_render_to_last_swap_ms": 3.259114,
         "last_swap_to_reveal_ms": 0.113073,
         "reveal_to_sharp_ms": 100.023333,
@@ -4551,7 +4551,7 @@
       {
         "total_ms": 244.671667,
         "first_req_ms": 0.0,
-        "render_busy_ms": 106.546928,
+        "render_busy_ms": 73.73125,
         "last_render_to_last_swap_ms": 38.545469,
         "last_swap_to_reveal_ms": 0.187448,
         "reveal_to_sharp_ms": 103.518177,
@@ -4560,7 +4560,7 @@
       {
         "total_ms": 308.120521,
         "first_req_ms": 0.0,
-        "render_busy_ms": 198.06646,
+        "render_busy_ms": 130.596824,
         "last_render_to_last_swap_ms": 60.714219,
         "last_swap_to_reveal_ms": 0.077812,
         "reveal_to_sharp_ms": 108.766823,
@@ -4569,7 +4569,7 @@
       {
         "total_ms": 245.621718,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.060103,
+        "render_busy_ms": 63.619687,
         "last_render_to_last_swap_ms": 60.035781,
         "last_swap_to_reveal_ms": 0.129584,
         "reveal_to_sharp_ms": 102.21677,
@@ -4578,7 +4578,7 @@
       {
         "total_ms": 204.657448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 125.08125,
+        "render_busy_ms": 86.822345,
         "last_render_to_last_swap_ms": 9.015261,
         "last_swap_to_reveal_ms": 0.100937,
         "reveal_to_sharp_ms": 100.161511,
@@ -4587,7 +4587,7 @@
       {
         "total_ms": 247.313906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 87.967345,
+        "render_busy_ms": 66.249217,
         "last_render_to_last_swap_ms": 55.624062,
         "last_swap_to_reveal_ms": 0.164375,
         "reveal_to_sharp_ms": 101.720833,
@@ -4596,7 +4596,7 @@
       {
         "total_ms": 190.800416,
         "first_req_ms": 0.0,
-        "render_busy_ms": 116.954585,
+        "render_busy_ms": 80.273958,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055364,
         "reveal_to_sharp_ms": 100.239271,
@@ -4605,7 +4605,7 @@
       {
         "total_ms": 243.611198,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.431406,
+        "render_busy_ms": 64.22625,
         "last_render_to_last_swap_ms": 53.274427,
         "last_swap_to_reveal_ms": 0.14224,
         "reveal_to_sharp_ms": 100.607916,
@@ -4614,7 +4614,7 @@
       {
         "total_ms": 207.05651,
         "first_req_ms": 0.0,
-        "render_busy_ms": 131.186096,
+        "render_busy_ms": 90.192293,
         "last_render_to_last_swap_ms": 4.357969,
         "last_swap_to_reveal_ms": 0.059947,
         "reveal_to_sharp_ms": 100.4725,
@@ -4623,7 +4623,7 @@
       {
         "total_ms": 239.469896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 83.068389,
+        "render_busy_ms": 61.117187,
         "last_render_to_last_swap_ms": 61.796511,
         "last_swap_to_reveal_ms": 0.142083,
         "reveal_to_sharp_ms": 100.904323,
@@ -4632,7 +4632,7 @@
       {
         "total_ms": 190.524687,
         "first_req_ms": 0.0,
-        "render_busy_ms": 115.226306,
+        "render_busy_ms": 81.84427,
         "last_render_to_last_swap_ms": 4.060469,
         "last_swap_to_reveal_ms": 0.079218,
         "reveal_to_sharp_ms": 100.10349,
@@ -4641,7 +4641,7 @@
       {
         "total_ms": 246.915729,
         "first_req_ms": 0.0,
-        "render_busy_ms": 94.298492,
+        "render_busy_ms": 68.056668,
         "last_render_to_last_swap_ms": 54.586615,
         "last_swap_to_reveal_ms": 0.132343,
         "reveal_to_sharp_ms": 102.534479,
@@ -4650,7 +4650,7 @@
       {
         "total_ms": 215.782448,
         "first_req_ms": 0.0,
-        "render_busy_ms": 96.891043,
+        "render_busy_ms": 65.203074,
         "last_render_to_last_swap_ms": 40.392239,
         "last_swap_to_reveal_ms": 0.143906,
         "reveal_to_sharp_ms": 107.432865,
@@ -4659,7 +4659,7 @@
       {
         "total_ms": 278.948906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 144.870366,
+        "render_busy_ms": 95.101615,
         "last_render_to_last_swap_ms": 39.27474,
         "last_swap_to_reveal_ms": 0.171146,
         "reveal_to_sharp_ms": 103.549635,
@@ -4668,7 +4668,7 @@
       {
         "total_ms": 306.958802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 205.520682,
+        "render_busy_ms": 137.650155,
         "last_render_to_last_swap_ms": 59.6925,
         "last_swap_to_reveal_ms": 0.145521,
         "reveal_to_sharp_ms": 100.790521,
@@ -4677,7 +4677,7 @@
       {
         "total_ms": 247.920416,
         "first_req_ms": 0.0,
-        "render_busy_ms": 85.635621,
+        "render_busy_ms": 59.570831,
         "last_render_to_last_swap_ms": 62.393281,
         "last_swap_to_reveal_ms": 0.19625,
         "reveal_to_sharp_ms": 100.759583,
@@ -4686,7 +4686,7 @@
       {
         "total_ms": 208.038437,
         "first_req_ms": 0.0,
-        "render_busy_ms": 139.068018,
+        "render_busy_ms": 91.710625,
         "last_render_to_last_swap_ms": 10.701041,
         "last_swap_to_reveal_ms": 0.04849,
         "reveal_to_sharp_ms": 100.37776,
@@ -4695,7 +4695,7 @@
       {
         "total_ms": 243.929115,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.376096,
+        "render_busy_ms": 65.833229,
         "last_render_to_last_swap_ms": 52.393906,
         "last_swap_to_reveal_ms": 0.203386,
         "reveal_to_sharp_ms": 101.606354,
@@ -4704,7 +4704,7 @@
       {
         "total_ms": 192.130156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.423021,
+        "render_busy_ms": 83.126303,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.055521,
         "reveal_to_sharp_ms": 100.693802,
@@ -4713,7 +4713,7 @@
       {
         "total_ms": 245.884635,
         "first_req_ms": 0.0,
-        "render_busy_ms": 84.995889,
+        "render_busy_ms": 60.955471,
         "last_render_to_last_swap_ms": 63.351093,
         "last_swap_to_reveal_ms": 0.183907,
         "reveal_to_sharp_ms": 99.815416,
@@ -4722,7 +4722,7 @@
       {
         "total_ms": 207.380052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 96.409372,
+        "render_busy_ms": 65.636198,
         "last_render_to_last_swap_ms": 35.112031,
         "last_swap_to_reveal_ms": 0.141719,
         "reveal_to_sharp_ms": 100.008697,
@@ -4731,7 +4731,7 @@
       {
         "total_ms": 236.729792,
         "first_req_ms": 0.0,
-        "render_busy_ms": 77.902084,
+        "render_busy_ms": 55.96844,
         "last_render_to_last_swap_ms": 64.616093,
         "last_swap_to_reveal_ms": 0.140834,
         "reveal_to_sharp_ms": 100.865729,
@@ -4740,7 +4740,7 @@
       {
         "total_ms": 190.952969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 120.508806,
+        "render_busy_ms": 82.563959,
         "last_render_to_last_swap_ms": 2.939948,
         "last_swap_to_reveal_ms": 0.055104,
         "reveal_to_sharp_ms": 100.019948,
@@ -4749,7 +4749,7 @@
       {
         "total_ms": 242.756667,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.958961,
+        "render_busy_ms": 64.761875,
         "last_render_to_last_swap_ms": 51.27026,
         "last_swap_to_reveal_ms": 0.148229,
         "reveal_to_sharp_ms": 102.583021,
@@ -4758,7 +4758,7 @@
       {
         "total_ms": 199.563229,
         "first_req_ms": 0.0,
-        "render_busy_ms": 118.692815,
+        "render_busy_ms": 83.026825,
         "last_render_to_last_swap_ms": 14.800729,
         "last_swap_to_reveal_ms": 0.125364,
         "reveal_to_sharp_ms": 99.453959,
@@ -4767,7 +4767,7 @@
       {
         "total_ms": 234.23651,
         "first_req_ms": 0.0,
-        "render_busy_ms": 93.752966,
+        "render_busy_ms": 63.608018,
         "last_render_to_last_swap_ms": 57.464427,
         "last_swap_to_reveal_ms": 0.133229,
         "reveal_to_sharp_ms": 99.730417,
@@ -4776,7 +4776,7 @@
       {
         "total_ms": 299.288541,
         "first_req_ms": 0.0,
-        "render_busy_ms": 187.004218,
+        "render_busy_ms": 129.722031,
         "last_render_to_last_swap_ms": 63.275729,
         "last_swap_to_reveal_ms": 0.153229,
         "reveal_to_sharp_ms": 99.976823,
@@ -4785,7 +4785,7 @@
       {
         "total_ms": 254.512136,
         "first_req_ms": 0.0,
-        "render_busy_ms": 108.420781,
+        "render_busy_ms": 79.148334,
         "last_render_to_last_swap_ms": 59.416615,
         "last_swap_to_reveal_ms": 0.184792,
         "reveal_to_sharp_ms": 99.528906,
@@ -4794,7 +4794,7 @@
       {
         "total_ms": 213.324323,
         "first_req_ms": 0.0,
-        "render_busy_ms": 111.495047,
+        "render_busy_ms": 81.97026,
         "last_render_to_last_swap_ms": 22.720989,
         "last_swap_to_reveal_ms": 0.085573,
         "reveal_to_sharp_ms": 99.835521,
@@ -4803,7 +4803,7 @@
       {
         "total_ms": 251.225833,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.953749,
+        "render_busy_ms": 83.469636,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.054739,
         "reveal_to_sharp_ms": 100.106146,
@@ -4812,7 +4812,7 @@
       {
         "total_ms": 199.044896,
         "first_req_ms": 0.0,
-        "render_busy_ms": 134.582764,
+        "render_busy_ms": 89.629581,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066979,
         "reveal_to_sharp_ms": 100.025729,
@@ -4821,7 +4821,7 @@
       {
         "total_ms": 237.693541,
         "first_req_ms": 0.0,
-        "render_busy_ms": 96.09302,
+        "render_busy_ms": 65.741148,
         "last_render_to_last_swap_ms": 50.188229,
         "last_swap_to_reveal_ms": 0.165208,
         "reveal_to_sharp_ms": 100.311302,
@@ -4830,7 +4830,7 @@
       {
         "total_ms": 207.012656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 123.55073,
+        "render_busy_ms": 83.717759,
         "last_render_to_last_swap_ms": 14.354323,
         "last_swap_to_reveal_ms": 0.116563,
         "reveal_to_sharp_ms": 100.398437,
@@ -4839,7 +4839,7 @@
       {
         "total_ms": 252.12276,
         "first_req_ms": 0.0,
-        "render_busy_ms": 91.216198,
+        "render_busy_ms": 67.115206,
         "last_render_to_last_swap_ms": 57.728646,
         "last_swap_to_reveal_ms": 0.181041,
         "reveal_to_sharp_ms": 101.904427,
@@ -4848,7 +4848,7 @@
       {
         "total_ms": 191.083385,
         "first_req_ms": 0.0,
-        "render_busy_ms": 121.78938,
+        "render_busy_ms": 82.396824,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.06599,
         "reveal_to_sharp_ms": 100.509479,
@@ -4857,7 +4857,7 @@
       {
         "total_ms": 245.701458,
         "first_req_ms": 0.0,
-        "render_busy_ms": 88.275516,
+        "render_busy_ms": 62.508382,
         "last_render_to_last_swap_ms": 52.498021,
         "last_swap_to_reveal_ms": 0.173386,
         "reveal_to_sharp_ms": 104.543593,
@@ -4866,7 +4866,7 @@
       {
         "total_ms": 216.423959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 118.227709,
+        "render_busy_ms": 83.652033,
         "last_render_to_last_swap_ms": 19.449792,
         "last_swap_to_reveal_ms": 0.270833,
         "reveal_to_sharp_ms": 107.85099,
@@ -4875,7 +4875,7 @@
       {
         "total_ms": 249.918125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 110.224636,
+        "render_busy_ms": 75.04698,
         "last_render_to_last_swap_ms": 68.233542,
         "last_swap_to_reveal_ms": 0.354948,
         "reveal_to_sharp_ms": 99.784479,
@@ -7326,7 +7326,7 @@
       {
         "total_ms": 311.246302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 194.34197,
+        "render_busy_ms": 132.219427,
         "last_render_to_last_swap_ms": 55.870677,
         "last_swap_to_reveal_ms": 0.161511,
         "reveal_to_sharp_ms": 104.691145,
@@ -7335,7 +7335,7 @@
       {
         "total_ms": 333.279635,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.439845,
+        "render_busy_ms": 118.828699,
         "last_render_to_last_swap_ms": 109.032604,
         "last_swap_to_reveal_ms": 0.183802,
         "reveal_to_sharp_ms": 100.424792,
@@ -7344,7 +7344,7 @@
       {
         "total_ms": 247.931302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.132865,
+        "render_busy_ms": 113.894893,
         "last_render_to_last_swap_ms": 9.711563,
         "last_swap_to_reveal_ms": 0.111458,
         "reveal_to_sharp_ms": 102.136614,
@@ -7353,7 +7353,7 @@
       {
         "total_ms": 312.120625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 159.516981,
+        "render_busy_ms": 113.40406,
         "last_render_to_last_swap_ms": 87.334011,
         "last_swap_to_reveal_ms": 0.104219,
         "reveal_to_sharp_ms": 100.127656,
@@ -7362,7 +7362,7 @@
       {
         "total_ms": 265.620677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 175.244636,
+        "render_busy_ms": 120.594478,
         "last_render_to_last_swap_ms": 23.617865,
         "last_swap_to_reveal_ms": 0.160729,
         "reveal_to_sharp_ms": 100.704115,
@@ -7371,7 +7371,7 @@
       {
         "total_ms": 354.135625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 180.330003,
+        "render_busy_ms": 126.314324,
         "last_render_to_last_swap_ms": 105.557969,
         "last_swap_to_reveal_ms": 0.127969,
         "reveal_to_sharp_ms": 108.08526,
@@ -7380,7 +7380,7 @@
       {
         "total_ms": 265.604688,
         "first_req_ms": 0.0,
-        "render_busy_ms": 209.091405,
+        "render_busy_ms": 141.590363,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.0675,
         "reveal_to_sharp_ms": 100.2275,
@@ -7389,7 +7389,7 @@
       {
         "total_ms": 306.870208,
         "first_req_ms": 0.0,
-        "render_busy_ms": 116.445631,
+        "render_busy_ms": 84.913073,
         "last_render_to_last_swap_ms": 116.329323,
         "last_swap_to_reveal_ms": 0.157656,
         "reveal_to_sharp_ms": 99.596979,
@@ -7398,7 +7398,7 @@
       {
         "total_ms": 220.622916,
         "first_req_ms": 0.0,
-        "render_busy_ms": 148.791512,
+        "render_busy_ms": 103.689377,
         "last_render_to_last_swap_ms": 0.904375,
         "last_swap_to_reveal_ms": 0.113958,
         "reveal_to_sharp_ms": 99.937083,
@@ -7407,7 +7407,7 @@
       {
         "total_ms": 307.58099,
         "first_req_ms": 0.0,
-        "render_busy_ms": 169.62645,
+        "render_busy_ms": 120.277134,
         "last_render_to_last_swap_ms": 81.02875,
         "last_swap_to_reveal_ms": 0.115625,
         "reveal_to_sharp_ms": 99.502605,
@@ -7416,7 +7416,7 @@
       {
         "total_ms": 269.898854,
         "first_req_ms": 0.0,
-        "render_busy_ms": 186.480523,
+        "render_busy_ms": 125.984949,
         "last_render_to_last_swap_ms": 4.716927,
         "last_swap_to_reveal_ms": 0.08625,
         "reveal_to_sharp_ms": 104.834896,
@@ -7425,7 +7425,7 @@
       {
         "total_ms": 328.435052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 172.409166,
+        "render_busy_ms": 124.241563,
         "last_render_to_last_swap_ms": 94.795,
         "last_swap_to_reveal_ms": 0.269844,
         "reveal_to_sharp_ms": 99.380052,
@@ -7434,7 +7434,7 @@
       {
         "total_ms": 312.038542,
         "first_req_ms": 0.0,
-        "render_busy_ms": 198.738076,
+        "render_busy_ms": 135.406458,
         "last_render_to_last_swap_ms": 56.709271,
         "last_swap_to_reveal_ms": 0.092187,
         "reveal_to_sharp_ms": 100.037969,
@@ -7443,7 +7443,7 @@
       {
         "total_ms": 344.111875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.024064,
+        "render_busy_ms": 119.409062,
         "last_render_to_last_swap_ms": 99.374948,
         "last_swap_to_reveal_ms": 0.206458,
         "reveal_to_sharp_ms": 109.749948,
@@ -7452,7 +7452,7 @@
       {
         "total_ms": 256.718489,
         "first_req_ms": 0.0,
-        "render_busy_ms": 190.988698,
+        "render_busy_ms": 126.990625,
         "last_render_to_last_swap_ms": 6.66302,
         "last_swap_to_reveal_ms": 0.062709,
         "reveal_to_sharp_ms": 101.925468,
@@ -7461,7 +7461,7 @@
       {
         "total_ms": 304.376927,
         "first_req_ms": 0.0,
-        "render_busy_ms": 161.217447,
+        "render_busy_ms": 117.438958,
         "last_render_to_last_swap_ms": 78.747343,
         "last_swap_to_reveal_ms": 0.192917,
         "reveal_to_sharp_ms": 99.391771,
@@ -7470,7 +7470,7 @@
       {
         "total_ms": 258.643438,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.325837,
+        "render_busy_ms": 115.141718,
         "last_render_to_last_swap_ms": 32.797291,
         "last_swap_to_reveal_ms": 0.161719,
         "reveal_to_sharp_ms": 102.851615,
@@ -7479,7 +7479,7 @@
       {
         "total_ms": 336.309844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 164.800779,
+        "render_busy_ms": 121.355676,
         "last_render_to_last_swap_ms": 105.918229,
         "last_swap_to_reveal_ms": 0.140261,
         "reveal_to_sharp_ms": 99.658177,
@@ -7488,7 +7488,7 @@
       {
         "total_ms": 265.277916,
         "first_req_ms": 0.0,
-        "render_busy_ms": 187.878023,
+        "render_busy_ms": 129.907137,
         "last_render_to_last_swap_ms": 0.506406,
         "last_swap_to_reveal_ms": 0.083437,
         "reveal_to_sharp_ms": 100.8775,
@@ -7497,7 +7497,7 @@
       {
         "total_ms": 314.48375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 155.451666,
+        "render_busy_ms": 112.602031,
         "last_render_to_last_swap_ms": 85.738386,
         "last_swap_to_reveal_ms": 0.210208,
         "reveal_to_sharp_ms": 107.351406,
@@ -7506,7 +7506,7 @@
       {
         "total_ms": 264.658021,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.448225,
+        "render_busy_ms": 115.871927,
         "last_render_to_last_swap_ms": 32.85401,
         "last_swap_to_reveal_ms": 0.139479,
         "reveal_to_sharp_ms": 102.506563,
@@ -7515,7 +7515,7 @@
       {
         "total_ms": 340.962656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 162.006617,
+        "render_busy_ms": 116.202918,
         "last_render_to_last_swap_ms": 112.700938,
         "last_swap_to_reveal_ms": 0.20927,
         "reveal_to_sharp_ms": 107.280521,
@@ -7524,7 +7524,7 @@
       {
         "total_ms": 263.085052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 201.112088,
+        "render_busy_ms": 140.463489,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.058438,
         "reveal_to_sharp_ms": 100.600312,
@@ -7533,7 +7533,7 @@
       {
         "total_ms": 307.325417,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.375213,
+        "render_busy_ms": 117.932606,
         "last_render_to_last_swap_ms": 76.940573,
         "last_swap_to_reveal_ms": 0.169896,
         "reveal_to_sharp_ms": 99.543333,
@@ -7542,7 +7542,7 @@
       {
         "total_ms": 314.458854,
         "first_req_ms": 0.0,
-        "render_busy_ms": 189.888276,
+        "render_busy_ms": 131.393906,
         "last_render_to_last_swap_ms": 57.156823,
         "last_swap_to_reveal_ms": 0.162083,
         "reveal_to_sharp_ms": 109.280313,
@@ -7551,7 +7551,7 @@
       {
         "total_ms": 338.627916,
         "first_req_ms": 0.0,
-        "render_busy_ms": 162.105834,
+        "render_busy_ms": 118.415523,
         "last_render_to_last_swap_ms": 107.37,
         "last_swap_to_reveal_ms": 0.194531,
         "reveal_to_sharp_ms": 99.76401,
@@ -7560,7 +7560,7 @@
       {
         "total_ms": 252.770781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 169.580783,
+        "render_busy_ms": 114.172241,
         "last_render_to_last_swap_ms": 12.485625,
         "last_swap_to_reveal_ms": 0.068802,
         "reveal_to_sharp_ms": 100.378281,
@@ -7569,7 +7569,7 @@
       {
         "total_ms": 308.020417,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.645991,
+        "render_busy_ms": 119.397707,
         "last_render_to_last_swap_ms": 84.28901,
         "last_swap_to_reveal_ms": 0.165938,
         "reveal_to_sharp_ms": 100.069792,
@@ -7578,7 +7578,7 @@
       {
         "total_ms": 257.011302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 164.175103,
+        "render_busy_ms": 114.079791,
         "last_render_to_last_swap_ms": 28.432448,
         "last_swap_to_reveal_ms": 0.116927,
         "reveal_to_sharp_ms": 100.481875,
@@ -7587,7 +7587,7 @@
       {
         "total_ms": 337.337031,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.799532,
+        "render_busy_ms": 121.369532,
         "last_render_to_last_swap_ms": 103.158021,
         "last_swap_to_reveal_ms": 0.137969,
         "reveal_to_sharp_ms": 107.783177,
@@ -7596,7 +7596,7 @@
       {
         "total_ms": 263.334218,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.972033,
+        "render_busy_ms": 114.412916,
         "last_render_to_last_swap_ms": 21.783281,
         "last_swap_to_reveal_ms": 0.156562,
         "reveal_to_sharp_ms": 107.979375,
@@ -7605,7 +7605,7 @@
       {
         "total_ms": 320.634219,
         "first_req_ms": 0.0,
-        "render_busy_ms": 181.041925,
+        "render_busy_ms": 125.11927,
         "last_render_to_last_swap_ms": 71.866719,
         "last_swap_to_reveal_ms": 0.146093,
         "reveal_to_sharp_ms": 107.117605,
@@ -7614,7 +7614,7 @@
       {
         "total_ms": 257.18177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.59609,
+        "render_busy_ms": 117.117135,
         "last_render_to_last_swap_ms": 27.2825,
         "last_swap_to_reveal_ms": 0.201511,
         "reveal_to_sharp_ms": 101.06552,
@@ -7623,7 +7623,7 @@
       {
         "total_ms": 329.812187,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.856151,
+        "render_busy_ms": 123.50745,
         "last_render_to_last_swap_ms": 93.330833,
         "last_swap_to_reveal_ms": 0.208698,
         "reveal_to_sharp_ms": 100.321667,
@@ -7632,7 +7632,7 @@
       {
         "total_ms": 250.607343,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.832285,
+        "render_busy_ms": 111.754688,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.205573,
         "reveal_to_sharp_ms": 100.508281,
@@ -7641,7 +7641,7 @@
       {
         "total_ms": 319.846771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 172.944487,
+        "render_busy_ms": 121.501146,
         "last_render_to_last_swap_ms": 79.277188,
         "last_swap_to_reveal_ms": 0.21151,
         "reveal_to_sharp_ms": 106.906823,
@@ -7650,7 +7650,7 @@
       {
         "total_ms": 310.497656,
         "first_req_ms": 0.0,
-        "render_busy_ms": 214.58562,
+        "render_busy_ms": 148.594788,
         "last_render_to_last_swap_ms": 34.885781,
         "last_swap_to_reveal_ms": 0.185885,
         "reveal_to_sharp_ms": 100.290886,
@@ -7659,7 +7659,7 @@
       {
         "total_ms": 341.78552,
         "first_req_ms": 0.0,
-        "render_busy_ms": 177.894945,
+        "render_busy_ms": 122.940886,
         "last_render_to_last_swap_ms": 96.120573,
         "last_swap_to_reveal_ms": 0.266719,
         "reveal_to_sharp_ms": 109.273645,
@@ -7668,7 +7668,7 @@
       {
         "total_ms": 249.819062,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.770573,
+        "render_busy_ms": 122.392813,
         "last_render_to_last_swap_ms": 8.9675,
         "last_swap_to_reveal_ms": 0.093645,
         "reveal_to_sharp_ms": 100.374844,
@@ -7677,7 +7677,7 @@
       {
         "total_ms": 315.053386,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.915884,
+        "render_busy_ms": 123.885208,
         "last_render_to_last_swap_ms": 75.668229,
         "last_swap_to_reveal_ms": 0.189636,
         "reveal_to_sharp_ms": 107.289323,
@@ -7686,7 +7686,7 @@
       {
         "total_ms": 258.533698,
         "first_req_ms": 0.0,
-        "render_busy_ms": 179.123484,
+        "render_busy_ms": 123.73057,
         "last_render_to_last_swap_ms": 17.646927,
         "last_swap_to_reveal_ms": 0.161302,
         "reveal_to_sharp_ms": 99.64401,
@@ -7695,7 +7695,7 @@
       {
         "total_ms": 337.23026,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.453438,
+        "render_busy_ms": 114.272967,
         "last_render_to_last_swap_ms": 102.967604,
         "last_swap_to_reveal_ms": 0.15573,
         "reveal_to_sharp_ms": 99.782916,
@@ -7704,7 +7704,7 @@
       {
         "total_ms": 265.576979,
         "first_req_ms": 0.0,
-        "render_busy_ms": 175.651304,
+        "render_busy_ms": 119.712451,
         "last_render_to_last_swap_ms": 17.511927,
         "last_swap_to_reveal_ms": 0.173229,
         "reveal_to_sharp_ms": 107.537136,
@@ -7713,7 +7713,7 @@
       {
         "total_ms": 315.723854,
         "first_req_ms": 0.0,
-        "render_busy_ms": 178.370469,
+        "render_busy_ms": 123.855678,
         "last_render_to_last_swap_ms": 76.674583,
         "last_swap_to_reveal_ms": 0.264271,
         "reveal_to_sharp_ms": 107.140104,
@@ -7722,7 +7722,7 @@
       {
         "total_ms": 274.565886,
         "first_req_ms": 0.0,
-        "render_busy_ms": 215.933177,
+        "render_busy_ms": 140.970001,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.08099,
         "reveal_to_sharp_ms": 100.214948,
@@ -7731,7 +7731,7 @@
       {
         "total_ms": 332.349792,
         "first_req_ms": 0.0,
-        "render_busy_ms": 183.557916,
+        "render_busy_ms": 131.31531,
         "last_render_to_last_swap_ms": 92.251823,
         "last_swap_to_reveal_ms": 0.222083,
         "reveal_to_sharp_ms": 100.085365,
@@ -7740,7 +7740,7 @@
       {
         "total_ms": 248.211302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.732188,
+        "render_busy_ms": 124.183489,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.075417,
         "reveal_to_sharp_ms": 100.022343,
@@ -7749,7 +7749,7 @@
       {
         "total_ms": 306.507812,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.69276,
+        "render_busy_ms": 121.402135,
         "last_render_to_last_swap_ms": 73.245052,
         "last_swap_to_reveal_ms": 0.090625,
         "reveal_to_sharp_ms": 101.774479,
@@ -7758,7 +7758,7 @@
       {
         "total_ms": 306.10849,
         "first_req_ms": 0.0,
-        "render_busy_ms": 206.308542,
+        "render_busy_ms": 141.522133,
         "last_render_to_last_swap_ms": 42.168438,
         "last_swap_to_reveal_ms": 0.175625,
         "reveal_to_sharp_ms": 101.508073,
@@ -7767,7 +7767,7 @@
       {
         "total_ms": 332.968437,
         "first_req_ms": 0.0,
-        "render_busy_ms": 175.32245,
+        "render_busy_ms": 122.408591,
         "last_render_to_last_swap_ms": 101.397552,
         "last_swap_to_reveal_ms": 0.253542,
         "reveal_to_sharp_ms": 100.059062,
@@ -7776,7 +7776,7 @@
       {
         "total_ms": 265.301718,
         "first_req_ms": 0.0,
-        "render_busy_ms": 186.567188,
+        "render_busy_ms": 125.332188,
         "last_render_to_last_swap_ms": 8.192396,
         "last_swap_to_reveal_ms": 0.100677,
         "reveal_to_sharp_ms": 107.727239,
@@ -7785,7 +7785,7 @@
       {
         "total_ms": 306.058281,
         "first_req_ms": 0.0,
-        "render_busy_ms": 165.620727,
+        "render_busy_ms": 116.299738,
         "last_render_to_last_swap_ms": 81.227917,
         "last_swap_to_reveal_ms": 0.259531,
         "reveal_to_sharp_ms": 99.027969,
@@ -7794,7 +7794,7 @@
       {
         "total_ms": 277.894062,
         "first_req_ms": 0.0,
-        "render_busy_ms": 207.449421,
+        "render_busy_ms": 140.205883,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.087136,
         "reveal_to_sharp_ms": 100.386093,
@@ -7803,7 +7803,7 @@
       {
         "total_ms": 329.831771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 220.663546,
+        "render_busy_ms": 156.434637,
         "last_render_to_last_swap_ms": 62.067187,
         "last_swap_to_reveal_ms": 0.141667,
         "reveal_to_sharp_ms": 100.251354,
@@ -7812,7 +7812,7 @@
       {
         "total_ms": 268.196511,
         "first_req_ms": 0.0,
-        "render_busy_ms": 179.260472,
+        "render_busy_ms": 124.777552,
         "last_render_to_last_swap_ms": 21.595105,
         "last_swap_to_reveal_ms": 0.153229,
         "reveal_to_sharp_ms": 100.861198,
@@ -7821,7 +7821,7 @@
       {
         "total_ms": 307.781459,
         "first_req_ms": 0.0,
-        "render_busy_ms": 180.338125,
+        "render_busy_ms": 127.210885,
         "last_render_to_last_swap_ms": 70.029011,
         "last_swap_to_reveal_ms": 0.109375,
         "reveal_to_sharp_ms": 99.974375,
@@ -7830,7 +7830,7 @@
       {
         "total_ms": 276.960573,
         "first_req_ms": 0.0,
-        "render_busy_ms": 229.848747,
+        "render_busy_ms": 157.342134,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.105677,
         "reveal_to_sharp_ms": 100.144896,
@@ -7839,7 +7839,7 @@
       {
         "total_ms": 336.658906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.145628,
+        "render_busy_ms": 119.173752,
         "last_render_to_last_swap_ms": 104.643906,
         "last_swap_to_reveal_ms": 0.137656,
         "reveal_to_sharp_ms": 100.129167,
@@ -7848,7 +7848,7 @@
       {
         "total_ms": 259.288281,
         "first_req_ms": 0.0,
-        "render_busy_ms": 157.398753,
+        "render_busy_ms": 109.69922,
         "last_render_to_last_swap_ms": 28.98724,
         "last_swap_to_reveal_ms": 0.129322,
         "reveal_to_sharp_ms": 101.559636,
@@ -7857,7 +7857,7 @@
       {
         "total_ms": 315.87125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.672966,
+        "render_busy_ms": 117.265778,
         "last_render_to_last_swap_ms": 78.687031,
         "last_swap_to_reveal_ms": 0.293594,
         "reveal_to_sharp_ms": 106.701927,
@@ -7868,7 +7868,7 @@
       {
         "total_ms": 310.641823,
         "first_req_ms": 0.0,
-        "render_busy_ms": 194.884008,
+        "render_busy_ms": 134.446824,
         "last_render_to_last_swap_ms": 53.126093,
         "last_swap_to_reveal_ms": 0.15349,
         "reveal_to_sharp_ms": 108.078802,
@@ -7877,7 +7877,7 @@
       {
         "total_ms": 338.616666,
         "first_req_ms": 0.0,
-        "render_busy_ms": 185.978227,
+        "render_busy_ms": 128.624635,
         "last_render_to_last_swap_ms": 91.823385,
         "last_swap_to_reveal_ms": 0.202813,
         "reveal_to_sharp_ms": 100.88901,
@@ -7886,7 +7886,7 @@
       {
         "total_ms": 256.598021,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.009013,
+        "render_busy_ms": 112.447139,
         "last_render_to_last_swap_ms": 23.542187,
         "last_swap_to_reveal_ms": 0.163438,
         "reveal_to_sharp_ms": 105.523594,
@@ -7895,7 +7895,7 @@
       {
         "total_ms": 306.158959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.577081,
+        "render_busy_ms": 118.973435,
         "last_render_to_last_swap_ms": 76.617604,
         "last_swap_to_reveal_ms": 0.180313,
         "reveal_to_sharp_ms": 99.498854,
@@ -7904,7 +7904,7 @@
       {
         "total_ms": 273.808594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 161.701617,
+        "render_busy_ms": 111.380053,
         "last_render_to_last_swap_ms": 44.951927,
         "last_swap_to_reveal_ms": 0.165729,
         "reveal_to_sharp_ms": 100.275261,
@@ -7913,7 +7913,7 @@
       {
         "total_ms": 336.845209,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.479121,
+        "render_busy_ms": 120.574011,
         "last_render_to_last_swap_ms": 106.858541,
         "last_swap_to_reveal_ms": 0.103438,
         "reveal_to_sharp_ms": 99.795469,
@@ -7922,7 +7922,7 @@
       {
         "total_ms": 249.865416,
         "first_req_ms": 0.0,
-        "render_busy_ms": 177.582914,
+        "render_busy_ms": 119.829687,
         "last_render_to_last_swap_ms": 12.914063,
         "last_swap_to_reveal_ms": 0.097396,
         "reveal_to_sharp_ms": 101.79026,
@@ -7931,7 +7931,7 @@
       {
         "total_ms": 313.75875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 156.719168,
+        "render_busy_ms": 111.559479,
         "last_render_to_last_swap_ms": 87.086979,
         "last_swap_to_reveal_ms": 0.219792,
         "reveal_to_sharp_ms": 107.069271,
@@ -7940,7 +7940,7 @@
       {
         "total_ms": 271.902396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 205.8326,
+        "render_busy_ms": 141.695052,
         "last_render_to_last_swap_ms": 9.293125,
         "last_swap_to_reveal_ms": 0.0625,
         "reveal_to_sharp_ms": 101.95099,
@@ -7949,7 +7949,7 @@
       {
         "total_ms": 331.278125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.291563,
+        "render_busy_ms": 119.589584,
         "last_render_to_last_swap_ms": 101.09901,
         "last_swap_to_reveal_ms": 0.140833,
         "reveal_to_sharp_ms": 100.65875,
@@ -7958,7 +7958,7 @@
       {
         "total_ms": 276.001042,
         "first_req_ms": 0.0,
-        "render_busy_ms": 199.402443,
+        "render_busy_ms": 137.270884,
         "last_render_to_last_swap_ms": 4.497969,
         "last_swap_to_reveal_ms": 0.069479,
         "reveal_to_sharp_ms": 100.453906,
@@ -7967,7 +7967,7 @@
       {
         "total_ms": 307.995677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 164.974063,
+        "render_busy_ms": 116.115936,
         "last_render_to_last_swap_ms": 75.17625,
         "last_swap_to_reveal_ms": 0.105937,
         "reveal_to_sharp_ms": 100.031146,
@@ -7976,7 +7976,7 @@
       {
         "total_ms": 321.690469,
         "first_req_ms": 0.0,
-        "render_busy_ms": 209.247029,
+        "render_busy_ms": 144.991614,
         "last_render_to_last_swap_ms": 65.876928,
         "last_swap_to_reveal_ms": 0.179166,
         "reveal_to_sharp_ms": 100.946719,
@@ -7985,7 +7985,7 @@
       {
         "total_ms": 333.539323,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.860204,
+        "render_busy_ms": 120.996093,
         "last_render_to_last_swap_ms": 101.60375,
         "last_swap_to_reveal_ms": 0.208489,
         "reveal_to_sharp_ms": 100.053594,
@@ -7994,7 +7994,7 @@
       {
         "total_ms": 247.394844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 177.472549,
+        "render_busy_ms": 121.769531,
         "last_render_to_last_swap_ms": 4.445677,
         "last_swap_to_reveal_ms": 0.069948,
         "reveal_to_sharp_ms": 101.032657,
@@ -8003,7 +8003,7 @@
       {
         "total_ms": 315.325052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 217.648595,
+        "render_busy_ms": 145.55901,
         "last_render_to_last_swap_ms": 49.743073,
         "last_swap_to_reveal_ms": 0.136041,
         "reveal_to_sharp_ms": 107.647709,
@@ -8012,7 +8012,7 @@
       {
         "total_ms": 262.5775,
         "first_req_ms": 0.0,
-        "render_busy_ms": 186.220777,
+        "render_busy_ms": 120.685,
         "last_render_to_last_swap_ms": 15.297656,
         "last_swap_to_reveal_ms": 0.201094,
         "reveal_to_sharp_ms": 102.697135,
@@ -8021,7 +8021,7 @@
       {
         "total_ms": 340.190573,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.204221,
+        "render_busy_ms": 120.899373,
         "last_render_to_last_swap_ms": 103.906823,
         "last_swap_to_reveal_ms": 0.179896,
         "reveal_to_sharp_ms": 107.762604,
@@ -8030,7 +8030,7 @@
       {
         "total_ms": 262.73875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 195.531932,
+        "render_busy_ms": 133.444688,
         "last_render_to_last_swap_ms": 0.22375,
         "last_swap_to_reveal_ms": 0.128281,
         "reveal_to_sharp_ms": 100.297917,
@@ -8039,7 +8039,7 @@
       {
         "total_ms": 321.005364,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.120055,
+        "render_busy_ms": 122.979741,
         "last_render_to_last_swap_ms": 66.937136,
         "last_swap_to_reveal_ms": 0.245989,
         "reveal_to_sharp_ms": 107.888021,
@@ -8048,7 +8048,7 @@
       {
         "total_ms": 275.54849,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.630938,
+        "render_busy_ms": 119.741772,
         "last_render_to_last_swap_ms": 28.400572,
         "last_swap_to_reveal_ms": 0.123021,
         "reveal_to_sharp_ms": 105.320834,
@@ -8057,7 +8057,7 @@
       {
         "total_ms": 332.955781,
         "first_req_ms": 0.0,
-        "render_busy_ms": 161.68641,
+        "render_busy_ms": 112.848544,
         "last_render_to_last_swap_ms": 103.245833,
         "last_swap_to_reveal_ms": 0.322448,
         "reveal_to_sharp_ms": 108.045781,
@@ -8066,7 +8066,7 @@
       {
         "total_ms": 247.767708,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.39448,
+        "render_busy_ms": 114.964061,
         "last_render_to_last_swap_ms": 23.256667,
         "last_swap_to_reveal_ms": 0.144323,
         "reveal_to_sharp_ms": 99.80526,
@@ -8075,7 +8075,7 @@
       {
         "total_ms": 324.283542,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.482449,
+        "render_busy_ms": 122.807084,
         "last_render_to_last_swap_ms": 76.064635,
         "last_swap_to_reveal_ms": 0.162656,
         "reveal_to_sharp_ms": 107.906042,
@@ -8084,7 +8084,7 @@
       {
         "total_ms": 321.745573,
         "first_req_ms": 0.0,
-        "render_busy_ms": 189.719892,
+        "render_busy_ms": 130.870419,
         "last_render_to_last_swap_ms": 64.153906,
         "last_swap_to_reveal_ms": 0.170573,
         "reveal_to_sharp_ms": 108.862708,
@@ -8093,7 +8093,7 @@
       {
         "total_ms": 340.621563,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.810577,
+        "render_busy_ms": 120.95927,
         "last_render_to_last_swap_ms": 102.399479,
         "last_swap_to_reveal_ms": 0.230729,
         "reveal_to_sharp_ms": 106.17224,
@@ -8102,7 +8102,7 @@
       {
         "total_ms": 247.435989,
         "first_req_ms": 0.0,
-        "render_busy_ms": 175.973229,
+        "render_busy_ms": 116.575365,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.058593,
         "reveal_to_sharp_ms": 101.459375,
@@ -8111,7 +8111,7 @@
       {
         "total_ms": 305.129844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 165.053231,
+        "render_busy_ms": 119.043802,
         "last_render_to_last_swap_ms": 73.942656,
         "last_swap_to_reveal_ms": 0.131719,
         "reveal_to_sharp_ms": 100.450886,
@@ -8120,7 +8120,7 @@
       {
         "total_ms": 257.622604,
         "first_req_ms": 0.0,
-        "render_busy_ms": 182.157706,
+        "render_busy_ms": 124.392709,
         "last_render_to_last_swap_ms": 11.878958,
         "last_swap_to_reveal_ms": 0.113125,
         "reveal_to_sharp_ms": 101.860625,
@@ -8129,7 +8129,7 @@
       {
         "total_ms": 332.363334,
         "first_req_ms": 0.0,
-        "render_busy_ms": 164.209955,
+        "render_busy_ms": 118.284845,
         "last_render_to_last_swap_ms": 101.503333,
         "last_swap_to_reveal_ms": 0.216719,
         "reveal_to_sharp_ms": 99.789636,
@@ -8138,7 +8138,7 @@
       {
         "total_ms": 257.578438,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.976667,
+        "render_busy_ms": 117.277916,
         "last_render_to_last_swap_ms": 17.335833,
         "last_swap_to_reveal_ms": 0.097448,
         "reveal_to_sharp_ms": 100.712084,
@@ -8147,7 +8147,7 @@
       {
         "total_ms": 313.202968,
         "first_req_ms": 0.0,
-        "render_busy_ms": 157.684736,
+        "render_busy_ms": 113.532497,
         "last_render_to_last_swap_ms": 79.144271,
         "last_swap_to_reveal_ms": 0.215261,
         "reveal_to_sharp_ms": 107.582916,
@@ -8156,7 +8156,7 @@
       {
         "total_ms": 297.577917,
         "first_req_ms": 0.0,
-        "render_busy_ms": 217.459063,
+        "render_busy_ms": 142.126927,
         "last_render_to_last_swap_ms": 16.329844,
         "last_swap_to_reveal_ms": 0.097552,
         "reveal_to_sharp_ms": 103.461875,
@@ -8165,7 +8165,7 @@
       {
         "total_ms": 331.468854,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.618339,
+        "render_busy_ms": 118.40688,
         "last_render_to_last_swap_ms": 104.063854,
         "last_swap_to_reveal_ms": 0.264948,
         "reveal_to_sharp_ms": 99.281093,
@@ -8174,7 +8174,7 @@
       {
         "total_ms": 248.495104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.395523,
+        "render_busy_ms": 116.13151,
         "last_render_to_last_swap_ms": 20.577292,
         "last_swap_to_reveal_ms": 0.155052,
         "reveal_to_sharp_ms": 100.804583,
@@ -8183,7 +8183,7 @@
       {
         "total_ms": 298.887395,
         "first_req_ms": 0.0,
-        "render_busy_ms": 135.257862,
+        "render_busy_ms": 91.692186,
         "last_render_to_last_swap_ms": 96.779844,
         "last_swap_to_reveal_ms": 0.267552,
         "reveal_to_sharp_ms": 99.528645,
@@ -8192,7 +8192,7 @@
       {
         "total_ms": 302.072864,
         "first_req_ms": 0.0,
-        "render_busy_ms": 205.290154,
+        "render_busy_ms": 137.490414,
         "last_render_to_last_swap_ms": 47.393855,
         "last_swap_to_reveal_ms": 0.180885,
         "reveal_to_sharp_ms": 103.170052,
@@ -8201,7 +8201,7 @@
       {
         "total_ms": 341.177396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.250101,
+        "render_busy_ms": 121.333125,
         "last_render_to_last_swap_ms": 102.457656,
         "last_swap_to_reveal_ms": 0.255156,
         "reveal_to_sharp_ms": 108.010886,
@@ -8210,7 +8210,7 @@
       {
         "total_ms": 256.966927,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.909997,
+        "render_busy_ms": 116.705573,
         "last_render_to_last_swap_ms": 17.062344,
         "last_swap_to_reveal_ms": 0.147448,
         "reveal_to_sharp_ms": 101.01276,
@@ -8219,7 +8219,7 @@
       {
         "total_ms": 315.074948,
         "first_req_ms": 0.0,
-        "render_busy_ms": 179.203799,
+        "render_busy_ms": 121.592084,
         "last_render_to_last_swap_ms": 74.758906,
         "last_swap_to_reveal_ms": 0.197969,
         "reveal_to_sharp_ms": 107.946927,
@@ -8228,7 +8228,7 @@
       {
         "total_ms": 241.262344,
         "first_req_ms": 0.0,
-        "render_busy_ms": 146.605732,
+        "render_busy_ms": 100.454843,
         "last_render_to_last_swap_ms": 12.33849,
         "last_swap_to_reveal_ms": 0.096354,
         "reveal_to_sharp_ms": 109.930573,
@@ -8237,7 +8237,7 @@
       {
         "total_ms": 321.996875,
         "first_req_ms": 0.0,
-        "render_busy_ms": 157.984373,
+        "render_busy_ms": 110.448959,
         "last_render_to_last_swap_ms": 84.577552,
         "last_swap_to_reveal_ms": 0.274896,
         "reveal_to_sharp_ms": 107.480833,
@@ -8246,7 +8246,7 @@
       {
         "total_ms": 250.42552,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.194634,
+        "render_busy_ms": 117.362449,
         "last_render_to_last_swap_ms": 0.039115,
         "last_swap_to_reveal_ms": 0.109843,
         "reveal_to_sharp_ms": 103.596302,
@@ -8255,7 +8255,7 @@
       {
         "total_ms": 298.007136,
         "first_req_ms": 0.0,
-        "render_busy_ms": 165.791199,
+        "render_busy_ms": 115.334062,
         "last_render_to_last_swap_ms": 78.49375,
         "last_swap_to_reveal_ms": 0.110625,
         "reveal_to_sharp_ms": 99.646563,
@@ -8264,7 +8264,7 @@
       {
         "total_ms": 261.182239,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.038229,
+        "render_busy_ms": 115.55276,
         "last_render_to_last_swap_ms": 37.022864,
         "last_swap_to_reveal_ms": 0.111823,
         "reveal_to_sharp_ms": 104.142448,
@@ -8273,7 +8273,7 @@
       {
         "total_ms": 330.436719,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.199735,
+        "render_busy_ms": 118.479635,
         "last_render_to_last_swap_ms": 102.465521,
         "last_swap_to_reveal_ms": 0.13526,
         "reveal_to_sharp_ms": 100.245938,
@@ -8282,7 +8282,7 @@
       {
         "total_ms": 269.185104,
         "first_req_ms": 0.0,
-        "render_busy_ms": 185.077137,
+        "render_busy_ms": 131.740573,
         "last_render_to_last_swap_ms": 2.376667,
         "last_swap_to_reveal_ms": 0.061979,
         "reveal_to_sharp_ms": 104.250885,
@@ -8291,7 +8291,7 @@
       {
         "total_ms": 303.177917,
         "first_req_ms": 0.0,
-        "render_busy_ms": 159.337971,
+        "render_busy_ms": 116.381769,
         "last_render_to_last_swap_ms": 77.814896,
         "last_swap_to_reveal_ms": 0.153229,
         "reveal_to_sharp_ms": 100.228802,
@@ -8300,7 +8300,7 @@
       {
         "total_ms": 304.983125,
         "first_req_ms": 0.0,
-        "render_busy_ms": 194.487292,
+        "render_busy_ms": 133.562864,
         "last_render_to_last_swap_ms": 64.214218,
         "last_swap_to_reveal_ms": 0.172396,
         "reveal_to_sharp_ms": 100.329011,
@@ -8309,7 +8309,7 @@
       {
         "total_ms": 332.233542,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.371047,
+        "render_busy_ms": 120.420157,
         "last_render_to_last_swap_ms": 103.681562,
         "last_swap_to_reveal_ms": 0.134063,
         "reveal_to_sharp_ms": 99.585052,
@@ -8318,7 +8318,7 @@
       {
         "total_ms": 247.71776,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.988019,
+        "render_busy_ms": 119.803071,
         "last_render_to_last_swap_ms": 8.955834,
         "last_swap_to_reveal_ms": 0.140729,
         "reveal_to_sharp_ms": 102.136927,
@@ -8327,7 +8327,7 @@
       {
         "total_ms": 313.446458,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.872028,
+        "render_busy_ms": 128.042135,
         "last_render_to_last_swap_ms": 67.960209,
         "last_swap_to_reveal_ms": 0.165416,
         "reveal_to_sharp_ms": 108.116406,
@@ -8336,7 +8336,7 @@
       {
         "total_ms": 258.752969,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.066248,
+        "render_busy_ms": 120.964376,
         "last_render_to_last_swap_ms": 21.194843,
         "last_swap_to_reveal_ms": 0.099688,
         "reveal_to_sharp_ms": 101.814323,
@@ -8345,7 +8345,7 @@
       {
         "total_ms": 339.258646,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.028435,
+        "render_busy_ms": 119.243177,
         "last_render_to_last_swap_ms": 101.894948,
         "last_swap_to_reveal_ms": 0.290677,
         "reveal_to_sharp_ms": 106.914063,
@@ -8354,7 +8354,7 @@
       {
         "total_ms": 252.384583,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.054902,
+        "render_busy_ms": 114.85771,
         "last_render_to_last_swap_ms": 21.584635,
         "last_swap_to_reveal_ms": 0.153281,
         "reveal_to_sharp_ms": 104.273281,
@@ -8363,7 +8363,7 @@
       {
         "total_ms": 315.502135,
         "first_req_ms": 0.0,
-        "render_busy_ms": 196.880825,
+        "render_busy_ms": 136.472082,
         "last_render_to_last_swap_ms": 59.169896,
         "last_swap_to_reveal_ms": 0.156979,
         "reveal_to_sharp_ms": 107.223437,
@@ -8372,7 +8372,7 @@
       {
         "total_ms": 260.805677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.238274,
+        "render_busy_ms": 120.063331,
         "last_render_to_last_swap_ms": 21.109688,
         "last_swap_to_reveal_ms": 0.126562,
         "reveal_to_sharp_ms": 99.936459,
@@ -8381,7 +8381,7 @@
       {
         "total_ms": 340.738958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 169.26193,
+        "render_busy_ms": 118.742499,
         "last_render_to_last_swap_ms": 106.184271,
         "last_swap_to_reveal_ms": 0.14401,
         "reveal_to_sharp_ms": 108.227604,
@@ -8390,7 +8390,7 @@
       {
         "total_ms": 250.219479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 184.59927,
+        "render_busy_ms": 124.941717,
         "last_render_to_last_swap_ms": 5.598021,
         "last_swap_to_reveal_ms": 0.074791,
         "reveal_to_sharp_ms": 104.573959,
@@ -8399,7 +8399,7 @@
       {
         "total_ms": 313.344531,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.55698,
+        "render_busy_ms": 121.484585,
         "last_render_to_last_swap_ms": 73.176511,
         "last_swap_to_reveal_ms": 0.145677,
         "reveal_to_sharp_ms": 107.8425,
@@ -8410,7 +8410,7 @@
       {
         "total_ms": 310.785312,
         "first_req_ms": 0.0,
-        "render_busy_ms": 191.839006,
+        "render_busy_ms": 130.926978,
         "last_render_to_last_swap_ms": 63.556354,
         "last_swap_to_reveal_ms": 0.156563,
         "reveal_to_sharp_ms": 103.740364,
@@ -8419,7 +8419,7 @@
       {
         "total_ms": 348.361302,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.270989,
+        "render_busy_ms": 124.779791,
         "last_render_to_last_swap_ms": 97.1875,
         "last_swap_to_reveal_ms": 0.316927,
         "reveal_to_sharp_ms": 106.238177,
@@ -8428,7 +8428,7 @@
       {
         "total_ms": 260.651771,
         "first_req_ms": 0.0,
-        "render_busy_ms": 185.269271,
+        "render_busy_ms": 126.482289,
         "last_render_to_last_swap_ms": 3.956563,
         "last_swap_to_reveal_ms": 0.073802,
         "reveal_to_sharp_ms": 100.424479,
@@ -8437,7 +8437,7 @@
       {
         "total_ms": 305.271354,
         "first_req_ms": 0.0,
-        "render_busy_ms": 162.619843,
+        "render_busy_ms": 117.657709,
         "last_render_to_last_swap_ms": 78.986614,
         "last_swap_to_reveal_ms": 0.140625,
         "reveal_to_sharp_ms": 99.5125,
@@ -8446,7 +8446,7 @@
       {
         "total_ms": 256.335312,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.753956,
+        "render_busy_ms": 117.781194,
         "last_render_to_last_swap_ms": 23.521458,
         "last_swap_to_reveal_ms": 0.149167,
         "reveal_to_sharp_ms": 100.145781,
@@ -8455,7 +8455,7 @@
       {
         "total_ms": 340.100937,
         "first_req_ms": 0.0,
-        "render_busy_ms": 184.133388,
+        "render_busy_ms": 130.042763,
         "last_render_to_last_swap_ms": 98.678854,
         "last_swap_to_reveal_ms": 0.272344,
         "reveal_to_sharp_ms": 107.131093,
@@ -8464,7 +8464,7 @@
       {
         "total_ms": 252.37724,
         "first_req_ms": 0.0,
-        "render_busy_ms": 181.932499,
+        "render_busy_ms": 122.655102,
         "last_render_to_last_swap_ms": 6.28849,
         "last_swap_to_reveal_ms": 0.068594,
         "reveal_to_sharp_ms": 99.496875,
@@ -8473,7 +8473,7 @@
       {
         "total_ms": 307.073073,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.487139,
+        "render_busy_ms": 113.343699,
         "last_render_to_last_swap_ms": 84.028437,
         "last_swap_to_reveal_ms": 0.210677,
         "reveal_to_sharp_ms": 100.315938,
@@ -8482,7 +8482,7 @@
       {
         "total_ms": 257.958282,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.864634,
+        "render_busy_ms": 120.42948,
         "last_render_to_last_swap_ms": 28.075677,
         "last_swap_to_reveal_ms": 0.109063,
         "reveal_to_sharp_ms": 100.553698,
@@ -8491,7 +8491,7 @@
       {
         "total_ms": 340.4575,
         "first_req_ms": 0.0,
-        "render_busy_ms": 165.397816,
+        "render_busy_ms": 117.955522,
         "last_render_to_last_swap_ms": 102.451042,
         "last_swap_to_reveal_ms": 0.261041,
         "reveal_to_sharp_ms": 107.733646,
@@ -8500,7 +8500,7 @@
       {
         "total_ms": 257.60625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 194.965575,
+        "render_busy_ms": 123.36547,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.081406,
         "reveal_to_sharp_ms": 99.96625,
@@ -8509,7 +8509,7 @@
       {
         "total_ms": 321.044532,
         "first_req_ms": 0.0,
-        "render_busy_ms": 167.55203,
+        "render_busy_ms": 118.46526,
         "last_render_to_last_swap_ms": 76.92,
         "last_swap_to_reveal_ms": 0.375364,
         "reveal_to_sharp_ms": 108.529011,
@@ -8518,7 +8518,7 @@
       {
         "total_ms": 284.028177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 179.822604,
+        "render_busy_ms": 120.76703,
         "last_render_to_last_swap_ms": 36.993282,
         "last_swap_to_reveal_ms": 0.082291,
         "reveal_to_sharp_ms": 104.086875,
@@ -8527,7 +8527,7 @@
       {
         "total_ms": 325.924636,
         "first_req_ms": 0.0,
-        "render_busy_ms": 150.694269,
+        "render_busy_ms": 106.041303,
         "last_render_to_last_swap_ms": 104.512135,
         "last_swap_to_reveal_ms": 0.115677,
         "reveal_to_sharp_ms": 110.036615,
@@ -8536,7 +8536,7 @@
       {
         "total_ms": 248.436146,
         "first_req_ms": 0.0,
-        "render_busy_ms": 165.972549,
+        "render_busy_ms": 114.338644,
         "last_render_to_last_swap_ms": 17.170677,
         "last_swap_to_reveal_ms": 0.099948,
         "reveal_to_sharp_ms": 101.812136,
@@ -8545,7 +8545,7 @@
       {
         "total_ms": 322.174844,
         "first_req_ms": 0.0,
-        "render_busy_ms": 195.051089,
+        "render_busy_ms": 136.089949,
         "last_render_to_last_swap_ms": 63.076094,
         "last_swap_to_reveal_ms": 0.13901,
         "reveal_to_sharp_ms": 107.693594,
@@ -8554,7 +8554,7 @@
       {
         "total_ms": 239.132396,
         "first_req_ms": 0.0,
-        "render_busy_ms": 154.930258,
+        "render_busy_ms": 106.177553,
         "last_render_to_last_swap_ms": 9.289219,
         "last_swap_to_reveal_ms": 0.093437,
         "reveal_to_sharp_ms": 103.019115,
@@ -8563,7 +8563,7 @@
       {
         "total_ms": 313.034843,
         "first_req_ms": 0.0,
-        "render_busy_ms": 151.178903,
+        "render_busy_ms": 107.042968,
         "last_render_to_last_swap_ms": 95.530261,
         "last_swap_to_reveal_ms": 0.154739,
         "reveal_to_sharp_ms": 99.990729,
@@ -8572,7 +8572,7 @@
       {
         "total_ms": 244.798698,
         "first_req_ms": 0.0,
-        "render_busy_ms": 179.301251,
+        "render_busy_ms": 118.026562,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.054375,
         "reveal_to_sharp_ms": 100.331354,
@@ -8581,7 +8581,7 @@
       {
         "total_ms": 315.729323,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.263432,
+        "render_busy_ms": 121.92125,
         "last_render_to_last_swap_ms": 78.240261,
         "last_swap_to_reveal_ms": 0.240833,
         "reveal_to_sharp_ms": 107.409271,
@@ -8590,7 +8590,7 @@
       {
         "total_ms": 258.489479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 185.633387,
+        "render_busy_ms": 124.189738,
         "last_render_to_last_swap_ms": 3.793594,
         "last_swap_to_reveal_ms": 0.108177,
         "reveal_to_sharp_ms": 101.298697,
@@ -8599,7 +8599,7 @@
       {
         "total_ms": 331.37526,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.482763,
+        "render_busy_ms": 119.778388,
         "last_render_to_last_swap_ms": 101.666563,
         "last_swap_to_reveal_ms": 0.243437,
         "reveal_to_sharp_ms": 100.029948,
@@ -8608,7 +8608,7 @@
       {
         "total_ms": 263.788594,
         "first_req_ms": 0.0,
-        "render_busy_ms": 208.424534,
+        "render_busy_ms": 140.031404,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.073907,
         "reveal_to_sharp_ms": 101.142291,
@@ -8617,7 +8617,7 @@
       {
         "total_ms": 313.161823,
         "first_req_ms": 0.0,
-        "render_busy_ms": 172.187084,
+        "render_busy_ms": 123.610468,
         "last_render_to_last_swap_ms": 71.317239,
         "last_swap_to_reveal_ms": 0.165104,
         "reveal_to_sharp_ms": 107.647084,
@@ -8626,7 +8626,7 @@
       {
         "total_ms": 302.513906,
         "first_req_ms": 0.0,
-        "render_busy_ms": 192.326616,
+        "render_busy_ms": 134.492916,
         "last_render_to_last_swap_ms": 37.025625,
         "last_swap_to_reveal_ms": 0.097031,
         "reveal_to_sharp_ms": 105.510521,
@@ -8635,7 +8635,7 @@
       {
         "total_ms": 312.633697,
         "first_req_ms": 0.0,
-        "render_busy_ms": 162.807344,
+        "render_busy_ms": 116.057448,
         "last_render_to_last_swap_ms": 86.549479,
         "last_swap_to_reveal_ms": 0.143958,
         "reveal_to_sharp_ms": 99.191458,
@@ -8644,7 +8644,7 @@
       {
         "total_ms": 258.271822,
         "first_req_ms": 0.0,
-        "render_busy_ms": 181.646093,
+        "render_busy_ms": 128.399168,
         "last_render_to_last_swap_ms": 4.35651,
         "last_swap_to_reveal_ms": 0.081927,
         "reveal_to_sharp_ms": 100.366458,
@@ -8653,7 +8653,7 @@
       {
         "total_ms": 321.27026,
         "first_req_ms": 0.0,
-        "render_busy_ms": 169.1724,
+        "render_busy_ms": 119.623854,
         "last_render_to_last_swap_ms": 80.629323,
         "last_swap_to_reveal_ms": 0.099063,
         "reveal_to_sharp_ms": 107.270364,
@@ -8662,7 +8662,7 @@
       {
         "total_ms": 266.084843,
         "first_req_ms": 0.0,
-        "render_busy_ms": 185.104789,
+        "render_busy_ms": 126.287291,
         "last_render_to_last_swap_ms": 4.519011,
         "last_swap_to_reveal_ms": 0.085572,
         "reveal_to_sharp_ms": 100.966302,
@@ -8671,7 +8671,7 @@
       {
         "total_ms": 336.984479,
         "first_req_ms": 0.0,
-        "render_busy_ms": 157.437808,
+        "render_busy_ms": 111.418072,
         "last_render_to_last_swap_ms": 105.577604,
         "last_swap_to_reveal_ms": 0.25026,
         "reveal_to_sharp_ms": 107.92573,
@@ -8680,7 +8680,7 @@
       {
         "total_ms": 256.560677,
         "first_req_ms": 0.0,
-        "render_busy_ms": 181.167553,
+        "render_busy_ms": 122.071403,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.072239,
         "reveal_to_sharp_ms": 100.731563,
@@ -8689,7 +8689,7 @@
       {
         "total_ms": 314.743593,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.103743,
+        "render_busy_ms": 116.531927,
         "last_render_to_last_swap_ms": 84.336354,
         "last_swap_to_reveal_ms": 0.170573,
         "reveal_to_sharp_ms": 108.028854,
@@ -8698,7 +8698,7 @@
       {
         "total_ms": 267.070417,
         "first_req_ms": 0.0,
-        "render_busy_ms": 177.92208,
+        "render_busy_ms": 122.350829,
         "last_render_to_last_swap_ms": 13.164375,
         "last_swap_to_reveal_ms": 0.079687,
         "reveal_to_sharp_ms": 101.03099,
@@ -8707,7 +8707,7 @@
       {
         "total_ms": 333.098177,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.419215,
+        "render_busy_ms": 118.249842,
         "last_render_to_last_swap_ms": 108.274428,
         "last_swap_to_reveal_ms": 0.079531,
         "reveal_to_sharp_ms": 100.605833,
@@ -8716,7 +8716,7 @@
       {
         "total_ms": 258.970729,
         "first_req_ms": 0.0,
-        "render_busy_ms": 182.746299,
+        "render_busy_ms": 122.219687,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.067709,
         "reveal_to_sharp_ms": 100.23151,
@@ -8725,7 +8725,7 @@
       {
         "total_ms": 314.604948,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.437608,
+        "render_busy_ms": 120.855836,
         "last_render_to_last_swap_ms": 74.71724,
         "last_swap_to_reveal_ms": 0.112917,
         "reveal_to_sharp_ms": 99.883385,
@@ -8734,7 +8734,7 @@
       {
         "total_ms": 286.594427,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.577346,
+        "render_busy_ms": 121.175992,
         "last_render_to_last_swap_ms": 43.815521,
         "last_swap_to_reveal_ms": 0.173021,
         "reveal_to_sharp_ms": 107.126823,
@@ -8743,7 +8743,7 @@
       {
         "total_ms": 326.811667,
         "first_req_ms": 0.0,
-        "render_busy_ms": 154.21708,
+        "render_busy_ms": 108.628697,
         "last_render_to_last_swap_ms": 98.511719,
         "last_swap_to_reveal_ms": 0.129219,
         "reveal_to_sharp_ms": 108.460052,
@@ -8752,7 +8752,7 @@
       {
         "total_ms": 258.91099,
         "first_req_ms": 0.0,
-        "render_busy_ms": 198.04766,
+        "render_busy_ms": 126.239479,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.086563,
         "reveal_to_sharp_ms": 100.769844,
@@ -8761,7 +8761,7 @@
       {
         "total_ms": 327.404739,
         "first_req_ms": 0.0,
-        "render_busy_ms": 182.489324,
+        "render_busy_ms": 123.550834,
         "last_render_to_last_swap_ms": 78.880677,
         "last_swap_to_reveal_ms": 0.191823,
         "reveal_to_sharp_ms": 106.996197,
@@ -8770,7 +8770,7 @@
       {
         "total_ms": 273.509583,
         "first_req_ms": 0.0,
-        "render_busy_ms": 178.165006,
+        "render_busy_ms": 121.869794,
         "last_render_to_last_swap_ms": 21.997604,
         "last_swap_to_reveal_ms": 0.153542,
         "reveal_to_sharp_ms": 108.504062,
@@ -8779,7 +8779,7 @@
       {
         "total_ms": 343.823959,
         "first_req_ms": 0.0,
-        "render_busy_ms": 176.135259,
+        "render_busy_ms": 122.351614,
         "last_render_to_last_swap_ms": 101.947031,
         "last_swap_to_reveal_ms": 0.262083,
         "reveal_to_sharp_ms": 109.985834,
@@ -8788,7 +8788,7 @@
       {
         "total_ms": 252.17052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.909946,
+        "render_busy_ms": 113.609063,
         "last_render_to_last_swap_ms": 21.929115,
         "last_swap_to_reveal_ms": 0.161354,
         "reveal_to_sharp_ms": 103.720729,
@@ -8797,7 +8797,7 @@
       {
         "total_ms": 324.237031,
         "first_req_ms": 0.0,
-        "render_busy_ms": 128.07479,
+        "render_busy_ms": 91.586251,
         "last_render_to_last_swap_ms": 116.312761,
         "last_swap_to_reveal_ms": 0.15776,
         "reveal_to_sharp_ms": 107.445156,
@@ -8806,7 +8806,7 @@
       {
         "total_ms": 219.952239,
         "first_req_ms": 0.0,
-        "render_busy_ms": 136.097186,
+        "render_busy_ms": 99.17724,
         "last_render_to_last_swap_ms": 11.552083,
         "last_swap_to_reveal_ms": 0.091979,
         "reveal_to_sharp_ms": 104.754219,
@@ -8815,7 +8815,7 @@
       {
         "total_ms": 306.770625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 164.538437,
+        "render_busy_ms": 117.918648,
         "last_render_to_last_swap_ms": 78.549062,
         "last_swap_to_reveal_ms": 0.335521,
         "reveal_to_sharp_ms": 99.728854,
@@ -8824,7 +8824,7 @@
       {
         "total_ms": 261.447344,
         "first_req_ms": 0.0,
-        "render_busy_ms": 168.95005,
+        "render_busy_ms": 116.968854,
         "last_render_to_last_swap_ms": 27.075937,
         "last_swap_to_reveal_ms": 0.169219,
         "reveal_to_sharp_ms": 104.749167,
@@ -8833,7 +8833,7 @@
       {
         "total_ms": 341.468802,
         "first_req_ms": 0.0,
-        "render_busy_ms": 173.693701,
+        "render_busy_ms": 123.411512,
         "last_render_to_last_swap_ms": 104.442864,
         "last_swap_to_reveal_ms": 0.2475,
         "reveal_to_sharp_ms": 107.513594,
@@ -8842,7 +8842,7 @@
       {
         "total_ms": 313.898855,
         "first_req_ms": 0.0,
-        "render_busy_ms": 209.306623,
+        "render_busy_ms": 146.823076,
         "last_render_to_last_swap_ms": 60.280052,
         "last_swap_to_reveal_ms": 0.165781,
         "reveal_to_sharp_ms": 101.397084,
@@ -8851,7 +8851,7 @@
       {
         "total_ms": 340.660625,
         "first_req_ms": 0.0,
-        "render_busy_ms": 177.06703,
+        "render_busy_ms": 122.045731,
         "last_render_to_last_swap_ms": 99.82125,
         "last_swap_to_reveal_ms": 0.320157,
         "reveal_to_sharp_ms": 105.487812,
@@ -8860,7 +8860,7 @@
       {
         "total_ms": 262.772604,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.884945,
+        "render_busy_ms": 119.907239,
         "last_render_to_last_swap_ms": 13.741094,
         "last_swap_to_reveal_ms": 0.128646,
         "reveal_to_sharp_ms": 100.520833,
@@ -8869,7 +8869,7 @@
       {
         "total_ms": 319.200052,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.741147,
+        "render_busy_ms": 121.64724,
         "last_render_to_last_swap_ms": 77.915156,
         "last_swap_to_reveal_ms": 0.287396,
         "reveal_to_sharp_ms": 107.285469,
@@ -8878,7 +8878,7 @@
       {
         "total_ms": 295.910156,
         "first_req_ms": 0.0,
-        "render_busy_ms": 239.875311,
+        "render_busy_ms": 159.570261,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.071407,
         "reveal_to_sharp_ms": 101.63427,
@@ -8887,7 +8887,7 @@
       {
         "total_ms": 340.34651,
         "first_req_ms": 0.0,
-        "render_busy_ms": 169.100256,
+        "render_busy_ms": 120.842236,
         "last_render_to_last_swap_ms": 103.82073,
         "last_swap_to_reveal_ms": 0.276198,
         "reveal_to_sharp_ms": 107.61026,
@@ -8896,7 +8896,7 @@
       {
         "total_ms": 256.639739,
         "first_req_ms": 0.0,
-        "render_busy_ms": 170.684533,
+        "render_busy_ms": 115.441146,
         "last_render_to_last_swap_ms": 26.227761,
         "last_swap_to_reveal_ms": 0.243385,
         "reveal_to_sharp_ms": 99.623281,
@@ -8905,7 +8905,7 @@
       {
         "total_ms": 307.653958,
         "first_req_ms": 0.0,
-        "render_busy_ms": 171.980205,
+        "render_busy_ms": 117.250467,
         "last_render_to_last_swap_ms": 80.754063,
         "last_swap_to_reveal_ms": 0.287917,
         "reveal_to_sharp_ms": 98.927968,
@@ -8914,7 +8914,7 @@
       {
         "total_ms": 280.816823,
         "first_req_ms": 0.0,
-        "render_busy_ms": 209.108124,
+        "render_busy_ms": 143.091356,
         "last_render_to_last_swap_ms": 0.0,
         "last_swap_to_reveal_ms": 0.066459,
         "reveal_to_sharp_ms": 103.373385,
@@ -8923,7 +8923,7 @@
       {
         "total_ms": 340.0375,
         "first_req_ms": 0.0,
-        "render_busy_ms": 166.614635,
+        "render_busy_ms": 115.895363,
         "last_render_to_last_swap_ms": 106.437812,
         "last_swap_to_reveal_ms": 0.217605,
         "reveal_to_sharp_ms": 107.787864,
@@ -8932,7 +8932,7 @@
       {
         "total_ms": 259.310989,
         "first_req_ms": 0.0,
-        "render_busy_ms": 174.931252,
+        "render_busy_ms": 121.828591,
         "last_render_to_last_swap_ms": 31.002657,
         "last_swap_to_reveal_ms": 0.150989,
         "reveal_to_sharp_ms": 100.219948,
@@ -8941,7 +8941,7 @@
       {
         "total_ms": 315.596979,
         "first_req_ms": 0.0,
-        "render_busy_ms": 163.257345,
+        "render_busy_ms": 115.057968,
         "last_render_to_last_swap_ms": 84.265989,
         "last_swap_to_reveal_ms": 0.23474,
         "reveal_to_sharp_ms": 107.358073,
