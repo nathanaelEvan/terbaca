@@ -63,7 +63,9 @@ data class SlideKey(val pageIndex: Int, val widthPx: Int, val heightPx: Int)
  * The GC reclaims bitmap memory once nothing references it.
  */
 class SlideCache<V : Any>(private val maxEntries: Int = SLIDE_CACHE_ENTRIES) {
-    private val cache = HashMap<SlideKey, V>()
+    private val cache = object : LinkedHashMap<SlideKey, V>(maxEntries, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<SlideKey, V>?): Boolean = size > maxEntries
+    }
 
     @Synchronized
     fun get(key: SlideKey): V? = cache[key]
