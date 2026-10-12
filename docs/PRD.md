@@ -809,6 +809,127 @@ missed target is reported as missed, in the PR title area, not hidden in a table
 
 ---
 
+### M7 — Fast sharpening after zoom
+
+Added 2026-10-12. **Owner priority: speed over memory.** The owner's main complaint is that after
+a zoom the page takes too long to turn sharp. Memory may grow, up to the §7 PSS budget, if that
+buys speed.
+
+**Owner decisions recorded 2026-10-12** (M7-00 writes them into `docs/decisions.md`):
+- M6R-02 pinch-out check: the owner saw no blank pages ("gak verasa"). #92 may merge once CI is
+  green.
+- M6R-03 fade: the owner can't feel 100 vs 150 ms and asked for the industry standard. Keep
+  `TILE_CROSSFADE_DURATION_MS = 100`. This matches Coil's default crossfade (100 ms) and sits in
+  Material's "short" motion range (50–200 ms). F-REN-3 already allows 100 ms. Update §7's "Sharp"
+  definition from "150 ms" to "100 ms".
+
+**What Claude measured** (one exploratory run, not R1 evidence: `SharpenLatencyBenchmark`
+`paper_two_column.pdf_fit_pinch`, Pad 7, 2026-10-12, iteration 4 trace). Each pinch that
+re-renders took about 190–310 ms from gesture end to sharp:
+- The render service was busy for only about 60–80 ms (about 30 tiles at about 2.5 ms each, inside
+  the `AIDL::java::IPdfiumRenderService` binder slices).
+- **After the last tile was rendered, it took another 137–156 ms before "sharp".** That time is
+  ours, not PDFium's:
+  1. `MAX_TILES_SWAPPED_PER_FRAME = 2` (`DocumentSurface.kt`): 30 tiles need 15 frames
+     (about 125 ms at 120 Hz) just to enter the cache.
+  2. The batched reveal (`revealTiles`, `TILE_REVEAL_TIMEOUT_OVER_BASE_MS`) waits for all
+     visible tiles before any fade starts.
+  3. Then the 100 ms crossfade.
+- Rendering may still dominate at 800 % and on `heavy_plot.pdf`. Not measured yet; M7-01 does.
+- The render service draws on **one thread** (`PdfiumRenderService.renderExecutor`,
+  `newSingleThreadExecutor`) at **`THREAD_PRIORITY_BACKGROUND`**, which the scheduler tends to put
+  on little cores. The app-side `RENDER_SCHEDULER_CONCURRENCY = 2` can't help while the service is
+  single-threaded.
+
+All M6R rules (R1–R6) apply to M7. Budget: §7 "tile sharpening latency": p95 ≤ 150 ms at fit
+width, ≤ 300 ms at 800 %.
+
+#### M7 tasks, in order
+
+- **M7-00 Record decisions and merge #92** (`docs/M7-00-decisions`).
+  - Add both owner decisions above to `docs/decisions.md`, with the date 2026-10-12.
+  - PRD §7 "Sharp" definition: change "(F-REN-3, 150 ms)" to "(F-REN-3, 100 ms)".
+  - Merge #92 (M6R-02) when its CI is green. Its R1 pinch numbers (×3 before, ×3 after) must be in
+    the PR first; if missing, run them and add them.
+
+- **M7-01 Where does the sharpen time go** (`docs/M7-01-sharpen-breakdown`). Report only, no
+  behaviour change.
+  - Add `Trace` sections. Each must cost nothing when tracing is off (check `Trace.isEnabled()`
+    or use the existing `PerfTrace` tracer):
+    - `TerbacaTileRequested` when the scheduler enqueues a visible detail tile;
+    - `TerbacaTileArrived` when the bitmap reaches `pendingTileArrivals`;
+    - `TerbacaTileSwapped` in `swapPendingTiles`, with the number swapped this frame
+      (`TerbacaTileSwapped:3`);
+    - `TerbacaRevealStart` when `revealTiles` starts the batch fade.
+  - Run `SharpenLatencyBenchmark`, all 5 cases, ×3 runs each.
+  - Commit `docs/perf-raw/m7-01/`: the JSONs, `device-state.txt`, and `breakdown.py` (Perfetto
+    `trace_processor`). For each `TerbacaSharpen` section, the script prints:
+    total; gesture end → first request; render-service busy time (sum of binder renderTile
+    slices); last render → last swap; last swap → reveal start; reveal start → sharp; tile count.
+  - Commit the traces needed to rerun the script, or say in the PR why not (size).
+  - Table per case: median and p95 of each phase. Name the biggest phase per case.
+
+- **M7-02 Swap tiles faster when not gesturing** (`perf/M7-02-swap-cap`).
+  - `MAX_TILES_SWAPPED_PER_FRAME = 2` protects scroll smoothness during a fling. After a pinch or
+    pan has ended, and no fling is running, swap all arrived tiles in one frame (or a higher cap,
+    e.g. 16). Keep the cap of 2 while the user is touching or flinging.
+  - Unit test: a pure function `swapBudget(isGesturing: Boolean, isFlinging: Boolean): Int`.
+    Negative control (R3): make it always return 2; the test fails.
+  - Measure (R1), ×3 before and ×3 after, same session:
+    - `SharpenLatencyBenchmark` fit_pinch and max_pinch: p50 and p95.
+    - `CompetitorBenchmarks#scrollFlings`: late %. It must not get worse by more than its min–max
+      range.
+  - Revert if sharpen p95 doesn't drop.
+
+- **M7-03 Render thread priority** (`perf/M7-03-render-priority`).
+  - In `PdfiumRenderService.renderExecutor`, try `THREAD_PRIORITY_DEFAULT` and
+    `THREAD_PRIORITY_DISPLAY` instead of `THREAD_PRIORITY_BACKGROUND`.
+  - Keep prefetch from hurting scroll: if scroll late % gets worse, use the higher priority only
+    while visible-detail work is queued, and background for prefetch. The scheduler already knows
+    the priority class of each tile.
+  - Measure (R1) ×3 each: all `SharpenLatencyBenchmark` cases, `scrollFlings` and `pinchZoom`
+    late %, and the per-core CPU time of the render thread (Perfetto `sched` table, thread name
+    starts with `PdfiumRender`). Report big vs little core share.
+  - Merge only if sharpen p95 improves and scroll/pinch late % don't get worse beyond the
+    min–max range.
+
+- **M7-04 Reveal policy** (`perf/M7-04-reveal`). **Feel change (R4).** Only if M7-01 shows the
+  wait-for-all reveal is a big phase after M7-02.
+  - Option: reveal each page (not the whole screen) as soon as that page's visible tiles are in.
+  - Owner check (R4): build both, and ask the owner to zoom on a two-column paper and say which
+    looks better and which looks faster. The fade stays 100 ms.
+
+- **M7-05 Competitor zoom-to-sharp** (`docs/M7-05-competitor-sharpen`). Answers the owner's
+  question "why are other apps faster".
+  - New `tools/perf/competitor/zoom_sharp.sh` + `video.py` mode: for each app in
+    `tools/perf/competitor/common.sh`, open `paper_two_column.pdf`, run the same pinch (adb
+    `input` can't pinch; use the benchmark APK's UiAutomator `pinchOpen` against each package, as
+    `CompetitorBenchmarks` does) while `adb shell screenrecord` runs. Measure finger-up → last
+    pixel change in the page area, ×5 per app.
+  - Table: app, median and p95 zoom-to-sharp, and how each app looks while sharpening (blurry
+    then sharp, tiles appearing, or instant). Add screenshots of the mid-sharpen frame.
+  - Commit raw videos' frame-diff CSVs (not the videos if > 20 MB) and the script.
+
+- **M7-06 Parallel rendering, ADR only** (`docs/M7-06-parallel-render-adr`). **Risky: ADR, don't
+  merge; Claude reviews.**
+  - Only if M7-01/03 show render-service busy time is still the biggest phase at 800 % or on
+    `heavy_plot.pdf`.
+  - PDFium is not thread-safe, even across documents in one process. Options to compare: N render
+    processes (each its own PDFium and document open), split tiles across them; or a larger tile
+    size with fewer calls. For each, give the expected gain (from M7-01 numbers), memory cost
+    (memory is allowed to grow up to the §7 PSS budget), and crash-isolation impact.
+  - Write `docs/adr/NNN-parallel-render.md`, status `proposed`. No code.
+
+- **M7-07 Re-measure** (`docs/M7-07-measure`).
+  - All 5 `SharpenLatencyBenchmark` cases ×3, plus M7-05 for Terbaca only. Update the §7 sharpen
+    rows in `perf-report.md` under R2.
+
+**M7 exit criteria:** fit-width pinch sharpen p95 ≤ 150 ms and 800 % ≤ 300 ms (median of 3 runs,
+R1), no worse scroll/pinch late %, and the M7-05 comparison table committed. If a budget is still
+missed, M7-06's ADR goes to the owner.
+
+---
+
 ## 9. Key Risks
 
 | Risk | Impact | Mitigation |
