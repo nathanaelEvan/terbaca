@@ -22,8 +22,8 @@ class RecentsRepository(
     context: Context,
     private val dao: RecentDocumentDao,
     private val stateDao: DocumentStateDao,
-    private val now: () -> Long = System::currentTimeMillis,
-    private val availability: suspend (Uri) -> Boolean = defaultAvailability(context)
+    private val availability: suspend (Uri) -> Boolean = defaultAvailability(context),
+    private val now: () -> Long = System::currentTimeMillis
 ) {
     private val resolver = context.applicationContext.contentResolver
 
