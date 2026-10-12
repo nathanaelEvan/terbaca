@@ -535,6 +535,278 @@ Deferred (not in M6 unless time allows):
 - Time to sharp after zoom compared with other apps (not measurable from screen recordings).
 - The Play Store release (the owner's decision, 2026-10-12).
 
+### M6R — M6 review fixes and smoothness round 2
+
+Added 2026-10-12 after Claude's M6 milestone review. M6 is **not done**: the scroll gain is
+real (34.6 % → 10.4 % late frames, 12–13 % per iteration), but both exit criteria are missed,
+several reports claim things nothing backs, some tests can't fail, and PR #82 only changes
+behaviour while a benchmark is tracing. M6R closes that and takes a second run at smoothness.
+The M6 rules above all still apply. The rules below come on top of them, and **a PR that breaks
+one is not done, even when CI is green.**
+
+#### M6R rules
+
+**R1. Numbers.**
+- Every number in a PR, report, README or release note must point to a committed raw file under
+  `docs/perf-raw/<task-id>/`: the Macrobenchmark `benchmarkData.json` (or its `instrument.txt`
+  plus a CSV made from it), the exact command, and the device state (battery %, thermal status,
+  HyperOS version).
+- If a number can't be traced to a file, delete it.
+- Before you write a number, recompute it from the raw file with a script that you commit next to
+  it (e.g. `docs/perf-raw/<task-id>/summarize.py`). Never copy numbers from console text or from
+  memory.
+- "Late frames %" always means `frameOverrunMs > 0` over all frames of all iterations. Always
+  report it together with **frames per iteration** and the **per-iteration late %**.
+- On the Pad 7, `CompetitorBenchmarks#scrollFlings` draws about 1,130 frames per iteration. If a
+  run differs by more than 15 % from that, the run is suspect: say so, and don't use it for a
+  before/after claim.
+  - The M6-01 baseline (2,480 frames over 5 iterations = 496 per iteration, "42.6 %") is such a
+    run. Compare against v0.1.0's 34.6 % (`docs/competitor-benchmark/summary.txt`), or against a
+    fresh run of the same commit.
+- A before/after claim needs ≥ 3 runs of both "before" and "after" on the same day and device
+  state. Report the median of the run results and the min–max.
+
+**R2. Status words.** A §7 row's status is exactly one of:
+- **Met:** measured with the budget's own measure, and inside the budget.
+- **Missed:** measured, and outside the budget.
+- **Not measured:** give the reason.
+
+"Improved", "Near budget", "Tracked", "Massive gain" and similar words are not allowed. Measure
+with the budget's own measure: "≥ 99 % of frames ≤ 8.33 ms" is the share of frames ≤ 8.33 ms, not
+a CPU percentile. "p95 ≤ 150 ms" is the p95, not the p90.
+
+**R3. Tests must be able to fail.**
+- Every new or changed test runs the app's real code path, never only stdlib or a constant.
+- For each one, the PR shows a negative control:
+  1. Push a commit that breaks the code under test on purpose, with a message starting with
+     `NEGATIVE CONTROL:`.
+  2. Link the CI run where the test fails.
+  3. Push a revert, and link the green CI run.
+
+  Squash merge removes both commits from `main`, which is expected.
+- A test that can't be made to fail this way gets deleted, not merged.
+
+**R4. Feel changes.** Changes to how the reader looks or feels (fade length, reveal order,
+placeholders, scroll or zoom behaviour) need the owner's check before merge:
+1. Install with `./gradlew :app:installBenchmark`. If adb install is blocked, push the APK to
+   `/sdcard/Download` for a manual install.
+2. Tell the owner, in plain non-technical language, exactly what to try and what to compare.
+3. Wait for their answer.
+
+Writing "flagged for owner check" in the PR does not count. You may carry on with other tasks
+while you wait (AGENTS §3).
+
+**R5. Claims of manual checks** (TalkBack, portrait, smoke tests) need screenshots or a
+recording in the PR. Pull them with `adb exec-out screencap -p > x.png` or
+`adb shell screenrecord`. Without them, the item goes under "Not verified".
+
+**R6. Honest "Not verified".** Anything you wrote but did not run on the Pad 7 goes there. A
+missed target is reported as missed, in the PR title area, not hidden in a table.
+
+#### M6R tasks, in order
+
+- **M6R-01 Fix the reports** (`fix/M6R-01-honest-reports`). Docs only; no code changes.
+  - `docs/perf-report.md`, section "M6-10 final release verification": rewrite the status column
+    under R2.
+    - Doc 1, doc 3, doc 5 and slide flip: give the share of frames ≤ 8.33 ms and the count
+      > 16.6 ms, as the budget asks. If the M6-10 run didn't keep those (only the competitor JSONs
+      were committed), mark the row **Not measured** for now. M6R-10 re-measures it.
+    - Sharpening at fit width: **Missed** (p90 242 ms against a p95 budget of 150 ms; give the
+      p95 if it can be recomputed from raw data, otherwise mark it Not measured).
+    - Cold start: **Missed** (median 563 ms, budget 500; regressed from 460 ms in M6-01).
+    - Pinch, competitor harness: **Missed**, 29.9 % against the ≤ 10 % exit criterion, worse
+      than the 25.0 % baseline.
+    - Scroll, competitor harness: **Missed**, 10.4 % against ≤ 5 %. Compare it with v0.1.0's
+      34.6 %, not with the suspect 42.6 % run (R1).
+    - PSS and malformed-PDF rows: **Not measured** in M6-10 (324 MB is the competitor-benchmark
+      number from 2026-10-11).
+    - The open → sharp row stays **Missed**.
+  - README milestone table: M6 status "In progress". Remove "M2–M6 were verified on a Xiaomi
+    Pad 7"; say exactly what was checked by hand, and when. In "How Terbaca compares", keep 10.4 /
+    29.9 and remove the "42.6 % unoptimized baseline" wording.
+  - `docs/release-notes-0.2.0.md`:
+    - Remove the "75 % drop" claim, or restate it as 34.6 % → 10.4 % against v0.1.0.
+    - Remove "fully within budget" for 800 %. 287.7 ms is under 300 ms, so say exactly that.
+    - Remove "verified … TalkBack, portrait" unless M6R-09 adds evidence.
+    - Remove "cutting gesture layout overhead in half" (nothing measured it).
+    - Remove the "Next slide sharp on arrival guarantee" (M6R-05 shows it didn't measure
+      anything).
+    - Add a "Known limitations" section: the pinch smoothness and cold start misses.
+  - `docs/smoothness-investigation.md`, Rank 3: note that the tiles already arrive as
+    `Bitmap.Config.HARDWARE` (`PdfiumRemotePageRenderer.kt`, `softwareBitmap.copy(HARDWARE)`).
+    The texture upload happens on that copy, not on the RenderThread, so the "4 MB upload per
+    frame" premise is unproven. M6R-06 tests it.
+  - `docs/m6-09-verification.md`: the code snippet under "Resolution" doesn't match `Chrome.kt`
+    (there, `clickable` sits on the Box, not the Surface). Copy the real code.
+  - Done when every number in these four files points to a raw file, or is removed.
+
+- **M6R-02 Pinch: keep base layers coming mid-pinch** (`fix/M6R-02-pinch-base-layers`).
+  - #87 moved `if (zooming) return@collectLatest` to the top of the `collectLatest` block in
+    `DocumentTileCollector` (`DocumentSurface.kt`). Mid-pinch, this skips `pinHot`,
+    `cancelStaleExcept`, and the `VISIBLE_BASE` / `ADJACENT_BASE` requests. Zooming out mid-pinch,
+    pages that enter the view get no base layer and stay as blank placeholders until the fingers
+    lift.
+  - Fix: mid-pinch, still compute the visible pages, `pinHot` the base keys, and request
+    `VISIBLE_BASE` and `ADJACENT_BASE`. Skip only the detail and prefetch work (detail level stays
+    frozen; owner decision, see the M6 rules above).
+  - Keep the per-page `buildLevels` cache only if it is invalidated on every change it depends
+    on: today it is cleared only on a viewport size change. Use it in `DocumentTileCollector` too,
+    or remove it.
+  - Test: extract the "what to request this frame" decision into a pure function, and unit test
+    that when `zooming = true` it returns the base keys of the newly visible pages and no detail
+    keys. Negative control (R3): put the early return back; the test must fail.
+  - Measure (R1): `CompetitorBenchmarks#pinchZoom` ×3 before and ×3 after.
+  - Feel check (R4): ask the owner to pinch out quickly on a long paper and say whether blank
+    white pages still appear.
+
+- **M6R-03 Owner check of the 100 ms fade** (no code unless the owner says so).
+  - Build two benchmark APKs, one with `TILE_CROSSFADE_DURATION_MS = 150`, one with 100. Ask the
+    owner to zoom in and out on a text page with each, and say which feels better.
+  - Record the answer and the date in `docs/decisions.md`. If the owner picks 150, open
+    `fix/M6R-03-fade-150` and return the fit-width sharpening budget question to the owner in a
+    PRD PR (M6 rules).
+
+- **M6R-04 Hollow tests and no-op code** (`fix/M6R-04-real-tests`).
+  - `CentreFirstTileOrderingTest`: delete it. It tests Kotlin's `sortBy` and a constant.
+    - The `visibleDetail.sortBy` / `prefetch.sortBy` lines in `DocumentTileCollector` are almost a
+      no-op: `TilePriority.compareTo` already orders by `distanceToCenter`. They only change which
+      tile is enqueued first.
+    - Remove them, unless you show (R1, ≥ 3 runs of `SharpenLatencyBenchmark`) that they move the
+      p95.
+    - Instead, add a test in `core/render` that enqueues tiles in far-to-near order into the real
+      scheduler, and asserts that dispatch order is near-to-far. Negative control (R3): make
+      `compareTo` ignore distance; the test must fail.
+  - `RecentsRepositoryTest.recents_emitsInitialStateImmediately` passes on the old code too. Make
+    the availability check injectable: a constructor parameter
+    `availability: suspend (Uri) -> Boolean`, defaulting to the current `isAvailable`. Test with a
+    checker that suspends forever (`awaitCancellation()`). The first emission must still arrive
+    within 1 s. Negative control (R3): revert `transform` back to `map`; the test must time out
+    and fail.
+  - `SlideBitmapCacheInstrumentedTest.nextSlideSharpOnArrival_neighbourPreRenderedInCache` only
+    does a put and get on the cache. Delete it; M6R-05 replaces it.
+
+- **M6R-05 Real "next slide sharp on arrival"** (`fix/M6R-05-slide-arrival`).
+  - The current mark is a `DisposableEffect(page.index, isSharp)` in `SlideContent`. The pager
+    composes neighbours before they become active (`beyondViewportPageCount`), so when a neighbour
+    becomes the current page, neither key changes and no mark is emitted. The metric counts almost
+    nothing.
+  - Fix: in `SlidesScreen`, use one `LaunchedEffect(pagerState)` that collects
+    `snapshotFlow { pagerState.settledPage }`. On each new settled page, check whether
+    `slideCache` holds that page's `SlideKey` at the current viewport size, and emit
+    `SLIDE_SHARP_ON_ARRIVAL` or `SLIDE_NOT_SHARP_ON_ARRIVAL` once.
+  - `SlideFlipBenchmark` must report both counts. The total must equal the number of flips per
+    iteration (`FLIPS` × the passes the benchmark makes). Check this and print it.
+  - Negative control (R3): turn off neighbour pre-rendering (set `SLIDE_BEYOND_VIEWPORT_PAGES = 0`
+    in a throwaway commit). Run the benchmark on the Pad 7 and show that `NotSharp` goes up. CI
+    can't run Macrobenchmark, so commit the Pad 7 output of both runs instead of CI links.
+  - Report the real sharp-on-arrival count in `perf-report.md`. If it isn't 100 %, the slide flip
+    row is **Missed**.
+
+- **M6R-06 Smoothness round 2: find the remaining causes** (`docs/M6R-06-smoothness-round2`).
+  Report only, no fix. Deliver `docs/smoothness-investigation-2.md`.
+  - **Clue to start from:** in the M6-10 scroll run, four iterations were 12–13 % late and one
+    was 1.5 % (`docs/perf-raw/m6-10/app.terbaca__scrollFlings.json`). Find out what was different
+    in that iteration. Suspects: tile cache already warm (no tile arrivals, fades or base-layer
+    draws), thermal or CPU frequency state.
+  - **Per-frame attribution:** for each late frame in the Perfetto traces, record:
+    - whether a tile arrived (swap), or a crossfade was running, in that frame;
+    - whether the base layer was drawn, and how many times (the clipped path in
+      `drawTilePyramid` can draw it up to 4 times);
+    - UI-thread time, RenderThread time, and GPU completion time (the `actual_frame_timeline_slice`
+      and `gpu_completion` tracks).
+
+    Commit the trace-processor SQL or Python you used. Add `Trace` sections around the
+    swap/fade/base-layer draw if needed; they must cost nothing when tracing is off.
+  - **Ablation runs:** add debug switches that only the `benchmark` build type reads, from an
+    intent extra (e.g. `-e ablation no_fade`). They must not exist in the `release` build; check
+    `BuildConfig`. Switches:
+    `no_fade` (tiles appear at full alpha), `no_base_under_tiles`, `no_underlay_level`,
+    `no_page_placeholders`, `no_dark_background`, `no_chrome` (hide the toolbar, pills and
+    scrollbar), `swap_cap_4` (back to 4 tiles per frame), `swap_cap_unlimited`.
+    - Run `CompetitorBenchmarks#scrollFlings` ×3 for each switch, plus ×3 with none, in one
+      session.
+    - Table: switch → median late %, min–max, frames per iteration.
+    - The switch that cuts the most late frames is cause #1, and so on. Some of these switches
+      look wrong (`no_fade`); that's fine, they only measure costs.
+  - Also check overdraw: `adb shell setprop debug.hwui.overdraw show`, screenshot mid-scroll,
+    include it.
+  - Fix plan: ranked fixes, each with the expected gain taken from the ablation table, and which
+    of them change the feel (R4).
+  - If the table shows that even every ablation together stays above 5 %, say so plainly. Name
+    the next step (e.g. a `SurfaceView`/GL backend) and write an ADR with status `proposed`.
+
+- **M6R-07 Smoothness round 2 fixes** (`perf/M6R-07a-…`, `b`, `c`, in M6R-06's order).
+  - One cause per PR. Each PR has a before/after table under R1 (≥ 3 runs each, same session):
+    competitor scroll late %, per-iteration late %, frames per iteration, and the §7 doc 1
+    "% ≤ 8.33 ms".
+  - A fix that doesn't measurably help gets reverted, not merged.
+  - Feel changes (R4) wait for the owner.
+  - Target: competitor scroll ≤ 5 % late (median of 3 runs).
+
+- **M6R-08 Pinch round 2** (`docs/M6R-08-pinch-investigation`, then `perf/M6R-08a-…`).
+  - Same method as M6R-06/07, on `CompetitorBenchmarks#pinchZoom`. Start after M6R-02 is merged.
+  - Keep the frozen level while pinching (owner decision).
+  - Target: ≤ 10 % late.
+
+- **M6R-09 Rework PR #82, the open path** (rework on the `feat/M6-05-open-path` branch, or close
+  #82 and open a new one). **Risky (AGENTS §3): open the PR and don't merge.** Problems to fix:
+  1. `PerfTrace.isOpenPending` is only set while system tracing is on (`beginOpen` returns early
+     when `tracer.isEnabled` is false). So "first page before prefetch" and the thumbnail delay
+     only happen during benchmarks, and real users get nothing.
+     - Use an app-side signal that doesn't depend on tracing: e.g. a `StateFlow<Boolean>`
+       "firstPageSharp" set by the surface when the first page's visible detail is opaque.
+     - Wait on it with `first { it }` plus a timeout (e.g. 1 s), not a polling `while` loop over a
+       non-`@Volatile` field.
+     - Then `PerfTrace` only reads that signal.
+  2. `MainActivity.onTrimMemory` now touches `thumbnailPipeline`. That forces the lazy pipeline,
+     which calls `getOrCreateRenderer()` and **binds the `:render` process when the system asks
+     to save memory**. Only forward `onTrimMemory` if the pipeline already exists.
+  3. On recreation (rotation) with `isFinishing == false`, the open document's handle is never
+     closed in `:render`. The new activity opens the document again, so every rotation leaks a
+     document session.
+     - Either keep the opened document across recreation (retained holder/ViewModel) and reuse
+       its handle, or close the old handle.
+     - Instrumented test: open a doc, recreate the activity 3× with `ActivityScenario.recreate()`,
+       and assert that the `:render` service's open-session count is unchanged. Expose a test-only
+       count over the existing AIDL if needed: that is an IPC change, so call it out in the PR.
+       Negative control (R3).
+  4. Unbinding only on `TRIM_MEMORY_COMPLETE` almost never happens on API 34+. Unbind when the app
+     is in the background: `TRIM_MEMORY_BACKGROUND` / `UI_HIDDEN`, or after N seconds in the
+     background. Choose one and give the reason in the PR.
+     - Holders of the old renderer (`DocumentSurface`, `ThumbnailPipeline`) must not keep a closed
+       instance; get the renderer through `getOrCreateRenderer()`.
+     - Test: close the renderer, then open a doc; it must work.
+  5. Measure (R1): §7 "open 30-page paper → first page sharp", ×3 runs before and ×3 after, and
+     a real user open with tracing **off**, timed from a `screenrecord` with
+     `tools/perf/competitor/cold_open.sh`.
+
+- **M6R-10 M6-09 evidence** (`fix/M6R-10-m6-09-evidence`).
+  - Add screenshots to `docs/m6-09-verification/`: TalkBack focus on the library, reader toolbar,
+    page pill and slide controls; portrait in vertical mode, the sidebar overlay, and slides.
+  - Pill shift: screenshots of a clickable pill (back chip) and a non-clickable pill (page
+    indicator) in the same place, before (#68 build) and after (#88). Give the pill's top edge in
+    pixels in each. If the visual top still differs, the shift isn't fixed. Note that the 48 dp
+    Box now centres a 36 dp pill, so the visual top moves down by 6 dp; check this.
+  - Minified smoke test: run the documented procedure on the Pad 7 and record it. A `file://` VIEW
+    intent may not open on Android 16; use a `content://` MediaStore URI as in
+    `tools/perf/competitor/common.sh`.
+
+- **M6R-11 Final re-measure and release prep** (`release/M6R-11-final`).
+  - All of §7, under R1 and R2: frames ×3, latency ×2, startup ×3, PSS (`tools/perf/measure_pss.sh`),
+    APK size, the fuzz test, and the full `tools/perf/competitor/` run.
+  - Update `perf-report.md`, the README table and the release notes from the raw files only.
+  - Bump to `versionCode 3` / `0.3.0`, unless the owner hasn't released 0.2.0. Ask which.
+  - **Stop before releasing** (owner signs).
+
+**M6R exit criteria (all of them):**
+- Competitor scroll ≤ 5 % late, and pinch ≤ 10 % late (median of 3 runs each, R1). Otherwise a
+  PRD PR brings the gap and the ADR to the owner.
+- Every §7 row is Met, Missed or Not measured (R2), each backed by a raw file.
+- Every test added in M6/M6R has a linked negative control.
+- The owner has checked the fade (M6R-03), the pinch-out (M6R-02), and any feel change from
+  M6R-07/08 on the Pad 7.
+- #82's rework has been reviewed by Claude.
+
 ---
 
 ## 9. Key Risks
