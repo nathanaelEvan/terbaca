@@ -719,7 +719,7 @@ internal fun swapPendingTiles(
         onSwapped(key)
         swapped++
     }
-    if (false && swapped > 0) {
+    if (swapped > 0) {
         PerfTrace.mark("${PerfTrace.TILE_SWAPPED}:$swapped")
     }
 }
@@ -872,7 +872,7 @@ internal fun revealTiles(
     if (!waiting) return null
     val since = pendingSince ?: now
     if (visibleTiles.all { isLoaded(it.key) } || now - since >= timeoutMs) {
-        // PerfTrace.mark(PerfTrace.REVEAL_START)
+        PerfTrace.mark(PerfTrace.REVEAL_START)
         for (tile in visibleTiles) {
             if (fadeStartTimes[tile.key] == TILE_UNREVEALED) fadeStartTimes[tile.key] = now
         }
