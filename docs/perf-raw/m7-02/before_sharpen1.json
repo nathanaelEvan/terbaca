@@ -1,0 +1,777 @@
+{
+    "context": {
+        "build": {
+            "brand": "Xiaomi",
+            "device": "uke",
+            "fingerprint": "Xiaomi/uke_global/uke:16/BP2A.250605.031.A3/OS3.0.303.0.WOZIDXM:user/release-keys",
+            "id": "BP2A.250605.031.A3",
+            "model": "2410CRP4CG",
+            "type": "user",
+            "version": {
+                "codename": "REL",
+                "sdk": 36
+            }
+        },
+        "cpuCoreCount": 8,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2803200000,
+        "memTotalBytes": 7858348032,
+        "sustainedPerformanceModeEnabled": false,
+        "artMainlineVersion": 372042580,
+        "osCodenameAbbreviated": "REL",
+        "compilationMode": "run-from-apk",
+        "payload": {}
+    },
+    "benchmarks": [
+        {
+            "name": "sharpen[paper_two_column.pdf_fit_pan]",
+            "params": {},
+            "className": "app.terbaca.benchmark.SharpenLatencyBenchmark",
+            "totalRunTimeNs": 207715903983,
+            "metrics": {
+                "sharpenCancelledCount": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "median": 0.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "sharpenCount": {
+                    "minimum": 12.0,
+                    "maximum": 12.0,
+                    "median": 12.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0
+                    ]
+                }
+            },
+            "sampledMetrics": {
+                "sharpenMs": {
+                    "P50": 7.045026,
+                    "P90": 7.3488861,
+                    "P95": 7.44375215,
+                    "P99": 18.204806719999972,
+                    "runs": [
+                        [
+                            7.225157,
+                            6.673333,
+                            5.740469,
+                            4.731303,
+                            14.623542,
+                            7.116979,
+                            5.964323,
+                            7.153229,
+                            6.775521,
+                            23.358334,
+                            5.470834,
+                            4.657239
+                        ],
+                        [
+                            7.143021,
+                            6.755052,
+                            7.268385,
+                            7.051562,
+                            6.750729,
+                            7.200573,
+                            7.074532,
+                            7.342032,
+                            7.059791,
+                            6.78375,
+                            7.019271,
+                            7.30677
+                        ],
+                        [
+                            7.17375,
+                            7.315052,
+                            7.001615,
+                            7.410573,
+                            7.099219,
+                            6.86849,
+                            6.941823,
+                            7.485365,
+                            6.631041,
+                            7.221094,
+                            7.219062,
+                            7.03849
+                        ],
+                        [
+                            7.202969,
+                            6.732865,
+                            7.053229,
+                            7.169896,
+                            7.164688,
+                            6.829948,
+                            6.744167,
+                            6.863282,
+                            6.507708,
+                            6.734895,
+                            7.034219,
+                            7.418542
+                        ],
+                        [
+                            7.120573,
+                            6.436875,
+                            7.088906,
+                            6.670313,
+                            7.441562,
+                            6.840104,
+                            7.009323,
+                            7.17323,
+                            6.94875,
+                            6.865833,
+                            6.729635,
+                            7.192135
+                        ]
+                    ]
+                }
+            },
+            "warmupIterations": 0,
+            "repeatIterations": 5,
+            "thermalThrottleSleepSeconds": 0,
+            "profilerOutputs": [
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 0",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pan__iter000_2026-10-12-15-09-55.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 1",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pan__iter001_2026-10-12-15-10-30.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 2",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pan__iter002_2026-10-12-15-11-04.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 3",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pan__iter003_2026-10-12-15-11-39.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 4",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pan__iter004_2026-10-12-15-12-15.perfetto-trace"
+                }
+            ]
+        },
+        {
+            "name": "sharpen[paper_two_column.pdf_fit_pinch]",
+            "params": {},
+            "className": "app.terbaca.benchmark.SharpenLatencyBenchmark",
+            "totalRunTimeNs": 235084818087,
+            "metrics": {
+                "sharpenCancelledCount": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "median": 0.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "sharpenCount": {
+                    "minimum": 12.0,
+                    "maximum": 12.0,
+                    "median": 12.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0
+                    ]
+                }
+            },
+            "sampledMetrics": {
+                "sharpenMs": {
+                    "P50": 239.923698,
+                    "P90": 269.5700734,
+                    "P95": 307.38253975,
+                    "P99": 310.88385013,
+                    "runs": [
+                        [
+                            314.681145,
+                            241.747552,
+                            206.017968,
+                            240.37375,
+                            198.692447,
+                            244.302813,
+                            213.639219,
+                            240.635834,
+                            192.201458,
+                            246.47599,
+                            216.321667,
+                            235.141719
+                        ],
+                        [
+                            305.317291,
+                            239.473646,
+                            210.00177,
+                            241.376875,
+                            191.101355,
+                            242.188542,
+                            216.427968,
+                            240.543333,
+                            191.375989,
+                            239.149531,
+                            206.090364,
+                            241.565
+                        ],
+                        [
+                            307.363282,
+                            245.405834,
+                            199.086302,
+                            242.09625,
+                            209.018906,
+                            242.94724,
+                            199.071406,
+                            240.64349,
+                            207.584583,
+                            240.84875,
+                            191.689427,
+                            243.685
+                        ],
+                        [
+                            307.748437,
+                            252.860729,
+                            208.225781,
+                            269.442188,
+                            222.194948,
+                            249.029063,
+                            215.635937,
+                            252.179374,
+                            191.211822,
+                            235.693594,
+                            216.402604,
+                            270.721042
+                        ],
+                        [
+                            308.245052,
+                            246.984844,
+                            207.513906,
+                            257.748229,
+                            191.915885,
+                            240.786562,
+                            207.631927,
+                            241.795573,
+                            190.349011,
+                            239.285938,
+                            208.522552,
+                            250.137292
+                        ]
+                    ]
+                }
+            },
+            "warmupIterations": 0,
+            "repeatIterations": 5,
+            "thermalThrottleSleepSeconds": 0,
+            "profilerOutputs": [
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 0",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pinch__iter000_2026-10-12-15-13-32.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 1",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pinch__iter001_2026-10-12-15-14-12.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 2",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pinch__iter002_2026-10-12-15-14-52.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 3",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pinch__iter003_2026-10-12-15-15-32.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 4",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_fit_pinch__iter004_2026-10-12-15-16-11.perfetto-trace"
+                }
+            ]
+        },
+        {
+            "name": "sharpen[paper_two_column.pdf_max_pan]",
+            "params": {},
+            "className": "app.terbaca.benchmark.SharpenLatencyBenchmark",
+            "totalRunTimeNs": 381702340271,
+            "metrics": {
+                "sharpenCancelledCount": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "median": 0.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "sharpenCount": {
+                    "minimum": 18.0,
+                    "maximum": 18.0,
+                    "median": 18.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        18.0,
+                        18.0,
+                        18.0,
+                        18.0,
+                        18.0
+                    ]
+                }
+            },
+            "sampledMetrics": {
+                "sharpenMs": {
+                    "P50": 6.7884635,
+                    "P90": 7.2080884,
+                    "P95": 7.4337888,
+                    "P99": 7.9174674099999995,
+                    "runs": [
+                        [
+                            7.205,
+                            6.87802,
+                            4.152344,
+                            7.064844,
+                            6.878281,
+                            4.067656,
+                            7.540364,
+                            6.547136,
+                            5.981146,
+                            6.812344,
+                            6.836354,
+                            4.587291,
+                            6.738854,
+                            6.844688,
+                            4.077083,
+                            7.217605,
+                            7.207031,
+                            4.200521
+                        ],
+                        [
+                            6.821094,
+                            6.260364,
+                            6.405052,
+                            6.850208,
+                            6.720885,
+                            7.359739,
+                            7.038385,
+                            6.732656,
+                            4.19625,
+                            6.8575,
+                            7.045469,
+                            7.914219,
+                            6.836667,
+                            7.334739,
+                            5.010313,
+                            7.114688,
+                            6.543854,
+                            3.018333
+                        ],
+                        [
+                            6.941042,
+                            7.026302,
+                            5.261302,
+                            7.122448,
+                            7.035,
+                            5.164062,
+                            6.988385,
+                            6.680729,
+                            5.928854,
+                            6.764115,
+                            7.173907,
+                            5.019948,
+                            7.94375,
+                            6.424688,
+                            4.749479,
+                            7.106615,
+                            6.473177,
+                            5.204011
+                        ],
+                        [
+                            7.031511,
+                            6.766667,
+                            4.240938,
+                            6.939948,
+                            7.163073,
+                            5.558542,
+                            7.525104,
+                            7.494375,
+                            4.145469,
+                            6.231875,
+                            7.020156,
+                            4.028333,
+                            7.045521,
+                            6.892916,
+                            3.942292,
+                            7.008125,
+                            6.888542,
+                            6.804688
+                        ],
+                        [
+                            6.755938,
+                            6.772239,
+                            4.587136,
+                            6.725886,
+                            7.12927,
+                            5.046667,
+                            6.345729,
+                            6.962239,
+                            5.20276,
+                            7.115208,
+                            6.894843,
+                            5.505104,
+                            7.332656,
+                            6.410938,
+                            5.242552,
+                            6.731042,
+                            6.574687,
+                            7.042604
+                        ]
+                    ]
+                }
+            },
+            "warmupIterations": 0,
+            "repeatIterations": 5,
+            "thermalThrottleSleepSeconds": 0,
+            "profilerOutputs": [
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 0",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pan__iter000_2026-10-12-15-18-13.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 1",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pan__iter001_2026-10-12-15-19-17.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 2",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pan__iter002_2026-10-12-15-20-22.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 3",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pan__iter003_2026-10-12-15-21-27.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 4",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pan__iter004_2026-10-12-15-22-31.perfetto-trace"
+                }
+            ]
+        },
+        {
+            "name": "sharpen[paper_two_column.pdf_max_pinch]",
+            "params": {},
+            "className": "app.terbaca.benchmark.SharpenLatencyBenchmark",
+            "totalRunTimeNs": 330778318988,
+            "metrics": {
+                "sharpenCancelledCount": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "median": 0.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "sharpenCount": {
+                    "minimum": 12.0,
+                    "maximum": 12.0,
+                    "median": 12.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0
+                    ]
+                }
+            },
+            "sampledMetrics": {
+                "sharpenMs": {
+                    "P50": 309.6309895,
+                    "P90": 340.18335940000003,
+                    "P95": 343.48841595,
+                    "P99": 346.03375202,
+                    "runs": [
+                        [
+                            314.941198,
+                            340.360312,
+                            259.947656,
+                            311.43849,
+                            223.041042,
+                            299.056823,
+                            270.41,
+                            331.926875,
+                            262.562761,
+                            314.119011,
+                            265.844062,
+                            339.45276
+                        ],
+                        [
+                            319.795573,
+                            333.246093,
+                            258.16625,
+                            314.161146,
+                            296.430729,
+                            343.431093,
+                            283.062656,
+                            321.211302,
+                            268.03651,
+                            332.41099,
+                            255.862447,
+                            315.545104
+                        ],
+                        [
+                            341.353698,
+                            346.626302,
+                            277.963333,
+                            315.587448,
+                            266.349271,
+                            336.629375,
+                            275.52875,
+                            316.74802,
+                            258.088802,
+                            345.62198,
+                            225.067136,
+                            289.818385
+                        ],
+                        [
+                            311.974218,
+                            340.017396,
+                            267.664011,
+                            310.215521,
+                            264.735782,
+                            340.163698,
+                            264.001406,
+                            305.816979,
+                            257.903125,
+                            333.084532,
+                            269.949323,
+                            313.587135
+                        ],
+                        [
+                            286.477812,
+                            321.581615,
+                            246.615104,
+                            309.046458,
+                            266.264583,
+                            344.577552,
+                            252.8075,
+                            313.076146,
+                            274.180469,
+                            330.660521,
+                            250.927083,
+                            314.542916
+                        ]
+                    ]
+                }
+            },
+            "warmupIterations": 0,
+            "repeatIterations": 5,
+            "thermalThrottleSleepSeconds": 0,
+            "profilerOutputs": [
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 0",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pinch__iter000_2026-10-12-15-24-19.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 1",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pinch__iter001_2026-10-12-15-25-16.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 2",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pinch__iter002_2026-10-12-15-26-11.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 3",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pinch__iter003_2026-10-12-15-27-08.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 4",
+                    "filename": "SharpenLatencyBenchmark_sharpen_paper_two_column.pdf_max_pinch__iter004_2026-10-12-15-28-03.perfetto-trace"
+                }
+            ]
+        },
+        {
+            "name": "sharpen[heavy_plot.pdf_fit_pinch]",
+            "params": {},
+            "className": "app.terbaca.benchmark.SharpenLatencyBenchmark",
+            "totalRunTimeNs": 231668802619,
+            "metrics": {
+                "sharpenCancelledCount": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "median": 0.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "sharpenCount": {
+                    "minimum": 12.0,
+                    "maximum": 12.0,
+                    "median": 12.0,
+                    "coefficientOfVariation": 0.0,
+                    "runs": [
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0,
+                        12.0
+                    ]
+                }
+            },
+            "sampledMetrics": {
+                "sharpenMs": {
+                    "P50": 231.140599,
+                    "P90": 406.5436246,
+                    "P95": 448.27305939999997,
+                    "P99": 457.98699049,
+                    "runs": [
+                        [
+                            399.288333,
+                            156.535052,
+                            233.3525,
+                            223.004583,
+                            241.282864,
+                            222.274323,
+                            232.388854,
+                            448.232187,
+                            248.463282,
+                            292.308125,
+                            233.008437,
+                            196.961927
+                        ],
+                        [
+                            416.13724,
+                            119.425417,
+                            190.710833,
+                            222.838958,
+                            233.209374,
+                            222.838333,
+                            224.457552,
+                            226.033906,
+                            231.366927,
+                            223.375209,
+                            233.270677,
+                            132.593125
+                        ],
+                        [
+                            464.968749,
+                            223.082344,
+                            241.146458,
+                            237.446354,
+                            223.767708,
+                            223.831406,
+                            231.822188,
+                            230.914271,
+                            223.864792,
+                            225.819583,
+                            224.530677,
+                            225.116615
+                        ],
+                        [
+                            407.923438,
+                            167.203906,
+                            231.998958,
+                            137.848386,
+                            223.984219,
+                            233.664375,
+                            233.195156,
+                            230.493646,
+                            240.534948,
+                            228.108073,
+                            224.234844,
+                            453.13526
+                        ],
+                        [
+                            406.390312,
+                            169.079688,
+                            232.283229,
+                            224.149792,
+                            233.356198,
+                            225.421198,
+                            224.785208,
+                            449.049635,
+                            249.119011,
+                            278.538542,
+                            232.047552,
+                            290.043437
+                        ]
+                    ]
+                }
+            },
+            "warmupIterations": 0,
+            "repeatIterations": 5,
+            "thermalThrottleSleepSeconds": 0,
+            "profilerOutputs": [
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 0",
+                    "filename": "SharpenLatencyBenchmark_sharpen_heavy_plot.pdf_fit_pinch__iter000_2026-10-12-15-29-18.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 1",
+                    "filename": "SharpenLatencyBenchmark_sharpen_heavy_plot.pdf_fit_pinch__iter001_2026-10-12-15-29-58.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 2",
+                    "filename": "SharpenLatencyBenchmark_sharpen_heavy_plot.pdf_fit_pinch__iter002_2026-10-12-15-30-37.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 3",
+                    "filename": "SharpenLatencyBenchmark_sharpen_heavy_plot.pdf_fit_pinch__iter003_2026-10-12-15-31-16.perfetto-trace"
+                },
+                {
+                    "type": "PerfettoTrace",
+                    "label": "Trace Iteration 4",
+                    "filename": "SharpenLatencyBenchmark_sharpen_heavy_plot.pdf_fit_pinch__iter004_2026-10-12-15-31-55.perfetto-trace"
+                }
+            ]
+        }
+    ]
+}

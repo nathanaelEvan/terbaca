@@ -101,6 +101,14 @@ class DocumentTransformState(
         isZooming = false
     }
 
+    /** True while user touches/gestures are actively tracked on the document surface. */
+    var isGesturing by mutableStateOf(false)
+        internal set
+
+    /** True while a fling animation is running. */
+    var isFlinging by mutableStateOf(false)
+        internal set
+
     private val animOffsetX = Animatable(0f)
     private val animOffsetY = Animatable(0f)
 
@@ -235,6 +243,7 @@ class DocumentTransformState(
         coroutineScope {
             val job = coroutineContext[Job]
             flingJob = job
+            isFlinging = true
             animOffsetX.snapTo(offsetX)
             animOffsetY.snapTo(offsetY)
 
@@ -255,6 +264,7 @@ class DocumentTransformState(
                 jobY.join()
             } finally {
                 if (flingJob === job) flingJob = null
+                isFlinging = false
             }
         }
     }
@@ -266,10 +276,15 @@ class DocumentTransformState(
     fun cancelFling() {
         flingJob?.cancel()
         flingJob = null
+        isFlinging = false
     }
 
     /** Cancels a running fling, e.g. when the user grabs the scrollbar. */
-    suspend fun stopFling() = mutex.mutate(MutatePriority.UserInput) {}
+    suspend fun stopFling() = mutex.mutate(MutatePriority.UserInput) {
+        flingJob?.cancel()
+        flingJob = null
+        isFlinging = false
+    }
 
     /** True once a real viewport size is known; before that the position means nothing. */
     val hasViewport: Boolean get() = viewportWidth > 0f && viewportHeight > 0f
