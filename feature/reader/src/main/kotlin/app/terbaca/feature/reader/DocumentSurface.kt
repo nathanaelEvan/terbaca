@@ -595,16 +595,11 @@ private fun DocumentTileCollector(
                 // Cancelled by the next update (collectLatest); if none comes, the view stopped here.
                 delay(FAST_SCROLL_SETTLE_MS)
             }
-            if (!zooming) {
-                // PRD M6-06: render the centre tiles first.
-                val sortedDetail = plan.visibleDetail.sortedBy { it.second }
-                val sortedPrefetch = plan.prefetch.sortedBy { it.second }
-                sortedDetail.forEach { (tile, dist) ->
-                    requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
-                }
-                sortedPrefetch.forEach { (tile, dist) ->
-                    requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
-                }
+            plan.visibleDetail.forEach { (tile, dist) ->
+                requester.request(tile, TilePriority(TileLayerType.VISIBLE_DETAIL, distanceToCenter = dist))
+            }
+            plan.prefetch.forEach { (tile, dist) ->
+                requester.request(tile, TilePriority(TileLayerType.PREFETCH_DETAIL, distanceToCenter = dist))
             }
             plan.adjacentBases.forEach { requester.request(it, TilePriority(TileLayerType.ADJACENT_BASE)) }
         }

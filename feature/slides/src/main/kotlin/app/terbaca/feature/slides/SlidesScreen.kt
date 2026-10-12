@@ -327,6 +327,26 @@ fun SlidesScreen(
                             ) {
                                 val viewportW = constraints.maxWidth
                                 val viewportH = constraints.maxHeight
+                                val currentViewportW by rememberUpdatedState(viewportW)
+                                val currentViewportH by rememberUpdatedState(viewportH)
+                                val currentPages by rememberUpdatedState(pages)
+
+                                LaunchedEffect(pagerState) {
+                                    var lastSettledPage = pagerState.settledPage
+                                    snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+                                        if (settledPage != lastSettledPage) {
+                                            lastSettledPage = settledPage
+                                            val page = currentPages.getOrNull(settledPage)
+                                            checkSlideSharpOnArrival(
+                                                slideCache = slideCache,
+                                                page = page,
+                                                viewportWidth = currentViewportW,
+                                                viewportHeight = currentViewportH
+                                            )
+                                        }
+                                    }
+                                }
+
                                 HorizontalPager(
                                     state = pagerState,
                                     beyondViewportPageCount = SLIDE_BEYOND_VIEWPORT_PAGES,
@@ -489,7 +509,7 @@ internal fun SlideItem(
     page: PageInfo,
     renderer: PageRenderer?,
     docHandle: Long,
-    slideCache: SlideCache<SlideKey, Bitmap>,
+    slideCache: SlideCache<Bitmap>,
     zoomState: SlideZoomState,
     isActive: () -> Boolean,
     coroutineScope: CoroutineScope,
@@ -544,7 +564,7 @@ private fun SlideContent(
     page: PageInfo,
     renderer: PageRenderer?,
     docHandle: Long,
-    slideCache: SlideCache<SlideKey, Bitmap>,
+    slideCache: SlideCache<Bitmap>,
     zoomState: SlideZoomState,
     viewportW: Int,
     viewportH: Int,
@@ -587,20 +607,7 @@ private fun SlideContent(
         }
     }
 
-    // Instrumented check for "next slide sharp on arrival" (PRD §7, M6-07).
     val currentBitmap = bitmap
-    val isSharp = currentBitmap != null && !currentBitmap.isRecycled
-    DisposableEffect(page.index, isSharp) {
-        if (isActive()) {
-            if (isSharp) {
-                app.terbaca.core.render.PerfTrace.mark(app.terbaca.core.render.PerfTrace.SLIDE_SHARP_ON_ARRIVAL)
-            } else {
-                app.terbaca.core.render.PerfTrace.mark(app.terbaca.core.render.PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL)
-            }
-        }
-        onDispose {}
-    }
-
     val detail = rememberSlideDetail(
         zoomState = zoomState,
         isActive = isActive,

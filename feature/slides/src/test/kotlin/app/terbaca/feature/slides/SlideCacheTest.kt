@@ -1,6 +1,8 @@
 package app.terbaca.feature.slides
 
+import app.terbaca.core.model.PageInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,49 +63,58 @@ class SlideCacheTest {
         assertEquals(0, h3)
     }
 
+    private fun slide(page: Int) = SlideKey(pageIndex = page, widthPx = 3200, heightPx = 1800)
+
     @Test
     fun slideCacheStoresAndRetrievesItems() {
-        val cache = SlideCache<Int, TestItem>(maxEntries = 3)
+        val cache = SlideCache<TestItem>(maxEntries = 3)
         val item0 = TestItem(0)
-        cache.put(0, item0)
+        cache.put(slide(0), item0)
 
-        assertEquals(item0, cache.get(0))
+        assertEquals(item0, cache.get(slide(0)))
         assertEquals(1, cache.size())
     }
 
     @Test
-    fun slideCacheEvictsOldestWhenCapacityExceeded() {
-        val cache = SlideCache<Int, TestItem>(maxEntries = 2)
-        val item0 = TestItem(0)
-        val item1 = TestItem(1)
-        val item2 = TestItem(2)
+    fun slideCacheEvictsTheSlideFarthestFromTheNewOne() {
+        val cache = SlideCache<TestItem>(maxEntries = 2)
+        cache.put(slide(5), TestItem(5))
+        cache.put(slide(1), TestItem(1))
 
-        cache.put(0, item0)
-        cache.put(1, item1)
-        cache.put(2, item2) // Should evict item0
+        // Read 1 last: recency must not matter, only distance from the new slide.
+        cache.get(slide(1))
+        cache.put(slide(6), TestItem(6))
 
-        assertNull(cache.get(0))
-        assertEquals(item1, cache.get(1))
-        assertEquals(item2, cache.get(2))
+        assertNull(cache.get(slide(1)))
+        assertEquals(TestItem(5), cache.get(slide(5)))
+        assertEquals(TestItem(6), cache.get(slide(6)))
     }
 
+    /**
+     * Replays the cache calls the Pad 7 trace showed for SlideFlipBenchmark (M6R-05): flicking
+     * forward, the pager composes slides up to two ahead; flicking back, up to two behind. A newly
+     * composed slide reads the cache and renders on a miss; nothing else reads it until arrival.
+     * With least-recently-used eviction this gave SSNSSNSS NSSNSSSS, as on the device.
+     */
     @Test
-    fun slideCacheMaintainsAccessOrderOnGet() {
-        val cache = SlideCache<Int, TestItem>(maxEntries = 2)
-        val item0 = TestItem(0)
-        val item1 = TestItem(1)
-        val item2 = TestItem(2)
-
-        cache.put(0, item0)
-        cache.put(1, item1)
-
-        // Access 0 so 1 becomes the oldest
-        assertEquals(item0, cache.get(0))
-
-        cache.put(2, item2) // Should evict item1, keeping 0 and 2
-        assertNull(cache.get(1))
-        assertEquals(item0, cache.get(0))
-        assertEquals(item2, cache.get(2))
+    fun everyFlipArrivesOnACachedSlide() {
+        val cache = SlideCache<TestItem>()
+        var composed = setOf(0, 1)
+        composed.forEach { cache.put(slide(it), TestItem(it)) }
+        var current = 0
+        val arrivals = StringBuilder()
+        for (step in List(8) { 1 } + List(8) { -1 }) {
+            val target = current + step
+            val window = if (step > 0) target - 1..target + 2 else target - 2..target + 1
+            val nowComposed = window.filter { it >= 0 }.toSet()
+            for (page in (nowComposed - composed).sorted()) {
+                if (cache.get(slide(page)) == null) cache.put(slide(page), TestItem(page))
+            }
+            composed = nowComposed
+            current = target
+            arrivals.append(if (cache.get(slide(target)) != null) 'S' else 'N')
+        }
+        assertEquals("S".repeat(16), arrivals.toString())
     }
 
     @Test
@@ -114,7 +125,7 @@ class SlideCacheTest {
 
     @Test
     fun slideCacheMissesWhenRenderSizeChanges() {
-        val cache = SlideCache<SlideKey, TestItem>()
+        val cache = SlideCache<TestItem>()
         val beforeRotation = TestItem(0)
         cache.put(SlideKey(pageIndex = 0, widthPx = 1600, heightPx = 900), beforeRotation)
 
@@ -125,12 +136,12 @@ class SlideCacheTest {
 
     @Test
     fun slideCacheClearDropsAllEntries() {
-        val cache = SlideCache<Int, TestItem>(maxEntries = 3)
-        cache.put(0, TestItem(0))
-        cache.put(1, TestItem(1))
+        val cache = SlideCache<TestItem>(maxEntries = 3)
+        cache.put(slide(0), TestItem(0))
+        cache.put(slide(1), TestItem(1))
 
         cache.clear()
-        assertNull(cache.get(0))
+        assertNull(cache.get(slide(0)))
         assertEquals(0, cache.size())
     }
 
@@ -194,5 +205,80 @@ class SlideCacheTest {
         detector.onScrollStateChanged(scrolling = false, settledPage = 5)
         assertEquals(1, hapticCount)
         assertEquals(listOf(5), settled)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalMarksSharpWhenSlideIsInCache() {
+        val cache = SlideCache<TestItem>()
+        val page = PageInfo(index = 2, widthPoints = 960f, heightPoints = 540f)
+        val (w, h) = calculateAspectFit(1920, 1080, 960f, 540f)
+        cache.put(SlideKey(pageIndex = 2, widthPx = w, heightPx = h), TestItem(2))
+
+        var sharpMarked = false
+        var notSharpMarked = false
+        val result = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { sharpMarked = true },
+            onNotSharp = { notSharpMarked = true },
+            isSharp = { true }
+        )
+
+        assertTrue(result)
+        assertTrue(sharpMarked)
+        assertFalse(notSharpMarked)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalMarksNotSharpWhenSlideNotInCache() {
+        val cache = SlideCache<TestItem>()
+        val page = PageInfo(index = 3, widthPoints = 960f, heightPoints = 540f)
+
+        var sharpMarked = false
+        var notSharpMarked = false
+        val result = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { sharpMarked = true },
+            onNotSharp = { notSharpMarked = true },
+            isSharp = { true }
+        )
+
+        assertFalse(result)
+        assertFalse(sharpMarked)
+        assertTrue(notSharpMarked)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalDoesNothingWhenViewportOrPageInvalid() {
+        val cache = SlideCache<TestItem>()
+        var marked = false
+
+        val res1 = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = null,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { marked = true },
+            onNotSharp = { marked = true }
+        )
+        assertFalse(res1)
+        assertFalse(marked)
+
+        val page = PageInfo(index = 0, widthPoints = 960f, heightPoints = 540f)
+        val res2 = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 0,
+            viewportHeight = 1080,
+            onSharp = { marked = true },
+            onNotSharp = { marked = true }
+        )
+        assertFalse(res2)
+        assertFalse(marked)
     }
 }

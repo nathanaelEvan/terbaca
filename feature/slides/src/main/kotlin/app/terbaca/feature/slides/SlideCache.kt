@@ -1,6 +1,9 @@
 package app.terbaca.feature.slides
 
 import android.graphics.Bitmap
+import app.terbaca.core.model.PageInfo
+import app.terbaca.core.render.PerfTrace
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -15,7 +18,8 @@ const val SLIDE_SNAP_DAMPING_RATIO = 0.8f
 const val SLIDE_BEYOND_VIEWPORT_PAGES = 1
 
 /**
- * Cache capacity: the composed window (current + neighbours) plus one page entering during a swipe.
+ * Cache capacity: what the pager composes during a flick, i.e. the arriving slide, one behind it and
+ * two ahead (seen in the M6R-05 trace).
  */
 const val SLIDE_CACHE_ENTRIES = 2 * SLIDE_BEYOND_VIEWPORT_PAGES + 2
 
@@ -47,23 +51,30 @@ fun calculateAspectFit(
 data class SlideKey(val pageIndex: Int, val widthPx: Int, val heightPx: Int)
 
 /**
- * Small LRU cache for rendered slides (F-DECK-4, PRD §5).
+ * Small cache for rendered slides (F-DECK-4, PRD §5).
+ *
+ * When full, it drops the slide farthest from the one just added. The pager renders new slides at
+ * the edge the user flips towards, so this drops the slide farthest behind them. Least recently
+ * used would drop the slide about to arrive instead: it was rendered two flips ahead and not read
+ * since (M6R-05: every third flip arrived not sharp).
  *
  * Evicted values are only dropped, never disposed: a pager page that is still composed may keep
  * drawing a bitmap the cache has already evicted, so recycling here would crash or blank it.
  * The GC reclaims bitmap memory once nothing references it.
  */
-class SlideCache<K : Any, V : Any>(private val maxEntries: Int = SLIDE_CACHE_ENTRIES) {
-    private val cache = object : LinkedHashMap<K, V>(maxEntries, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<K, V>?): Boolean = size > maxEntries
-    }
+class SlideCache<V : Any>(private val maxEntries: Int = SLIDE_CACHE_ENTRIES) {
+    private val cache = HashMap<SlideKey, V>()
 
     @Synchronized
-    fun get(key: K): V? = cache[key]
+    fun get(key: SlideKey): V? = cache[key]
 
     @Synchronized
-    fun put(key: K, value: V) {
+    fun put(key: SlideKey, value: V) {
         cache[key] = value
+        while (cache.size > maxEntries) {
+            val farthest = cache.keys.filter { it != key }.maxBy { abs(it.pageIndex - key.pageIndex) }
+            cache.remove(farthest)
+        }
     }
 
     @Synchronized
@@ -76,7 +87,7 @@ class SlideCache<K : Any, V : Any>(private val maxEntries: Int = SLIDE_CACHE_ENT
 /**
  * Slide bitmap cache for rendered slide pages.
  */
-fun createSlideBitmapCache(maxEntries: Int = SLIDE_CACHE_ENTRIES): SlideCache<SlideKey, Bitmap> =
+fun createSlideBitmapCache(maxEntries: Int = SLIDE_CACHE_ENTRIES): SlideCache<Bitmap> =
     SlideCache(maxEntries)
 
 /**
@@ -102,5 +113,39 @@ class SlideSettleDetector(
                 onPageSettled(settledPage)
             }
         }
+    }
+}
+
+/**
+ * Checks whether the slide bitmap for [page] at current viewport dimensions is already present
+ * in [slideCache] and not recycled, emitting [PerfTrace.SLIDE_SHARP_ON_ARRIVAL] or
+ * [PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL] (F-DECK-4, PRD §7).
+ *
+ * @return True if sharp in cache on arrival, false otherwise.
+ */
+internal fun checkSlideSharpOnArrival(
+    slideCache: SlideCache<*>,
+    page: PageInfo?,
+    viewportWidth: Int,
+    viewportHeight: Int,
+    onSharp: () -> Unit = { PerfTrace.mark(PerfTrace.SLIDE_SHARP_ON_ARRIVAL) },
+    onNotSharp: () -> Unit = { PerfTrace.mark(PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL) },
+    isSharp: (Any) -> Boolean = { it is Bitmap && !it.isRecycled }
+): Boolean {
+    if (page == null || viewportWidth <= 0 || viewportHeight <= 0) return false
+    val (targetW, targetH) = calculateAspectFit(
+        viewportWidth = viewportWidth,
+        viewportHeight = viewportHeight,
+        pageWidthPoints = page.widthPoints,
+        pageHeightPoints = page.heightPoints
+    )
+    val key = SlideKey(page.index, targetW, targetH)
+    val cached = slideCache.get(key)
+    return if (cached != null && isSharp(cached)) {
+        onSharp()
+        true
+    } else {
+        onNotSharp()
+        false
     }
 }
