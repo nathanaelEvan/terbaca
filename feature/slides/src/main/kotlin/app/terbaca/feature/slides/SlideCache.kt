@@ -1,6 +1,8 @@
 package app.terbaca.feature.slides
 
 import android.graphics.Bitmap
+import app.terbaca.core.model.PageInfo
+import app.terbaca.core.render.PerfTrace
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -102,5 +104,39 @@ class SlideSettleDetector(
                 onPageSettled(settledPage)
             }
         }
+    }
+}
+
+/**
+ * Checks whether the slide bitmap for [page] at current viewport dimensions is already present
+ * in [slideCache] and not recycled, emitting [PerfTrace.SLIDE_SHARP_ON_ARRIVAL] or
+ * [PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL] (F-DECK-4, PRD §7).
+ *
+ * @return True if sharp in cache on arrival, false otherwise.
+ */
+internal fun checkSlideSharpOnArrival(
+    slideCache: SlideCache<SlideKey, *>,
+    page: PageInfo?,
+    viewportWidth: Int,
+    viewportHeight: Int,
+    onSharp: () -> Unit = { PerfTrace.mark(PerfTrace.SLIDE_SHARP_ON_ARRIVAL) },
+    onNotSharp: () -> Unit = { PerfTrace.mark(PerfTrace.SLIDE_NOT_SHARP_ON_ARRIVAL) },
+    isSharp: (Any) -> Boolean = { it is Bitmap && !it.isRecycled }
+): Boolean {
+    if (page == null || viewportWidth <= 0 || viewportHeight <= 0) return false
+    val (targetW, targetH) = calculateAspectFit(
+        viewportWidth = viewportWidth,
+        viewportHeight = viewportHeight,
+        pageWidthPoints = page.widthPoints,
+        pageHeightPoints = page.heightPoints
+    )
+    val key = SlideKey(page.index, targetW, targetH)
+    val cached = slideCache.get(key)
+    return if (cached != null && isSharp(cached)) {
+        onSharp()
+        true
+    } else {
+        onNotSharp()
+        false
     }
 }

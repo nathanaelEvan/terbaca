@@ -1,6 +1,8 @@
 package app.terbaca.feature.slides
 
+import app.terbaca.core.model.PageInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -194,5 +196,80 @@ class SlideCacheTest {
         detector.onScrollStateChanged(scrolling = false, settledPage = 5)
         assertEquals(1, hapticCount)
         assertEquals(listOf(5), settled)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalMarksSharpWhenSlideIsInCache() {
+        val cache = SlideCache<SlideKey, TestItem>()
+        val page = PageInfo(index = 2, widthPoints = 960f, heightPoints = 540f)
+        val (w, h) = calculateAspectFit(1920, 1080, 960f, 540f)
+        cache.put(SlideKey(pageIndex = 2, widthPx = w, heightPx = h), TestItem(2))
+
+        var sharpMarked = false
+        var notSharpMarked = false
+        val result = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { sharpMarked = true },
+            onNotSharp = { notSharpMarked = true },
+            isSharp = { true }
+        )
+
+        assertTrue(result)
+        assertTrue(sharpMarked)
+        assertFalse(notSharpMarked)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalMarksNotSharpWhenSlideNotInCache() {
+        val cache = SlideCache<SlideKey, TestItem>()
+        val page = PageInfo(index = 3, widthPoints = 960f, heightPoints = 540f)
+
+        var sharpMarked = false
+        var notSharpMarked = false
+        val result = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { sharpMarked = true },
+            onNotSharp = { notSharpMarked = true },
+            isSharp = { true }
+        )
+
+        assertFalse(result)
+        assertFalse(sharpMarked)
+        assertTrue(notSharpMarked)
+    }
+
+    @Test
+    fun checkSlideSharpOnArrivalDoesNothingWhenViewportOrPageInvalid() {
+        val cache = SlideCache<SlideKey, TestItem>()
+        var marked = false
+
+        val res1 = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = null,
+            viewportWidth = 1920,
+            viewportHeight = 1080,
+            onSharp = { marked = true },
+            onNotSharp = { marked = true }
+        )
+        assertFalse(res1)
+        assertFalse(marked)
+
+        val page = PageInfo(index = 0, widthPoints = 960f, heightPoints = 540f)
+        val res2 = checkSlideSharpOnArrival(
+            slideCache = cache,
+            page = page,
+            viewportWidth = 0,
+            viewportHeight = 1080,
+            onSharp = { marked = true },
+            onNotSharp = { marked = true }
+        )
+        assertFalse(res2)
+        assertFalse(marked)
     }
 }
