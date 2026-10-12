@@ -195,8 +195,7 @@ current tree.
 
 Still open:
 
-- **"Next slide always sharp on arrival"** (slide flip row) isn't instrumented. M6-07 adds the
-  check.
+- **"Next slide always sharp on arrival"** (slide flip row): instrumented and measured in M6R-05 (`docs/perf-raw/m6r-05/`). Yields 75.0% sharp on arrival (12/16 flips per iter; misses follow a deterministic pattern: forward pass misses every 3rd flip, backward pass misses flips 1 and 4). Marked **Missed**.
 - **Crash on malformed PDFs** wasn't re-run in M6-01. That row is taken from M5-01, and the M5
   review found gaps in that fuzz test.
 - **Fling through the 30-page paper** wasn't measured on its own. It's folded into the doc 1 row.
@@ -234,7 +233,7 @@ Final re-measure across all benchmarks on the Xiaomi Pad 7 following completion 
 | Pinch/pan/fling, doc 1 (two-column paper) | ≥ 99% ≤ 8.33 ms; 0 > 16.6 ms | P50 CPU 3.8 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
 | Pinch/pan/fling, doc 3 (heavy vector plot) | same | 98.48% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
 | Pinch/pan/fling, doc 5 (16:9 deck) | same | 99.42% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
-| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw files omitted; to be re-measured in M6R-10) |
+| Slide flip (16 flicks × 5) | no frame > 8.33 ms; sharp on arrival | 95.95% ≤ 8.33 ms | **75.0% sharp on arrival** (12/16 sharp per iter; 4 misses/iter), 95.56% ≤ 8.33 ms, 4 frames > 16.6 ms (4.74% late) (`docs/perf-raw/m6r-05/`) | **Missed** |
 | Sharpening, text page, fit width | p95 ≤ 150 ms | p50 250 ms, p95 258 ms | After pinch: p50 200.8 ms, p90 242.4 ms | **Missed** (p90 242.4 ms exceeds p95 budget of 150 ms; p95 raw data not committed) |
 | Sharpening at 800% | p95 ≤ 300 ms | p50 270 ms, p95 292 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw latency files omitted; to be re-measured in M6R-10) |
 | Heavy vector page | open sharp ≤ 1 s | p50 766 ms, p95 835 ms | Not committed in `perf-raw/m6-10` | **Not measured** (raw latency files omitted; to be re-measured in M6R-10) |

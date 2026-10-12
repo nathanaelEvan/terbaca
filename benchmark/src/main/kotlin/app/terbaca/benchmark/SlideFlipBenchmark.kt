@@ -28,19 +28,27 @@ private class SlideSharpOnArrivalMetric : TraceMetric() {
         val sharpCount = traceSession.query(
             """
             SELECT count(*) as count FROM slice s
-            JOIN process_track pt ON s.track_id = pt.id
-            JOIN process p ON pt.upid = p.upid
+            JOIN thread_track tt ON s.track_id = tt.id
+            JOIN thread t ON tt.utid = t.utid
+            JOIN process p ON t.upid = p.upid
             WHERE s.name = '$SLIDE_SHARP_ON_ARRIVAL' AND p.name LIKE '$pkg%'
             """.trimIndent()
         ).firstOrNull()?.long("count") ?: 0L
         val notSharpCount = traceSession.query(
             """
             SELECT count(*) as count FROM slice s
-            JOIN process_track pt ON s.track_id = pt.id
-            JOIN process p ON pt.upid = p.upid
+            JOIN thread_track tt ON s.track_id = tt.id
+            JOIN thread t ON tt.utid = t.utid
+            JOIN process p ON t.upid = p.upid
             WHERE s.name = '$SLIDE_NOT_SHARP_ON_ARRIVAL' AND p.name LIKE '$pkg%'
             """.trimIndent()
         ).firstOrNull()?.long("count") ?: 0L
+        val total = sharpCount + notSharpCount
+        val expected = (FLIPS * 2).toLong()
+        println("Slide arrival per iteration: sharp=$sharpCount, notSharp=$notSharpCount, total=$total (expected=$expected)")
+        check(total == expected) {
+            "Total slide arrival marks ($total) did not match expected flips ($expected: $FLIPS * 2)"
+        }
         return listOf(
             Measurement("slideSharpOnArrivalCount", sharpCount.toDouble()),
             Measurement("slideNotSharpOnArrivalCount", notSharpCount.toDouble())

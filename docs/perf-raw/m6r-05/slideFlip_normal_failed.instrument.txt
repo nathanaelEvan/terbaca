@@ -1,0 +1,60 @@
+
+# FAILED RUN (pre-fix, 2026-10-12 06:34:57 UTC)
+# Reason: Total slide arrival marks was 0 because neighbour page pre-composition did not trigger old SlideContent DisposableEffect.
+# Replaced by successful run at 06:50:13 UTC (benchmarkData.json / slideFlip_normal_success.instrument.txt).
+
+app.terbaca.benchmark.SlideFlipBenchmark:INSTRUMENTATION_STATUS: additionalTestOutputFile_SlideFlipBenchmark_slideFlipBaselineProfile_iter000_2026-10-12-06-34-57.perfetto-trace=/storage/emulated/0/Android/media/app.terbaca.benchmark/SlideFlipBenchmark_slideFlipBaselineProfile_iter000_2026-10-12-06-34-57.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: android.studio.display.benchmark=    [Trace with processing error: Total slide arrival marks (0) did not match expect...](file://SlideFlipBenchmark_slideFlipBaselineProfile_iter000_2026-10-12-06-34-57.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark=    [Trace with processing error: Total slide arrival marks (0) did not match expect...](file://SlideFlipBenchmark_slideFlipBaselineProfile_iter000_2026-10-12-06-34-57.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark.outputDirPath=/storage/emulated/0/Android/media/app.terbaca.benchmark
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark=    [Trace with processing error: Total slide arrival marks (0) did not match expect...](file://SlideFlipBenchmark_slideFlipBaselineProfile_iter000_2026-10-12-06-34-57.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark.outputDirPath=/storage/emulated/0/Android/media/app.terbaca.benchmark
+INSTRUMENTATION_STATUS_CODE: 2
+
+Error in slideFlipBaselineProfile(app.terbaca.benchmark.SlideFlipBenchmark):
+java.lang.IllegalStateException: Total slide arrival marks (0) did not match expected flips (16: 8 * 2)
+	at app.terbaca.benchmark.SlideSharpOnArrivalMetric.getMeasurements(SlideFlipBenchmark.kt:47)
+	at app.terbaca.benchmark.SlideSharpOnArrivalMetric.getMeasurements$benchmark_macro(SlideFlipBenchmark.kt:21)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.runPhase$lambda$1$3(MacrobenchmarkPhase.kt:143)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.$r8$lambda$mescrdgwZZiZ1uff-ulgVsbFp8I(MacrobenchmarkPhase.kt:0)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt$$ExternalSyntheticLambda1.invoke(D8$$SyntheticClass:0)
+	at androidx.benchmark.traceprocessor.TraceProcessor.loadTrace(TraceProcessor.kt:173)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.runPhase(MacrobenchmarkPhase.kt:135)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmark$lambda$3(Macrobenchmark.kt:304)
+	at androidx.benchmark.macro.MacrobenchmarkKt$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
+	at androidx.benchmark.TraceProcessorExtensions.runServer(TraceProcessorExtensions.kt:152)
+	at androidx.benchmark.TraceProcessorExtensions.runServer$default(TraceProcessorExtensions.kt:149)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmark(Macrobenchmark.kt:296)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmarkWithStartupMode(Macrobenchmark.kt:435)
+	at androidx.benchmark.macro.junit4.MacrobenchmarkRule.measureRepeated(MacrobenchmarkRule.kt:87)
+	at app.terbaca.benchmark.SlideFlipBenchmark.slideFlipBaselineProfile(SlideFlipBenchmark.kt:69)
+
+
+Time: 38.174
+There was 1 failure:
+1) slideFlipBaselineProfile(app.terbaca.benchmark.SlideFlipBenchmark)
+java.lang.IllegalStateException: Total slide arrival marks (0) did not match expected flips (16: 8 * 2)
+	at app.terbaca.benchmark.SlideSharpOnArrivalMetric.getMeasurements(SlideFlipBenchmark.kt:47)
+	at app.terbaca.benchmark.SlideSharpOnArrivalMetric.getMeasurements$benchmark_macro(SlideFlipBenchmark.kt:21)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.runPhase$lambda$1$3(MacrobenchmarkPhase.kt:143)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.$r8$lambda$mescrdgwZZiZ1uff-ulgVsbFp8I(MacrobenchmarkPhase.kt:0)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt$$ExternalSyntheticLambda1.invoke(D8$$SyntheticClass:0)
+	at androidx.benchmark.traceprocessor.TraceProcessor.loadTrace(TraceProcessor.kt:173)
+	at androidx.benchmark.macro.MacrobenchmarkPhaseKt.runPhase(MacrobenchmarkPhase.kt:135)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmark$lambda$3(Macrobenchmark.kt:304)
+	at androidx.benchmark.macro.MacrobenchmarkKt$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
+	at androidx.benchmark.TraceProcessorExtensions.runServer(TraceProcessorExtensions.kt:152)
+	at androidx.benchmark.TraceProcessorExtensions.runServer$default(TraceProcessorExtensions.kt:149)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmark(Macrobenchmark.kt:296)
+	at androidx.benchmark.macro.MacrobenchmarkKt.macrobenchmarkWithStartupMode(Macrobenchmark.kt:435)
+	at androidx.benchmark.macro.junit4.MacrobenchmarkRule.measureRepeated(MacrobenchmarkRule.kt:87)
+	at app.terbaca.benchmark.SlideFlipBenchmark.slideFlipBaselineProfile(SlideFlipBenchmark.kt:69)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
