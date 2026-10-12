@@ -101,6 +101,7 @@ Crucially, **the UI thread is not the primary bottleneck**:
   `swapPendingTiles` transfers up to 4 bitmaps (512×512 ARGB_8888 = 1 MB each) per frame into `TileCache`. When Skia OpenGL executes `drawImage`, these bitmaps are uploaded to the GPU as OpenGL textures via `glTexSubImage2D` on the RenderThread.
 - **Evidence:**
   - Up to 4 MB of texture upload during a single frame introduces 2–4 ms of CPU RenderThread stall, pushing marginal frames from 6 ms to > 8.33 ms.
+  - *Note (M6R-01):* The tiles already arrive as `Bitmap.Config.HARDWARE` (`PdfiumRemotePageRenderer.kt`, `softwareBitmap.copy(HARDWARE)`). The texture upload happens on that copy, not on the RenderThread, so the "4 MB upload per frame" premise is unproven. M6R-06 tests it.
 - **Fix (M6-03c):**
   - Throttle tile swaps during active fling motion: swap at most 2 tiles per frame while `velocity > 0`, spreading uploads across VSYNC intervals.
 
