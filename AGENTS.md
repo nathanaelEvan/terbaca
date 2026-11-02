@@ -45,6 +45,7 @@ While that PR waits, carry on with the next task that doesn't depend on it, bran
 
 - **Native code must be run by a test.** Instrumented tests (`src/androidTest`) with small PDF fixtures. CI runs them on an x86_64 emulator.
 - Be clear about the difference between **verified** (you ran it and saw the result) and **implemented** (written, not run). Never describe the second as the first. Anything not verified goes under "Not verified" in the PR.
+- **Perf measurements are tiered** (PRD R1): a quick screen (Q, ≤ 30 min on the device) for each perf task, the full ×3 suite (F) only once per milestone. Don't run F for a single task. If a Q run shows < 10 % gain, close the PR as not effective.
 - **Third-party binaries/code:** record the source URL, version and SHA-256, and ship the required license notices.
 - **ADRs:** use repo-relative links. Status stays `proposed` until the owner or reviewer approves it, at the latest at the milestone review. List only people who were actually involved.
 

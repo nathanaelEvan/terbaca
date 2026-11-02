@@ -563,8 +563,22 @@ one is not done, even when CI is green.**
   - The M6-01 baseline (2,480 frames over 5 iterations = 496 per iteration, "42.6 %") is such a
     run. Compare against v0.1.0's 34.6 % (`docs/competitor-benchmark/summary.txt`), or against a
     fresh run of the same commit.
-- A before/after claim needs ≥ 3 runs of both "before" and "after" on the same day and device
-  state. Report the median of the run results and the min–max.
+- Device time is limited: the owner's Pad 7 can't stay on for hours. Measure in tiers
+  (owner decision 2026-10-13):
+  - **Q (quick screen), every perf task, ≤ 30 min of device time.** Run only the metric the
+    task targets (e.g. one or two `SharpenLatencyBenchmark` cases, using the `cases` filter).
+    Build both APKs first, then run interleaved A, B, A, B (2 runs each) in one session, so
+    heat and battery affect both sides equally. If the target metric doesn't improve by ≥ 10 %
+    (median of the 2 B runs vs median of the 2 A runs), the change is **not effective**: close
+    the PR, record the numbers in the PR, and move on. Don't measure it further.
+  - **G (regression guard), only for changes that pass Q.** One `scrollFlings` run on B. If its
+    late % is above the highest A-side late % recorded on `main` in this milestone, run one A
+    and one more B to decide.
+  - **F (full), once per milestone, in the re-measure task.** Every metric ×3, as below. Only F
+    numbers go into README, `perf-report.md` and §7 statuses.
+- An F claim needs ≥ 3 runs of both "before" and "after" on the same day and device state. Report
+  the median of the run results and the min–max. Q and G numbers are labelled "quick screen"
+  and are never copied into README or the report.
 
 **R2. Status words.** A §7 row's status is exactly one of:
 - **Met:** measured with the budget's own measure, and inside the budget.
@@ -869,6 +883,18 @@ width, ≤ 300 ms at 800 %.
   - Commit the traces needed to rerun the script, or say in the PR why not (size).
   - Table per case: median and p95 of each phase. Name the biggest phase per case.
 
+- **M7-Q Quick-screen filter** (`perf/M7-Q-case-filter`). Do this before M7-03's Q run.
+  - In `SharpenLatencyBenchmark.cases()` (`benchmark/.../LatencyBenchmarks.kt`), read the
+    optional instrumentation argument `cases` (comma-separated, e.g.
+    `heavy_plot.pdf_fit_pinch,paper_two_column.pdf_fit_pinch`) via
+    `InstrumentationRegistry.getArguments()`, and keep only the matching `{0}_{1}_{2}` names.
+    No argument means all 5 cases, as now.
+  - Command: `./gradlew :benchmark:connectedBenchmarkAndroidTest
+    -Pandroid.testInstrumentationRunnerArguments.class=app.terbaca.benchmark.SharpenLatencyBenchmark
+    -Pandroid.testInstrumentationRunnerArguments.cases=heavy_plot.pdf_fit_pinch`. Put it in
+    `docs/perf-raw/README.md`.
+  - Check by hand: with the filter, the output JSON has exactly 1 benchmark. No other test needed.
+
 - **M7-02 Swap tiles faster when not gesturing** (`perf/M7-02-swap-cap`).
   - `MAX_TILES_SWAPPED_PER_FRAME = 2` protects scroll smoothness during a fling. After a pinch or
     pan has ended, and no fling is running, swap all arrived tiles in one frame (or a higher cap,
@@ -881,17 +907,15 @@ width, ≤ 300 ms at 800 %.
       range.
   - Revert if sharpen p95 doesn't drop.
 
-- **M7-03 Render thread priority** (`perf/M7-03-render-priority`).
-  - In `PdfiumRenderService.renderExecutor`, try `THREAD_PRIORITY_DEFAULT` and
-    `THREAD_PRIORITY_DISPLAY` instead of `THREAD_PRIORITY_BACKGROUND`.
-  - Keep prefetch from hurting scroll: if scroll late % gets worse, use the higher priority only
-    while visible-detail work is queued, and background for prefetch. The scheduler already knows
-    the priority class of each tile.
-  - Measure (R1) ×3 each: all `SharpenLatencyBenchmark` cases, `scrollFlings` and `pinchZoom`
-    late %, and the per-core CPU time of the render thread (Perfetto `sched` table, thread name
-    starts with `PdfiumRender`). Report big vs little core share.
-  - Merge only if sharpen p95 improves and scroll/pinch late % don't get worse beyond the
-    min–max range.
+- **M7-03 Render thread priority** (`perf/M7-03-render-priority`, PR #102).
+  - The existing data in #102 already counts as a quick screen (Q) for the paper cases: fit_pinch
+    and max_pinch moved ±0.3 %, so DISPLAY priority is not effective there. Don't try
+    `THREAD_PRIORITY_DEFAULT` and don't collect per-core `sched` data; both are dropped.
+  - One Q run decides: `heavy_plot.pdf_fit_pinch` only, A = current `main`, B = #102, interleaved
+    A, B, A, B. The old 448 ms "before" is from before M7-02 and must not be used.
+  - If heavy_plot p95 improves ≥ 10 %: run G, then merge. Otherwise close #102 as not effective.
+  - Either way, in #102: revert the README change (no new numbers until M7-07), and list in "Not
+    verified" everything that wasn't run.
 
 - **M7-04 Reveal policy** (`perf/M7-04-reveal`). **Feel change (R4).** Only if M7-01 shows the
   wait-for-all reveal is a big phase after M7-02.
@@ -920,8 +944,9 @@ width, ≤ 300 ms at 800 %.
     (memory is allowed to grow up to the §7 PSS budget), and crash-isolation impact.
   - Write `docs/adr/NNN-parallel-render.md`, status `proposed`. No code.
 
-- **M7-07 Re-measure** (`docs/M7-07-measure`).
-  - All 5 `SharpenLatencyBenchmark` cases ×3, plus M7-05 for Terbaca only. Update the §7 sharpen
+- **M7-07 Re-measure** (`docs/M7-07-measure`). The milestone's one full (F) session.
+  - All 5 `SharpenLatencyBenchmark` cases ×3, `scrollFlings` ×3, `pinchZoom` ×3, against the
+    M7 start commit (`ac50d74`, M7-00) ×3, same session, plus M7-05 for Terbaca only. Update the §7 sharpen
     rows in `perf-report.md` under R2.
 
 **M7 exit criteria:** fit-width pinch sharpen p95 ≤ 150 ms and 800 % ≤ 300 ms (median of 3 runs,
