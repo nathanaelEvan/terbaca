@@ -64,6 +64,22 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 const val MAX_TILES_SWAPPED_PER_FRAME = 2
+const val IDLE_SWAP_BUDGET = Int.MAX_VALUE
+
+/**
+ * Returns the maximum number of tiles to swap into the cache this frame (M7-02).
+ * Capped at [MAX_TILES_SWAPPED_PER_FRAME] while touching or flinging to protect scroll/gesture
+ * frame rate at 120 Hz; uncapped ([IDLE_SWAP_BUDGET]) when idle so arrived tiles enter cache in
+ * one frame.
+ */
+internal fun swapBudget(isGesturing: Boolean, isFlinging: Boolean): Int {
+    return if (isGesturing || isFlinging) {
+        MAX_TILES_SWAPPED_PER_FRAME
+    } else {
+        IDLE_SWAP_BUDGET
+    }
+}
+
 const val TILE_CROSSFADE_DURATION_MS = 100L // F-REN-3: 100-150 ms (M6-06)
 
 /** Longest a loaded tile waits for the rest of the visible set before it is revealed anyway. */
@@ -210,7 +226,8 @@ fun DocumentSurface(
             val now = System.currentTimeMillis()
 
             drainEvictedBitmaps(evictedPrevFrame, evictedThisFrame)
-            swapPendingTiles(pendingTileArrivals, tileCache, tileFadeStartTimes) { key ->
+            val budget = swapBudget(isGesturing = state.isGesturing, isFlinging = state.isFlinging)
+            swapPendingTiles(pendingTileArrivals, tileCache, tileFadeStartTimes, maxSwaps = budget) { key ->
                 // A tile stays "in flight" until it is in the cache; releasing it at arrival let
                 // every frame between arrival and swap request it again.
                 inFlightTiles.remove(key)
@@ -424,6 +441,7 @@ private fun Modifier.documentGestures(
         PerfTrace.cancelSharpen()
         flingJob?.cancel()
         flingJob = null
+        state.isGesturing = true
         velocityTracker.reset(down.uptimeMillis)
 
         var zoom = 1f
@@ -471,6 +489,7 @@ private fun Modifier.documentGestures(
         } finally {
             // Also on cancellation, or the level would stay frozen.
             state.endZoom()
+            state.isGesturing = false
         }
 
         if (pastTouchSlop) {
@@ -709,10 +728,11 @@ internal fun swapPendingTiles(
     pending: ArrayDeque<Pair<TileKey, Bitmap>>,
     cache: TileCache,
     fadeTimes: HashMap<TileKey, Long>,
+    maxSwaps: Int = MAX_TILES_SWAPPED_PER_FRAME,
     onSwapped: (TileKey) -> Unit
 ) {
     var swapped = 0
-    while (swapped < MAX_TILES_SWAPPED_PER_FRAME && pending.isNotEmpty()) {
+    while (swapped < maxSwaps && pending.isNotEmpty()) {
         val (key, bmp) = pending.removeFirst()
         cache.put(key, bmp)
         fadeTimes[key] = TILE_UNREVEALED

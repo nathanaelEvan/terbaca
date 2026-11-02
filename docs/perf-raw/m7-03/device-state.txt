@@ -1,0 +1,9 @@
+Device: Xiaomi Pad 7 (2410CRP4CG)
+Android: 16 (VanillaIceCream)
+HyperOS: OS3.0.303.0.WOZIDXM
+Date: 2026-10-12
+Battery level: 62% -> 60%
+Battery temperature: 26.0 C -> 28.0 C
+Thermal status: 0 (THERMAL_STATUS_NONE)
+Session: M7-03 render-priority (THREAD_PRIORITY_DISPLAY vs THREAD_PRIORITY_BACKGROUND)
+CPU Cores: 8 (Cores 0-2 Little @ 1.9GHz, Cores 3-6 Mid/Big @ 2.6GHz, Core 7 Prime @ 2.8GHz)

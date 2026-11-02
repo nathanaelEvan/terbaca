@@ -75,4 +75,43 @@ class TileSwapTest {
             PerfTrace.tracer = prevTracer
         }
     }
+
+    @Test
+    fun swapBudget_whenGesturing_returnsCapOfTwo() {
+        assertEquals(2, swapBudget(isGesturing = true, isFlinging = false))
+    }
+
+    @Test
+    fun swapBudget_whenFlinging_returnsCapOfTwo() {
+        assertEquals(2, swapBudget(isGesturing = false, isFlinging = true))
+    }
+
+    @Test
+    fun swapBudget_whenGesturingAndFlinging_returnsCapOfTwo() {
+        assertEquals(2, swapBudget(isGesturing = true, isFlinging = true))
+    }
+
+    @Test
+    fun swapBudget_whenIdle_returnsUncappedBudget() {
+        assertEquals(IDLE_SWAP_BUDGET, swapBudget(isGesturing = false, isFlinging = false))
+        assertTrue(swapBudget(isGesturing = false, isFlinging = false) > 2)
+    }
+
+    @Test
+    fun swapPendingTiles_withIdleBudget_swapsAllArrivedTilesInOneFrame() {
+        val pending = ArrayDeque<Pair<TileKey, Bitmap>>()
+        val count = 10
+        val keys = (0 until count).map { TileKey(0, 0, it, 0) }
+        for (k in keys) {
+            pending.add(k to createFakeBitmap())
+        }
+        val cache = TileCache(budget = TileMemoryBudget(10_000, 10_000), bitmapSizer = { 100L })
+        val fades = HashMap<TileKey, Long>()
+        val swapped = mutableListOf<TileKey>()
+
+        swapPendingTiles(pending, cache, fades, maxSwaps = IDLE_SWAP_BUDGET) { swapped += it }
+
+        assertEquals(keys, swapped)
+        assertTrue(pending.isEmpty())
+    }
 }
