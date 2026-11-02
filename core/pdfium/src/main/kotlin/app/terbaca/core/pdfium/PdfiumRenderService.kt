@@ -11,6 +11,7 @@ import android.system.OsConstants
 import android.util.Log
 import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,6 +27,7 @@ class PdfiumRenderService : Service() {
     companion object {
         private const val TAG = "PdfiumRenderService"
         private const val MAX_PENDING_CANCELLATIONS = 256
+        internal const val RENDER_THREAD_PRIORITY = android.os.Process.THREAD_PRIORITY_DISPLAY
     }
 
     private class ActiveRender(val docHandle: Long, val signal: AtomicBoolean, val sequence: Long)
@@ -57,14 +59,9 @@ class PdfiumRenderService : Service() {
     private val pendingBufferCleanup = ThreadLocal<HardwareBuffer?>()
     private val pendingSharedMemCleanup = ThreadLocal<SharedMemory?>()
 
-    // Dedicated single render thread as required by PRD §4.2. Background priority so tile
-    // rendering (including prefetch) never competes with the UI process's frame threads for CPU.
-    private val renderExecutor = Executors.newSingleThreadExecutor { runnable ->
-        Thread({
-            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
-            runnable.run()
-        }, "PdfiumRenderThread")
-    }
+    // Dedicated single render thread as required by PRD §4.2. Display priority so tile
+    // rendering uses big cores to minimize latency after zoom (M7-03).
+    private val renderExecutor: ExecutorService = createRenderExecutor(RENDER_THREAD_PRIORITY)
 
     private fun allocateHandle(): Long {
         val seq = sequence.getAndIncrement() and 0xFFFF_FFFFL
@@ -524,3 +521,16 @@ class PdfiumRenderService : Service() {
         super.onDestroy()
     }
 }
+
+internal fun createRenderExecutor(
+    priority: Int = PdfiumRenderService.RENDER_THREAD_PRIORITY,
+    threadName: String = "PdfiumRenderThread"
+): ExecutorService {
+    return Executors.newSingleThreadExecutor { runnable ->
+        Thread({
+            android.os.Process.setThreadPriority(priority)
+            runnable.run()
+        }, threadName)
+    }
+}
+

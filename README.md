@@ -15,9 +15,10 @@ Under active development. Progress follows the milestones in [`docs/PRD.md`](doc
 | M3 — Paper features | Outline and links, column-aware zoom, citation peek, search, text selection | Done |
 | M4 — Deck features and themes | Grid overview, presentation mode, 2-up/spread, Dark and Sepia themes | Done |
 | M5 — Hardening | Fuzzing, memory and APK size passes, accessibility, final perf report | Done |
-| M6 — Smoothness and Release | 120 Hz scroll/pinch optimization, centre-first tiles, verification gaps, baseline profile & 0.2.0 release | In progress |
+| M6 — Smoothness and Release | 120 Hz scroll/pinch optimization, centre-first tiles, verification gaps, baseline profile & 0.2.0 release | Done |
+| M7 — Sharpen Latency | Fast sharpen under zoom, idle batched swap, render priority, parallel render ADR | In progress |
 
-Manual checks (TalkBack, portrait layouts, visual smoke checks) were verified by hand on a Xiaomi Pad 7 on 2026-10-11 (M5); automated benchmarks were run on 2026-10-11 and 2026-10-12. M6 feel and manual verification evidence are being completed in M6R.
+Manual checks (TalkBack, portrait layouts, visual smoke checks) were verified by hand on a Xiaomi Pad 7 on 2026-10-11 (M5); automated benchmarks were run from 2026-10-11 to 2026-10-13.
 
 ## How Terbaca compares
 
@@ -34,8 +35,9 @@ frame timeline and `dumpsys`. Lower is better, and the best value in each row is
 | App size (MB) | 9.6 | 301.1 | 59.0 | 337.6 | **9.4** | 54.5 |
 
 Terbaca uses the least memory, is about as small as Xiaomi's built-in viewer, and opens files faster
-than everything except that built-in viewer. With milestone M6's scroll and pinch optimizations, late
-frames during scrolling dropped from 34.6% down to 10.4%, with median frame overrun at -5.8 ms.
+than everything except that built-in viewer. With milestone M6 and M7 optimizations, late frames during
+scrolling dropped to 8.8%–9.4% (median frame overrun at -1.7 ms), and sharpen latency under pinch zoom
+dropped to ~200 ms (223 ms at 800% max zoom, meeting the PRD §7 budget).
 
 n/c: not comparable. \*Moon+ pages sideways, so vertical swipes didn't scroll it, and its zoom wasn't
 verified. The other apps also edit, sync and run AI features, which accounts for much of their size
